@@ -21,9 +21,837 @@
       href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Outfit:wght@300;400;500;600;700;800;900&family=Share+Tech+Mono&display=swap"
       rel="stylesheet"
     />
+    <style id="geek-static-fallback-style">
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        background-color: #0b0714;
+        color: #e2e8f0;
+        font-family: "Outfit", system-ui, -apple-system, sans-serif;
+        overflow-x: hidden;
+      }
+      .gk-page {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        background-color: #0b0714;
+      }
+      .gk-scanlines {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 40;
+        opacity: 0.3;
+        background:
+          linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%),
+          linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+        background-size: 100% 4px, 6px 100%;
+      }
+      .gk-grid-wrap {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 450px;
+        overflow: hidden;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0.7;
+      }
+      .gk-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(to right, rgba(0, 240, 255, 0.08) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255, 0, 127, 0.08) 1px, transparent 1px);
+        background-size: 48px 48px;
+        transform: perspective(600px) rotateX(65deg);
+        transform-origin: center top;
+        animation: gkGridMove 15s linear infinite;
+      }
+      .gk-grid-fade {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to top, #0b0714, rgba(11, 7, 20, 0.7), transparent);
+      }
+      @keyframes gkGridMove {
+        0% { background-position: 0 0; }
+        100% { background-position: 0 48px; }
+      }
+      .gk-header {
+        position: relative;
+        z-index: 20;
+        width: 100%;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 20px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+      .gk-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: inherit;
+      }
+      .gk-brand-box {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: #150f24;
+        border: 1px solid rgba(0, 240, 255, 0.5);
+        box-shadow: 0 0 25px rgba(0, 240, 255, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2px;
+      }
+      .gk-brand-title {
+        font-family: "Orbitron", sans-serif;
+        font-weight: 900;
+        font-size: 24px;
+        letter-spacing: 0.05em;
+        color: #fff;
+        display: block;
+        line-height: 1;
+      }
+      .gk-brand-sub {
+        font-family: "Share Tech Mono", monospace;
+        font-size: 10px;
+        color: #00f0ff;
+        letter-spacing: 0.14em;
+        display: block;
+        margin-top: 4px;
+      }
+      .gk-header-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .gk-cyber-btn {
+        clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+        font-family: "Orbitron", sans-serif;
+        font-weight: 700;
+        font-size: 12px;
+        letter-spacing: 0.05em;
+        padding: 10px 16px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+      }
+      .gk-btn-cyan {
+        background: #150f24;
+        border: 1px solid rgba(0, 240, 255, 0.45);
+        color: #00f0ff;
+      }
+      .gk-btn-cyan:hover {
+        background: #00f0ff;
+        color: #0b0714;
+      }
+      .gk-btn-pink {
+        background: #150f24;
+        border: 1px solid rgba(255, 0, 127, 0.6);
+        color: #ff007f;
+        box-shadow: 0 0 25px rgba(255, 0, 127, 0.4);
+      }
+      .gk-btn-pink:hover {
+        background: #ff007f;
+        color: #fff;
+      }
+      .gk-main {
+        position: relative;
+        z-index: 20;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 40px 24px;
+        max-width: 1040px;
+        margin: 0 auto;
+        width: 100%;
+      }
+      .gk-hero-emblem-wrap {
+        position: relative;
+        margin-bottom: 44px;
+      }
+      .gk-hero-emblem {
+        padding: 12px;
+        border-radius: 24px;
+        background: linear-gradient(135deg, #00f0ff, #ff007f, #fcee0a);
+        box-shadow: 0 0 28px rgba(0, 240, 255, 0.45);
+        border: none;
+        cursor: pointer;
+        display: block;
+      }
+      .gk-hero-emblem-inner {
+        background: #150f24;
+        border-radius: 16px;
+        padding: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .gk-h1 {
+        font-family: "Orbitron", sans-serif;
+        font-weight: 900;
+        font-size: clamp(34px, 6vw, 68px);
+        text-transform: uppercase;
+        margin: 0 0 20px;
+        line-height: 1.08;
+        color: #fff;
+      }
+      .gk-grad-text {
+        background: linear-gradient(135deg, #00f0ff 0%, #ff007f 55%, #fcee0a 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .gk-teaser {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 20px;
+        border-radius: 999px;
+        background: rgba(21, 15, 36, 0.9);
+        border: 1px solid rgba(252, 238, 10, 0.5);
+        color: #fcee0a;
+        font-family: "Share Tech Mono", monospace;
+        font-size: 14px;
+        margin-bottom: 28px;
+        box-shadow: 0 0 25px rgba(252, 238, 10, 0.35);
+      }
+      .gk-desc {
+        font-size: 18px;
+        color: #cbd5e1;
+        max-width: 660px;
+        margin: 0 0 44px;
+        line-height: 1.6;
+        font-weight: 300;
+      }
+      .gk-cta-card {
+        width: 100%;
+        max-width: 576px;
+        padding: 32px;
+        border-radius: 24px;
+        background: linear-gradient(to bottom, #150f24, #100a1d);
+        border: 1px solid rgba(255, 0, 127, 0.5);
+        box-shadow: 0 0 30px rgba(255, 0, 127, 0.45);
+        margin-bottom: 52px;
+      }
+      .gk-cta-card h2 {
+        font-family: "Orbitron", sans-serif;
+        font-size: 22px;
+        color: #fff;
+        margin: 12px 0;
+      }
+      .gk-cta-card p {
+        font-size: 14px;
+        color: #94a3b8;
+        margin: 0 0 20px;
+      }
+      .gk-cta-primary {
+        background: linear-gradient(90deg, #00f0ff, #ff007f, #fcee0a);
+        color: #0b0714;
+        font-weight: 900;
+        padding: 15px 28px;
+        border: none;
+        border-radius: 12px;
+      }
+      .gk-features {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 24px;
+        width: 100%;
+        max-width: 1152px;
+        text-align: left;
+      }
+      .gk-feature-card {
+        padding: 24px;
+        border-radius: 16px;
+        background: rgba(21, 15, 36, 0.85);
+        border: 1px solid rgba(0, 240, 255, 0.3);
+      }
+      .gk-feature-card h3 {
+        font-family: "Orbitron", sans-serif;
+        font-size: 18px;
+        color: #fff;
+        margin: 0 0 8px;
+      }
+      .gk-feature-card p {
+        font-size: 12px;
+        color: #94a3b8;
+        margin: 0;
+        line-height: 1.55;
+      }
+      .gk-footer {
+        position: relative;
+        z-index: 20;
+        width: 100%;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 28px 24px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        font-family: "Share Tech Mono", monospace;
+        font-size: 12px;
+        color: #94a3b8;
+      }
+      .gk-footer-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        align-items: center;
+      }
+      .gk-footer a, .gk-footer button {
+        color: inherit;
+        background: none;
+        border: none;
+        font: inherit;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .gk-footer button { color: #fcee0a; }
+      .gk-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+        background: rgba(6, 3, 12, 0.92);
+      }
+      .gk-modal-backdrop.is-open { display: flex; }
+      .gk-modal {
+        position: relative;
+        width: 100%;
+        max-width: 560px;
+        border-radius: 24px;
+        background: #150f24;
+        border: 1px solid rgba(0, 240, 255, 0.45);
+        box-shadow: 0 0 28px rgba(0, 240, 255, 0.4);
+        padding: 28px;
+        text-align: center;
+      }
+      .gk-modal-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        text-align: left;
+        margin-bottom: 18px;
+      }
+      .gk-close-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: #e2e8f0;
+        font-size: 20px;
+        cursor: pointer;
+      }
+      .gk-slots {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        max-width: 320px;
+        margin: 0 auto 14px;
+      }
+      .gk-slot {
+        height: 62px;
+        border-radius: 16px;
+        background: #0b0714;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: "Orbitron", sans-serif;
+        font-weight: 900;
+        font-size: 24px;
+        color: #64748b;
+      }
+      .gk-slot.is-filled {
+        background: rgba(0, 240, 255, 0.14);
+        border-color: #00f0ff;
+        color: #fff;
+      }
+      .gk-slot.is-error {
+        background: rgba(255, 0, 127, 0.15);
+        border-color: #ff007f;
+        color: #ff007f;
+      }
+      .gk-keypad {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        max-width: 320px;
+        margin: 16px auto 18px;
+      }
+      .gk-key {
+        height: 54px;
+        border-radius: 14px;
+        background: #1c1432;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: #fff;
+        font-family: "Orbitron", sans-serif;
+        font-weight: 700;
+        font-size: 20px;
+        cursor: pointer;
+      }
+      .gk-key:hover { border-color: #00f0ff; }
+      .gk-key-muted {
+        background: #0b0714;
+        font-size: 12px;
+        color: #cbd5e1;
+      }
+      .gk-error-msg {
+        min-height: 22px;
+        font-family: "Share Tech Mono", monospace;
+        font-size: 13px;
+        color: #94a3b8;
+        margin: 0;
+      }
+      .gk-error-msg.is-error { color: #ff007f; }
+      .gk-rick-stage { display: none; }
+      .gk-rick-stage.is-visible { display: block; }
+      .gk-keypad-view.is-hidden { display: none; }
+      .gk-rick-frame {
+        border-radius: 16px;
+        overflow: hidden;
+        border: 2px solid rgba(255, 0, 127, 0.7);
+        background: #0b0714;
+        margin-bottom: 16px;
+      }
+      .gk-rick-lyrics {
+        padding: 12px;
+        background: #150f24;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        font-family: "Orbitron", sans-serif;
+        font-weight: 700;
+        color: #00f0ff;
+        font-size: 14px;
+      }
+      .gk-rick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      @media (max-width: 640px) {
+        .gk-hide-sm { display: none; }
+      }
+    </style>
   </head>
   <body class="min-h-screen bg-[#0b0714] text-slate-200 selection:bg-[#ff007f] selection:text-white">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div id="root">
+      <div class="gk-page" id="gk-static-app">
+        <div class="gk-scanlines"></div>
+        <div class="gk-grid-wrap">
+          <div class="gk-grid"></div>
+          <div class="gk-grid-fade"></div>
+        </div>
+
+        <header class="gk-header">
+          <a href="#top" class="gk-brand">
+            <div class="gk-brand-box">
+              <svg width="36" height="36" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+                <rect x="6" y="6" width="108" height="108" rx="24" fill="#150f24" stroke="#00f0ff" stroke-width="3" />
+                <path d="M67 27L42 63H59L52 93L79 56H62L67 27Z" fill="#00f0ff" />
+              </svg>
+            </div>
+            <div>
+              <span class="gk-brand-title">GEEK</span>
+              <span class="gk-brand-sub">VOICE &amp; CHAT</span>
+            </div>
+          </a>
+
+          <div class="gk-header-actions">
+            <button type="button" class="gk-cyber-btn gk-btn-cyan" data-gk-open-secret aria-label="Открыть секретную комнату">
+              <span>СЕКРЕТНАЯ КОМНАТА</span>
+            </button>
+            <a href="https://t.me/geek_mes" target="_blank" rel="noopener noreferrer" class="gk-cyber-btn gk-btn-pink">
+              <span>TELEGRAM</span>
+              <span class="gk-hide-sm">КАНАЛ</span>
+            </a>
+          </div>
+        </header>
+
+        <main id="top" class="gk-main">
+          <div class="gk-hero-emblem-wrap">
+            <button type="button" class="gk-hero-emblem" data-gk-open-secret aria-label="Войти в секретную комнату через эмблему Geek">
+              <div class="gk-hero-emblem-inner">
+                <svg width="180" height="180" viewBox="0 0 120 120" fill="none" aria-hidden="true">
+                  <rect x="6" y="6" width="108" height="108" rx="24" fill="#150f24" stroke="#ff007f" stroke-width="3" />
+                  <path d="M60 18L96 39V81L60 102L24 81V39L60 18Z" fill="#0b0714" stroke="#00f0ff" stroke-width="2.5" />
+                  <path d="M67 27L42 63H59L52 93L79 56H62L67 27Z" fill="#fcee0a" />
+                </svg>
+              </div>
+            </button>
+          </div>
+
+          <h1 class="gk-h1">Твой новый мир — <span class="gk-grad-text">Geek</span></h1>
+          <div class="gk-teaser">СКОРО ТУТ БУДЕТ НЕЧТО ГРАНДИОЗНОЕ</div>
+          <p class="gk-desc">
+            Самый мощный аналог Discord для геймеров, разработчиков и креативных комьюнити.
+            Кристально чистый голос, абсолютная конфиденциальность и нулевой пинг.
+          </p>
+
+          <div class="gk-cta-card">
+            <h2>Следи за запуском в Telegram</h2>
+            <p>
+              Первыми узнай о дате закрытого бета-тестирования, получи эксклюзивный доступ и ранние привилегии на сервере.
+            </p>
+            <a href="https://t.me/geek_mes" target="_blank" rel="noopener noreferrer" class="gk-cyber-btn gk-cta-primary">
+              ПРИСОЕДИНИТЬСЯ К ТГ КАНАЛУ
+            </a>
+          </div>
+
+          <div class="gk-features">
+            <div class="gk-feature-card">
+              <h3>Каналы и чаты</h3>
+              <p>Гибкая структура текстовых и мультимедийных каналов для любого общения и проектов.</p>
+            </div>
+            <div class="gk-feature-card">
+              <h3>P2P Голос</h3>
+              <p>Сверхнизкая задержка, пространственное аудио и кристальная слышимость без лагов.</p>
+            </div>
+            <div class="gk-feature-card">
+              <h3>Безопасность</h3>
+              <p>Сквозное шифрование, полная защита персональных данных и независимые ноды.</p>
+            </div>
+            <div class="gk-feature-card">
+              <h3>Скорость</h3>
+              <p>Легковесный клиент, открытое API для ботов и мгновенный отклик на любых устройствах.</p>
+            </div>
+          </div>
+        </main>
+
+        <footer class="gk-footer">
+          <div>&copy; 2026 GEEK PLATFORM. ВСЕ ПРАВА ЗАЩИЩЕНЫ.</div>
+          <div class="gk-footer-links">
+            <a href="https://t.me/geek_mes" target="_blank" rel="noopener noreferrer">Telegram-канал</a>
+            <button type="button" data-gk-open-secret>Войти в секретную комнату</button>
+          </div>
+        </footer>
+
+        <div class="gk-modal-backdrop" id="gk-secret-modal" role="dialog" aria-modal="true" aria-labelledby="gk-secret-title">
+          <div class="gk-modal">
+            <div class="gk-keypad-view" id="gk-keypad-view">
+              <div class="gk-modal-head">
+                <div>
+                  <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#00f0ff;letter-spacing:0.12em;">СЕКРЕТНАЯ КОМНАТА</div>
+                  <h2 id="gk-secret-title" style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:22px;color:#fff;margin:4px 0 0;">КОД-ПАРОЛЬ ПАНЕЛЬ</h2>
+                </div>
+                <button type="button" class="gk-close-btn" id="gk-close-keypad" aria-label="Закрыть панель доступа">&times;</button>
+              </div>
+              <p style="font-size:14px;color:#cbd5e1;margin:0 0 18px;">
+                Введите 4-значный код доступа на цифровой панели или с клавиатуры, чтобы открыть скрытый протокол Geek.
+              </p>
+              <div class="gk-slots" id="gk-slots">
+                <div class="gk-slot">•</div>
+                <div class="gk-slot">•</div>
+                <div class="gk-slot">•</div>
+                <div class="gk-slot">•</div>
+              </div>
+              <p class="gk-error-msg" id="gk-error-msg">Ожидание ввода 4-значного кода...</p>
+              <div class="gk-keypad">
+                <button type="button" class="gk-key" data-gk-digit="1">1</button>
+                <button type="button" class="gk-key" data-gk-digit="2">2</button>
+                <button type="button" class="gk-key" data-gk-digit="3">3</button>
+                <button type="button" class="gk-key" data-gk-digit="4">4</button>
+                <button type="button" class="gk-key" data-gk-digit="5">5</button>
+                <button type="button" class="gk-key" data-gk-digit="6">6</button>
+                <button type="button" class="gk-key" data-gk-digit="7">7</button>
+                <button type="button" class="gk-key" data-gk-digit="8">8</button>
+                <button type="button" class="gk-key" data-gk-digit="9">9</button>
+                <button type="button" class="gk-key gk-key-muted" id="gk-clear">СБРОС</button>
+                <button type="button" class="gk-key" data-gk-digit="0">0</button>
+                <button type="button" class="gk-key gk-key-muted" id="gk-back">⌫</button>
+              </div>
+              <button type="button" class="gk-cyber-btn gk-cta-primary" id="gk-submit" style="width:100%;max-width:320px;justify-content:center;">
+                ПОДТВЕРДИТЬ КОД
+              </button>
+            </div>
+
+            <div class="gk-rick-stage" id="gk-rick-stage">
+              <div class="gk-modal-head">
+                <div>
+                  <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;letter-spacing:0.12em;">ДОСТУП РАЗРЕШЁН · КОД 2027</div>
+                  <h2 style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:22px;color:#fff;margin:4px 0 0;">ВЫ БЫЛИ ЗАРИКРОЛЛЕНЫ!</h2>
+                </div>
+                <button type="button" class="gk-close-btn" id="gk-close-rick" aria-label="Закрыть секретную комнату">&times;</button>
+              </div>
+              <div class="gk-rick-frame">
+                <canvas id="gk-rick-canvas" width="520" height="270" style="width:100%;height:auto;display:block;"></canvas>
+                <div class="gk-rick-lyrics" id="gk-rick-lyrics">We're no strangers to love...</div>
+              </div>
+              <div class="gk-rick-actions">
+                <div style="display:flex;gap:8px;">
+                  <button type="button" class="gk-cyber-btn gk-btn-cyan" id="gk-toggle-mute">БЕЗ ЗВУКА</button>
+                  <button type="button" class="gk-cyber-btn gk-btn-pink" id="gk-reset-code">СБРОСИТЬ КОД</button>
+                </div>
+                <a href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" target="_blank" rel="noopener noreferrer" class="gk-cyber-btn gk-cta-primary">
+                  YOUTUBE ОРИГИНАЛ
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.tsx" onerror="window.__GEEK_INIT_STATIC__ && window.__GEEK_INIT_STATIC__()"></script>
+    <script>
+      (function () {
+        var initialized = false;
+        window.__GEEK_INIT_STATIC__ = function initStaticFallback() {
+          if (initialized || window.__GEEK_REACT_MOUNTED__) return;
+          var modal = document.getElementById('gk-secret-modal');
+          if (!modal) return;
+          initialized = true;
+
+          var keypadView = document.getElementById('gk-keypad-view');
+          var rickStage = document.getElementById('gk-rick-stage');
+          var slotsEl = document.getElementById('gk-slots');
+          var errEl = document.getElementById('gk-error-msg');
+          var canvas = document.getElementById('gk-rick-canvas');
+          var lyricsEl = document.getElementById('gk-rick-lyrics');
+          var muteBtn = document.getElementById('gk-toggle-mute');
+
+          var digits = '';
+          var isError = false;
+          var isUnlocked = false;
+          var isMuted = false;
+          var animId = 0;
+          var lyricTimer = 0;
+          var audioTimer = 0;
+          var audioCtx = null;
+
+          var LYRICS = [
+            "We're no strangers to love...",
+            'You know the rules and so do I',
+            'Never gonna give you up!',
+            'Never gonna let you down!',
+            'Never gonna run around and desert you!'
+          ];
+          var NOTES = [
+            [261.63, 2], [293.66, 2], [349.23, 2], [293.66, 2],
+            [440.0, 3], [440.0, 3], [392.0, 4], [0, 2],
+            [261.63, 2], [293.66, 2], [349.23, 2], [293.66, 2],
+            [392.0, 3], [392.0, 3], [349.23, 3], [329.63, 1], [293.66, 2]
+          ];
+
+          function renderSlots() {
+            var children = slotsEl.children;
+            for (var i = 0; i < 4; i++) {
+              var ch = digits[i] || '';
+              children[i].textContent = ch || '•';
+              children[i].className = 'gk-slot' + (isError ? ' is-error' : ch ? ' is-filled' : '');
+            }
+          }
+
+          function stopRick() {
+            if (animId) cancelAnimationFrame(animId);
+            if (lyricTimer) clearInterval(lyricTimer);
+            if (audioTimer) clearTimeout(audioTimer);
+            animId = 0;
+            lyricTimer = 0;
+            audioTimer = 0;
+            if (audioCtx) {
+              try { audioCtx.close(); } catch (e) {}
+              audioCtx = null;
+            }
+          }
+
+          function startAudio() {
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return;
+            try {
+              audioCtx = new Ctx();
+              var idx = 0;
+              function step() {
+                if (!isUnlocked || !audioCtx) return;
+                var pair = NOTES[idx % NOTES.length];
+                var freq = pair[0];
+                var dur = pair[1] * 0.132;
+                if (!isMuted && freq > 0) {
+                  var osc = audioCtx.createOscillator();
+                  var gain = audioCtx.createGain();
+                  osc.type = 'triangle';
+                  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                  gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur * 0.9);
+                  osc.connect(gain);
+                  gain.connect(audioCtx.destination);
+                  osc.start();
+                  osc.stop(audioCtx.currentTime + dur * 0.95);
+                }
+                idx++;
+                audioTimer = setTimeout(step, pair[1] * 132);
+              }
+              step();
+            } catch (e) {}
+          }
+
+          function startRick() {
+            isUnlocked = true;
+            keypadView.classList.add('is-hidden');
+            rickStage.classList.add('is-visible');
+            var li = 0;
+            lyricsEl.textContent = LYRICS[0];
+            lyricTimer = setInterval(function () {
+              li = (li + 1) % LYRICS.length;
+              lyricsEl.textContent = LYRICS[li];
+            }, 1900);
+            startAudio();
+
+            var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+            if (!ctx) return;
+            var t0 = performance.now();
+            function draw(now) {
+              var t = (now - t0) / 1000;
+              var w = canvas.width;
+              var h = canvas.height;
+              var sway = Math.sin(t * 3.75);
+              var beat = Math.sin(t * 7.5);
+              ctx.fillStyle = '#0b0714';
+              ctx.fillRect(0, 0, w, h);
+              ctx.fillStyle = '#150f24';
+              ctx.fillRect(0, h * 0.72, w, h * 0.28);
+              ctx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
+              for (var i = -6; i <= 6; i++) {
+                ctx.beginPath();
+                ctx.moveTo(w / 2 + i * 32, h * 0.72);
+                ctx.lineTo(w / 2 + i * 70, h);
+                ctx.stroke();
+              }
+              var cx = w / 2 + sway * 14;
+              var cy = h * 0.7 - Math.abs(beat) * 8;
+              ctx.save();
+              ctx.translate(cx, cy);
+              ctx.fillStyle = '#d6b48a';
+              ctx.fillRect(-24, -110, 48, 72);
+              ctx.fillStyle = '#111827';
+              ctx.fillRect(-9, -110, 18, 46);
+              ctx.fillStyle = '#f5cfa8';
+              ctx.beginPath();
+              ctx.arc(0, -128, 16, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.fillStyle = '#b45309';
+              ctx.fillRect(-16, -148, 32, 12);
+              ctx.fillStyle = '#090d16';
+              ctx.fillRect(-12, -133, 10, 5);
+              ctx.fillRect(2, -133, 10, 5);
+              ctx.restore();
+              animId = requestAnimationFrame(draw);
+            }
+            animId = requestAnimationFrame(draw);
+          }
+
+          function resetKeypad() {
+            stopRick();
+            isUnlocked = false;
+            digits = '';
+            isError = false;
+            rickStage.classList.remove('is-visible');
+            keypadView.classList.remove('is-hidden');
+            errEl.textContent = 'Ожидание ввода 4-значного кода...';
+            errEl.classList.remove('is-error');
+            renderSlots();
+          }
+
+          function openModal() {
+            resetKeypad();
+            modal.classList.add('is-open');
+          }
+
+          function closeModal() {
+            stopRick();
+            modal.classList.remove('is-open');
+          }
+
+          function checkCode() {
+            if (digits === '2027') {
+              startRick();
+            } else {
+              isError = true;
+              errEl.textContent = digits.length < 4 ? 'Введите 4 цифры кода доступа' : 'Неверный код доступа. Попробуйте снова.';
+              errEl.classList.add('is-error');
+              renderSlots();
+            }
+          }
+
+          function addDigit(d) {
+            if (isUnlocked) return;
+            if (isError) {
+              digits = '';
+              isError = false;
+              errEl.textContent = 'Ожидание ввода 4-значного кода...';
+              errEl.classList.remove('is-error');
+            }
+            if (digits.length >= 4) return;
+            digits += d;
+            renderSlots();
+            if (digits.length === 4) checkCode();
+          }
+
+          document.querySelectorAll('[data-gk-open-secret]').forEach(function (el) {
+            el.addEventListener('click', openModal);
+          });
+          document.querySelectorAll('[data-gk-digit]').forEach(function (el) {
+            el.addEventListener('click', function () {
+              addDigit(el.getAttribute('data-gk-digit'));
+            });
+          });
+          document.getElementById('gk-clear').addEventListener('click', resetKeypad);
+          document.getElementById('gk-back').addEventListener('click', function () {
+            if (isError) { resetKeypad(); return; }
+            digits = digits.slice(0, -1);
+            renderSlots();
+          });
+          document.getElementById('gk-submit').addEventListener('click', checkCode);
+          document.getElementById('gk-close-keypad').addEventListener('click', closeModal);
+          document.getElementById('gk-close-rick').addEventListener('click', closeModal);
+          document.getElementById('gk-reset-code').addEventListener('click', resetKeypad);
+          muteBtn.addEventListener('click', function () {
+            isMuted = !isMuted;
+            muteBtn.textContent = isMuted ? 'ЗВУК ВКЛ' : 'БЕЗ ЗВУКА';
+          });
+          window.addEventListener('keydown', function (e) {
+            if (e.shiftKey && e.key.toLowerCase() === 'g') {
+              e.preventDefault();
+              openModal();
+              return;
+            }
+            if (!modal.classList.contains('is-open')) return;
+            if (e.key === 'Escape') closeModal();
+            else if (!isUnlocked && /^\d$/.test(e.key)) addDigit(e.key);
+            else if (!isUnlocked && e.key === 'Backspace') {
+              digits = digits.slice(0, -1);
+              renderSlots();
+            } else if (!isUnlocked && e.key === 'Enter') checkCode();
+          });
+        };
+
+        window.addEventListener('load', function () {
+          if (!window.__GEEK_REACT_MOUNTED__) {
+            window.__GEEK_INIT_STATIC__();
+          }
+        });
+      })();
+    </script>
   </body>
 </html>
