@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties, type PointerEvent } from 'react';
 import { Bolt, Hash, KeyRound, Lock, Mic, Send, ShieldCheck } from 'lucide-react';
 import { GeekLogo } from './components/GeekLogo';
 import { SecretRoomModal } from './components/SecretRoomModal';
@@ -223,27 +223,44 @@ export default function App() {
                   ? 'border-[#ff007f]/30 hover:border-[#ff007f] text-[#ff007f] bg-[#ff007f]/10 shadow-neon-pink'
                   : 'border-[#fcee0a]/30 hover:border-[#fcee0a] text-[#fcee0a] bg-[#fcee0a]/10 shadow-neon-yellow';
 
-            const borderOnly =
+            const cardHover =
               feature.accent === 'cyan'
-                ? 'border-[#00f0ff]/30 hover:border-[#00f0ff]'
+                ? 'border-[#00f0ff]/35 hover:border-[#00f0ff] hover:shadow-neon-cyan'
                 : feature.accent === 'pink'
-                  ? 'border-[#ff007f]/30 hover:border-[#ff007f]'
-                  : 'border-[#fcee0a]/30 hover:border-[#fcee0a]';
+                  ? 'border-[#ff007f]/35 hover:border-[#ff007f] hover:shadow-neon-pink'
+                  : 'border-[#fcee0a]/35 hover:border-[#fcee0a] hover:shadow-neon-yellow';
+
+            const spotColor =
+              feature.accent === 'cyan'
+                ? 'rgba(0, 240, 255, 0.2)'
+                : feature.accent === 'pink'
+                  ? 'rgba(255, 0, 127, 0.22)'
+                  : 'rgba(252, 238, 10, 0.18)';
+
+            const handleMove = (event: PointerEvent<HTMLDivElement>) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              event.currentTarget.style.setProperty('--mx', `${event.clientX - rect.left}px`);
+              event.currentTarget.style.setProperty('--my', `${event.clientY - rect.top}px`);
+            };
 
             return (
               <div
                 key={feature.id}
-                className={`p-6 rounded-2xl bg-[#150f24]/80 border ${borderOnly} backdrop-blur-md transition-all duration-300 group`}
+                onPointerMove={handleMove}
+                style={{ '--spot-color': spotColor } as CSSProperties}
+                className={`neon-card p-6 rounded-2xl bg-[#150f24]/80 hover:bg-[#1c1432]/95 hover:-translate-y-1 border ${cardHover} backdrop-blur-md transition-all duration-300 group`}
               >
-                <div
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform ${accentStyles}`}
-                >
-                  <Icon className="w-5 h-5" />
+                <div className="relative z-10">
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform ${accentStyles}`}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <h3 className="font-cyber font-bold text-lg mb-2 text-white">
+                    {feature.title}
+                  </h3>
+                  <p className="text-xs text-gray-400 leading-relaxed">{feature.description}</p>
                 </div>
-                <h3 className="font-cyber font-bold text-lg mb-2 text-white">
-                  {feature.title}
-                </h3>
-                <p className="text-xs text-gray-400 leading-relaxed">{feature.description}</p>
               </div>
             );
           })}

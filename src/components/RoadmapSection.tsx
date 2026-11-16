@@ -1,3 +1,4 @@
+import type { CSSProperties, PointerEvent } from 'react';
 import { CheckCircle2, Clock3, Cpu, Rocket } from 'lucide-react';
 
 interface RoadmapPhase {
@@ -48,6 +49,12 @@ const ROADMAP_PHASES: RoadmapPhase[] = [
   },
 ];
 
+function handleCardPointerMove(event: PointerEvent<HTMLElement>) {
+  const rect = event.currentTarget.getBoundingClientRect();
+  event.currentTarget.style.setProperty('--mx', `${event.clientX - rect.left}px`);
+  event.currentTarget.style.setProperty('--my', `${event.clientY - rect.top}px`);
+}
+
 export function RoadmapSection() {
   return (
     <section
@@ -76,11 +83,17 @@ export function RoadmapSection() {
         {ROADMAP_PHASES.map((item) => {
           const isDone = item.statusTone === 'done';
           const isActive = item.statusTone === 'active';
-          const borderClass = isDone
-            ? 'border-[#00f0ff]/45 hover:border-[#00f0ff]'
+          const cardClass = isDone
+            ? 'border-[#00f0ff]/45 hover:border-[#00f0ff] hover:shadow-neon-cyan'
             : isActive
-              ? 'border-[#ff007f]/55 hover:border-[#ff007f]'
-              : 'border-white/15 hover:border-[#fcee0a]/60';
+              ? 'border-[#ff007f]/75 shadow-neon-pink hover:border-[#ff007f]'
+              : 'border-white/15 hover:border-[#fcee0a] hover:shadow-neon-yellow';
+
+          const spotColor = isDone
+            ? 'rgba(0, 240, 255, 0.2)'
+            : isActive
+              ? 'rgba(255, 0, 127, 0.22)'
+              : 'rgba(252, 238, 10, 0.18)';
 
           const statusTextColor = isDone
             ? 'text-[#00f0ff]'
@@ -99,9 +112,11 @@ export function RoadmapSection() {
           return (
             <article
               key={item.step}
-              className={`p-6 rounded-2xl bg-[#150f24]/85 border ${borderClass} transition-colors duration-200 flex flex-col justify-between`}
+              onPointerMove={handleCardPointerMove}
+              style={{ '--spot-color': spotColor } as CSSProperties}
+              className={`neon-card p-6 rounded-2xl bg-[#150f24]/85 hover:bg-[#1c1432]/95 hover:-translate-y-1 border ${cardClass} transition-all duration-300 flex flex-col justify-between`}
             >
-              <div>
+              <div className="relative z-10">
                 <div className="flex items-center justify-between gap-2 mb-4 text-xs font-mono-tech">
                   <span className="text-slate-400">{item.phase}</span>
                   <span className={`flex items-center gap-1.5 ${statusTextColor}`}>

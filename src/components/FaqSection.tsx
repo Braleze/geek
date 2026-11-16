@@ -71,8 +71,10 @@ export function FaqSection() {
           return (
             <div
               key={item.id}
-              className={`rounded-2xl bg-[#150f24]/85 border transition-colors ${
-                isOpen ? 'border-[#00f0ff]/60' : 'border-white/12 hover:border-white/30'
+              className={`rounded-2xl bg-[#150f24]/85 border transition-all duration-200 ${
+                isOpen
+                  ? 'border-[#00f0ff]/75 shadow-[0_0_24px_rgba(0,240,255,0.25)]'
+                  : 'border-white/12 hover:border-[#00f0ff]/45 hover:bg-[#1c1432]/90'
               }`}
             >
               <button
