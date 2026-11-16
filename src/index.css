@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+@theme {
+  --color-geek-void: #0b0714;
+  --color-geek-card: #150f24;
+  --color-geek-card-hover: #1c1432;
+  --color-geek-cyan: #00f0ff;
+  --color-geek-pink: #ff007f;
+  --color-geek-yellow: #fcee0a;
+
+  --font-sans: "Outfit", system-ui, sans-serif;
+  --font-cyber: "Orbitron", system-ui, sans-serif;
+  --font-mono-tech: "Share Tech Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  body {
+    font-family: "Outfit", sans-serif;
+    background-color: #0b0714;
+    color: #e2e8f0;
+    overflow-x: hidden;
+  }
+}
+
+.font-cyber {
+  font-family: "Orbitron", sans-serif;
+}
+
+.font-mono-tech {
+  font-family: "Share Tech Mono", monospace;
+}
+
+.shadow-neon-cyan {
+  box-shadow: 0 0 25px rgba(0, 240, 255, 0.45), inset 0 0 15px rgba(0, 240, 255, 0.15);
+}
+
+.shadow-neon-pink {
+  box-shadow: 0 0 30px rgba(255, 0, 127, 0.5), inset 0 0 15px rgba(255, 0, 127, 0.15);
+}
+
+.shadow-neon-yellow {
+  box-shadow: 0 0 25px rgba(252, 238, 10, 0.4);
+}
+
+.shadow-pink-button-glow {
+  box-shadow: 0 0 35px rgba(255, 0, 127, 0.5);
+}
+
+.retro-grid {
+  background-image:
+    linear-gradient(to right, rgba(0, 240, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 0, 127, 0.08) 1px, transparent 1px);
+  background-size: 48px 48px;
+  transform: perspective(600px) rotateX(65deg);
+  transform-origin: center top;
+  animation: gridMove 15s linear infinite;
+}
+
+@keyframes gridMove {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 48px;
+  }
+}
+
+@keyframes floatSlow {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(1deg);
+  }
+}
+
+.floating {
+  animation: floatSlow 6s ease-in-out infinite;
+}
+
+@keyframes keypadShake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-8px);
+  }
+  40% {
+    transform: translateX(8px);
+  }
+  60% {
+    transform: translateX(-6px);
+  }
+  80% {
+    transform: translateX(6px);
+  }
+}
+
+.animate-shake {
+  animation: keypadShake 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #00f0ff 0%, #ff007f 55%, #fcee0a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 30px rgba(255, 0, 127, 0.35));
+}
+
+.scanlines {
+  background:
+    linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%),
+    linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
+  background-size: 100% 4px, 6px 100%;
+}
+
+.cyber-btn {
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .retro-grid,
+  .floating,
+  .animate-shake {
+    animation: none;
+  }
+}
