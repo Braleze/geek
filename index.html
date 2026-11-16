@@ -39,6 +39,7 @@
         justify-content: space-between;
         position: relative;
         background-color: #0b0714;
+        overflow-x: hidden;
       }
       .gk-scanlines {
         position: absolute;
@@ -50,6 +51,34 @@
           linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.2) 50%),
           linear-gradient(90deg, rgba(255, 0, 0, 0.02), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.02));
         background-size: 100% 4px, 6px 100%;
+      }
+      .gk-orb {
+        position: absolute;
+        border-radius: 9999px;
+        pointer-events: none;
+        z-index: 0;
+      }
+      .gk-orb-cyan {
+        top: 48px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 560px;
+        height: 560px;
+        background: radial-gradient(circle, rgba(0, 240, 255, 0.14) 0%, rgba(0, 240, 255, 0) 70%);
+      }
+      .gk-orb-pink {
+        top: 33%;
+        left: 25%;
+        width: 460px;
+        height: 460px;
+        background: radial-gradient(circle, rgba(255, 0, 127, 0.13) 0%, rgba(255, 0, 127, 0) 70%);
+      }
+      .gk-orb-yellow {
+        bottom: 33%;
+        right: 25%;
+        width: 500px;
+        height: 500px;
+        background: radial-gradient(circle, rgba(252, 238, 10, 0.1) 0%, rgba(252, 238, 10, 0) 70%);
       }
       .gk-grid-wrap {
         position: absolute;
@@ -81,6 +110,20 @@
       @keyframes gkGridMove {
         0% { background-position: 0 0; }
         100% { background-position: 0 48px; }
+      }
+      @keyframes gkFloat {
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-12px) rotate(1deg); }
+      }
+      @keyframes gkShake {
+        0%, 100% { transform: translateX(0); }
+        20% { transform: translateX(-8px); }
+        40% { transform: translateX(8px); }
+        60% { transform: translateX(-6px); }
+        80% { transform: translateX(6px); }
+      }
+      .gk-shake {
+        animation: gkShake 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
       }
       .gk-header {
         position: relative;
@@ -148,7 +191,7 @@
         text-decoration: none;
         cursor: pointer;
         white-space: nowrap;
-        transition: all 0.2s ease;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       }
       .gk-btn-cyan {
         background: #150f24;
@@ -185,16 +228,32 @@
       }
       .gk-hero-emblem-wrap {
         position: relative;
-        margin-bottom: 44px;
+        margin-bottom: 48px;
+        animation: gkFloat 6s ease-in-out infinite;
       }
+      .gk-corner {
+        position: absolute;
+        width: 40px;
+        height: 40px;
+        z-index: 20;
+        pointer-events: none;
+      }
+      .gk-c-tl { top: -16px; left: -16px; border-top: 2px solid #00f0ff; border-left: 2px solid #00f0ff; }
+      .gk-c-tr { top: -16px; right: -16px; border-top: 2px solid #ff007f; border-right: 2px solid #ff007f; }
+      .gk-c-bl { bottom: -16px; left: -16px; border-bottom: 2px solid #fcee0a; border-left: 2px solid #fcee0a; }
+      .gk-c-br { bottom: -16px; right: -16px; border-bottom: 2px solid #00f0ff; border-right: 2px solid #00f0ff; }
       .gk-hero-emblem {
         padding: 12px;
         border-radius: 24px;
         background: linear-gradient(135deg, #00f0ff, #ff007f, #fcee0a);
-        box-shadow: 0 0 28px rgba(0, 240, 255, 0.45);
+        box-shadow: 0 0 28px rgba(0, 240, 255, 0.45), inset 0 0 15px rgba(0, 240, 255, 0.15);
         border: none;
         cursor: pointer;
         display: block;
+        transition: transform 0.2s ease;
+      }
+      .gk-hero-emblem:hover {
+        transform: scale(1.03);
       }
       .gk-hero-emblem-inner {
         background: #150f24;
@@ -215,6 +274,7 @@
         background: linear-gradient(135deg, #00f0ff 0%, #ff007f 55%, #fcee0a 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        filter: drop-shadow(0 0 30px rgba(255, 0, 127, 0.35));
       }
       .gk-teaser {
         display: inline-flex;
@@ -244,14 +304,29 @@
         border-radius: 24px;
         background: linear-gradient(to bottom, #150f24, #100a1d);
         border: 1px solid rgba(255, 0, 127, 0.5);
-        box-shadow: 0 0 30px rgba(255, 0, 127, 0.45);
+        box-shadow: 0 0 30px rgba(255, 0, 127, 0.45), inset 0 0 15px rgba(255, 0, 127, 0.15);
         margin-bottom: 52px;
+        position: relative;
+        overflow: hidden;
+      }
+      .gk-cta-icon {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 14px;
+        border-radius: 16px;
+        background: rgba(255, 0, 127, 0.15);
+        border: 1px solid rgba(255, 0, 127, 0.4);
+        color: #ff007f;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 0 25px rgba(255, 0, 127, 0.4);
       }
       .gk-cta-card h2 {
         font-family: "Orbitron", sans-serif;
         font-size: 22px;
         color: #fff;
-        margin: 12px 0;
+        margin: 0 0 12px;
       }
       .gk-cta-card p {
         font-size: 14px;
@@ -265,6 +340,11 @@
         padding: 15px 28px;
         border: none;
         border-radius: 12px;
+        box-shadow: 0 0 30px rgba(255, 0, 127, 0.45);
+      }
+      .gk-cta-primary:hover {
+        transform: scale(1.02);
+        opacity: 0.95;
       }
       .gk-features {
         display: grid;
@@ -279,6 +359,34 @@
         border-radius: 16px;
         background: rgba(21, 15, 36, 0.85);
         border: 1px solid rgba(0, 240, 255, 0.3);
+        transition: border-color 0.25s ease, transform 0.25s ease;
+      }
+      .gk-feature-card:hover { transform: translateY(-2px); border-color: #00f0ff; }
+      .gk-feature-card.gk-pink { border-color: rgba(255, 0, 127, 0.3); }
+      .gk-feature-card.gk-pink:hover { border-color: #ff007f; }
+      .gk-feature-card.gk-yellow { border-color: rgba(252, 238, 10, 0.3); }
+      .gk-feature-card.gk-yellow:hover { border-color: #fcee0a; }
+      .gk-feat-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 18px;
+        color: #00f0ff;
+        background: rgba(0, 240, 255, 0.1);
+        box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+      }
+      .gk-pink .gk-feat-icon {
+        color: #ff007f;
+        background: rgba(255, 0, 127, 0.1);
+        box-shadow: 0 0 20px rgba(255, 0, 127, 0.3);
+      }
+      .gk-yellow .gk-feat-icon {
+        color: #fcee0a;
+        background: rgba(252, 238, 10, 0.1);
+        box-shadow: 0 0 20px rgba(252, 238, 10, 0.25);
       }
       .gk-feature-card h3 {
         font-family: "Orbitron", sans-serif;
@@ -345,7 +453,13 @@
         box-shadow: 0 0 28px rgba(0, 240, 255, 0.4);
         padding: 28px;
         text-align: center;
+        overflow: hidden;
       }
+      .gk-mc { position: absolute; width: 20px; height: 20px; pointer-events: none; }
+      .gk-mc-tl { top: 12px; left: 12px; border-top: 2px solid #00f0ff; border-left: 2px solid #00f0ff; }
+      .gk-mc-tr { top: 12px; right: 12px; border-top: 2px solid #ff007f; border-right: 2px solid #ff007f; }
+      .gk-mc-bl { bottom: 12px; left: 12px; border-bottom: 2px solid #fcee0a; border-left: 2px solid #fcee0a; }
+      .gk-mc-br { bottom: 12px; right: 12px; border-bottom: 2px solid #00f0ff; border-right: 2px solid #00f0ff; }
       .gk-modal-head {
         display: flex;
         justify-content: space-between;
@@ -387,6 +501,7 @@
         background: rgba(0, 240, 255, 0.14);
         border-color: #00f0ff;
         color: #fff;
+        box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
       }
       .gk-slot.is-error {
         background: rgba(255, 0, 127, 0.15);
@@ -410,8 +525,10 @@
         font-weight: 700;
         font-size: 20px;
         cursor: pointer;
+        transition: all 0.15s ease;
       }
-      .gk-key:hover { border-color: #00f0ff; }
+      .gk-key:hover { border-color: #00f0ff; background: #23193e; }
+      .gk-key:active { transform: scale(0.95); }
       .gk-key-muted {
         background: #0b0714;
         font-size: 12px;
@@ -432,6 +549,7 @@
         border-radius: 16px;
         overflow: hidden;
         border: 2px solid rgba(255, 0, 127, 0.7);
+        box-shadow: 0 0 28px rgba(255, 0, 127, 0.45);
         background: #0b0714;
         margin-bottom: 16px;
       }
@@ -453,12 +571,18 @@
       @media (max-width: 640px) {
         .gk-hide-sm { display: none; }
       }
+      @media (prefers-reduced-motion: reduce) {
+        .gk-grid, .gk-hero-emblem-wrap, .gk-shake { animation: none; }
+      }
     </style>
   </head>
   <body class="min-h-screen bg-[#0b0714] text-slate-200 selection:bg-[#ff007f] selection:text-white">
     <div id="root">
       <div class="gk-page" id="gk-static-app">
         <div class="gk-scanlines"></div>
+        <div class="gk-orb gk-orb-cyan"></div>
+        <div class="gk-orb gk-orb-pink"></div>
+        <div class="gk-orb gk-orb-yellow"></div>
         <div class="gk-grid-wrap">
           <div class="gk-grid"></div>
           <div class="gk-grid-fade"></div>
@@ -480,9 +604,12 @@
 
           <div class="gk-header-actions">
             <button type="button" class="gk-cyber-btn gk-btn-cyan" data-gk-open-secret aria-label="Открыть секретную комнату">
-              <span>СЕКРЕТНАЯ КОМНАТА</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span class="gk-hide-sm">СЕКРЕТНАЯ КОМНАТА</span>
+              <span style="display:none;" class="gk-show-sm">КОД</span>
             </button>
             <a href="https://t.me/geek_mes" target="_blank" rel="noopener noreferrer" class="gk-cyber-btn gk-btn-pink">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
               <span>TELEGRAM</span>
               <span class="gk-hide-sm">КАНАЛ</span>
             </a>
@@ -491,6 +618,10 @@
 
         <main id="top" class="gk-main">
           <div class="gk-hero-emblem-wrap">
+            <div class="gk-corner gk-c-tl"></div>
+            <div class="gk-corner gk-c-tr"></div>
+            <div class="gk-corner gk-c-bl"></div>
+            <div class="gk-corner gk-c-br"></div>
             <button type="button" class="gk-hero-emblem" data-gk-open-secret aria-label="Войти в секретную комнату через эмблему Geek">
               <div class="gk-hero-emblem-inner">
                 <svg width="180" height="180" viewBox="0 0 120 120" fill="none" aria-hidden="true">
@@ -510,6 +641,9 @@
           </p>
 
           <div class="gk-cta-card">
+            <div class="gk-cta-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            </div>
             <h2>Следи за запуском в Telegram</h2>
             <p>
               Первыми узнай о дате закрытого бета-тестирования, получи эксклюзивный доступ и ранние привилегии на сервере.
@@ -521,18 +655,30 @@
 
           <div class="gk-features">
             <div class="gk-feature-card">
+              <div class="gk-feat-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+              </div>
               <h3>Каналы и чаты</h3>
               <p>Гибкая структура текстовых и мультимедийных каналов для любого общения и проектов.</p>
             </div>
-            <div class="gk-feature-card">
+            <div class="gk-feature-card gk-pink">
+              <div class="gk-feat-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+              </div>
               <h3>P2P Голос</h3>
               <p>Сверхнизкая задержка, пространственное аудио и кристальная слышимость без лагов.</p>
             </div>
-            <div class="gk-feature-card">
+            <div class="gk-feature-card gk-yellow">
+              <div class="gk-feat-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>
+              </div>
               <h3>Безопасность</h3>
               <p>Сквозное шифрование, полная защита персональных данных и независимые ноды.</p>
             </div>
             <div class="gk-feature-card">
+              <div class="gk-feat-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              </div>
               <h3>Скорость</h3>
               <p>Легковесный клиент, открытое API для ботов и мгновенный отклик на любых устройствах.</p>
             </div>
@@ -549,6 +695,11 @@
 
         <div class="gk-modal-backdrop" id="gk-secret-modal" role="dialog" aria-modal="true" aria-labelledby="gk-secret-title">
           <div class="gk-modal">
+            <div class="gk-mc gk-mc-tl"></div>
+            <div class="gk-mc gk-mc-tr"></div>
+            <div class="gk-mc gk-mc-bl"></div>
+            <div class="gk-mc gk-mc-br"></div>
+
             <div class="gk-keypad-view" id="gk-keypad-view">
               <div class="gk-modal-head">
                 <div>
@@ -595,7 +746,7 @@
                 <button type="button" class="gk-close-btn" id="gk-close-rick" aria-label="Закрыть секретную комнату">&times;</button>
               </div>
               <div class="gk-rick-frame">
-                <canvas id="gk-rick-canvas" width="520" height="270" style="width:100%;height:auto;display:block;"></canvas>
+                <canvas id="gk-rick-canvas" width="520" height="280" style="width:100%;height:auto;display:block;"></canvas>
                 <div class="gk-rick-lyrics" id="gk-rick-lyrics">We're no strangers to love...</div>
               </div>
               <div class="gk-rick-actions">
@@ -613,7 +764,6 @@
       </div>
     </div>
 
-    <script type="module" src="/src/main.tsx" onerror="window.__GEEK_INIT_STATIC__ && window.__GEEK_INIT_STATIC__()"></script>
     <script>
       (function () {
         var initialized = false;
@@ -645,21 +795,32 @@
             'You know the rules and so do I',
             'Never gonna give you up!',
             'Never gonna let you down!',
-            'Never gonna run around and desert you!'
+            'Never gonna run around and desert you!',
+            'Never gonna make you cry!',
+            'Never gonna say goodbye!',
+            'Never gonna tell a lie and hurt you!'
           ];
           var NOTES = [
-            [261.63, 2], [293.66, 2], [349.23, 2], [293.66, 2],
-            [440.0, 3], [440.0, 3], [392.0, 4], [0, 2],
-            [261.63, 2], [293.66, 2], [349.23, 2], [293.66, 2],
-            [392.0, 3], [392.0, 3], [349.23, 3], [329.63, 1], [293.66, 2]
+            [261.63, 116.54, 2], [293.66, 116.54, 2], [349.23, 116.54, 2], [293.66, 116.54, 2],
+            [440.0, 130.81, 3], [440.0, 130.81, 3], [392.0, 130.81, 4], [0, 130.81, 2],
+            [261.63, 110.0, 2], [293.66, 110.0, 2], [349.23, 110.0, 2], [293.66, 110.0, 2],
+            [392.0, 146.83, 3], [392.0, 146.83, 3], [349.23, 146.83, 3], [329.63, 146.83, 1], [293.66, 146.83, 2],
+            [261.63, 116.54, 2], [293.66, 116.54, 2], [349.23, 116.54, 2], [293.66, 116.54, 2],
+            [349.23, 130.81, 4], [392.0, 130.81, 2], [329.63, 110.0, 3], [293.66, 110.0, 1],
+            [261.63, 146.83, 4], [261.63, 146.83, 2], [392.0, 98.0, 4], [349.23, 98.0, 6], [0, 98.0, 4]
           ];
 
-          function renderSlots() {
+          function renderSlots(triggerShake) {
             var children = slotsEl.children;
             for (var i = 0; i < 4; i++) {
               var ch = digits[i] || '';
               children[i].textContent = ch || '•';
               children[i].className = 'gk-slot' + (isError ? ' is-error' : ch ? ' is-filled' : '');
+            }
+            if (triggerShake) {
+              slotsEl.classList.remove('gk-shake');
+              void slotsEl.offsetWidth;
+              slotsEl.classList.add('gk-shake');
             }
           }
 
@@ -684,23 +845,39 @@
               var idx = 0;
               function step() {
                 if (!isUnlocked || !audioCtx) return;
-                var pair = NOTES[idx % NOTES.length];
-                var freq = pair[0];
-                var dur = pair[1] * 0.132;
-                if (!isMuted && freq > 0) {
-                  var osc = audioCtx.createOscillator();
-                  var gain = audioCtx.createGain();
-                  osc.type = 'triangle';
-                  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-                  gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-                  gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + dur * 0.9);
-                  osc.connect(gain);
-                  gain.connect(audioCtx.destination);
-                  osc.start();
-                  osc.stop(audioCtx.currentTime + dur * 0.95);
+                var item = NOTES[idx % NOTES.length];
+                var freq = item[0];
+                var bass = item[1];
+                var dur = item[2] * 0.132;
+                if (!isMuted) {
+                  var now = audioCtx.currentTime;
+                  if (freq > 0) {
+                    var osc = audioCtx.createOscillator();
+                    var gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now);
+                    gain.gain.setValueAtTime(0.14, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + dur * 0.92);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + dur * 0.95);
+                  }
+                  if (bass > 0) {
+                    var bOsc = audioCtx.createOscillator();
+                    var bGain = audioCtx.createGain();
+                    bOsc.type = 'sawtooth';
+                    bOsc.frequency.setValueAtTime(bass, now);
+                    bGain.gain.setValueAtTime(0.05, now);
+                    bGain.gain.exponentialRampToValueAtTime(0.005, now + dur * 0.85);
+                    bOsc.connect(bGain);
+                    bGain.connect(audioCtx.destination);
+                    bOsc.start(now);
+                    bOsc.stop(now + dur * 0.9);
+                  }
                 }
                 idx++;
-                audioTimer = setTimeout(step, pair[1] * 132);
+                audioTimer = setTimeout(step, item[2] * 132);
               }
               step();
             } catch (e) {}
@@ -721,41 +898,174 @@
             var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
             if (!ctx) return;
             var t0 = performance.now();
+            function drawBeam(w, h, ox, offset, color, t) {
+              var angle = Math.sin(t * 1.4 + offset) * 0.32;
+              ctx.save();
+              ctx.translate(ox, -10);
+              ctx.rotate(angle);
+              var grad = ctx.createLinearGradient(0, 0, 0, h * 1.1);
+              grad.addColorStop(0, color);
+              grad.addColorStop(1, 'rgba(0,0,0,0)');
+              ctx.fillStyle = grad;
+              ctx.beginPath();
+              ctx.moveTo(-18, 0);
+              ctx.lineTo(18, 0);
+              ctx.lineTo(95, h * 1.1);
+              ctx.lineTo(-95, h * 1.1);
+              ctx.closePath();
+              ctx.fill();
+              ctx.restore();
+            }
             function draw(now) {
               var t = (now - t0) / 1000;
               var w = canvas.width;
               var h = canvas.height;
               var sway = Math.sin(t * 3.75);
               var beat = Math.sin(t * 7.5);
-              ctx.fillStyle = '#0b0714';
+              var bounce = Math.abs(beat) * 10;
+
+              var bg = ctx.createLinearGradient(0, 0, 0, h);
+              bg.addColorStop(0, '#0b0714');
+              bg.addColorStop(0.65, '#190f2e');
+              bg.addColorStop(1, '#260d32');
+              ctx.fillStyle = bg;
               ctx.fillRect(0, 0, w, h);
-              ctx.fillStyle = '#150f24';
-              ctx.fillRect(0, h * 0.72, w, h * 0.28);
+
+              ctx.save();
+              ctx.globalCompositeOperation = 'lighter';
+              drawBeam(w, h, w * 0.2, 0, 'rgba(0, 240, 255, 0.16)', t);
+              drawBeam(w, h, w * 0.8, 2.1, 'rgba(255, 0, 127, 0.18)', t);
+              drawBeam(w, h, w * 0.5, 4.2, 'rgba(252, 238, 10, 0.1)', t);
+              ctx.restore();
+
+              var floorY = h * 0.72;
+              ctx.fillStyle = '#120a24';
+              ctx.fillRect(0, floorY, w, h - floorY);
               ctx.strokeStyle = 'rgba(0, 240, 255, 0.35)';
-              for (var i = -6; i <= 6; i++) {
+              ctx.lineWidth = 1.5;
+              for (var i = -8; i <= 8; i++) {
                 ctx.beginPath();
-                ctx.moveTo(w / 2 + i * 32, h * 0.72);
-                ctx.lineTo(w / 2 + i * 70, h);
+                ctx.moveTo(w / 2 + i * 32, floorY);
+                ctx.lineTo(w / 2 + i * 76, h);
                 ctx.stroke();
               }
-              var cx = w / 2 + sway * 14;
-              var cy = h * 0.7 - Math.abs(beat) * 8;
+              for (var r = 0; r < 5; r++) {
+                var ry = floorY + Math.pow(r / 4, 1.5) * (h - floorY);
+                ctx.beginPath();
+                ctx.moveTo(0, ry);
+                ctx.lineTo(w, ry);
+                ctx.stroke();
+              }
+
+              var barCount = 18;
+              var bw = (w * 0.72) / barCount;
+              var sx = w * 0.14;
+              for (var b = 0; b < barCount; b++) {
+                var bh = 16 + Math.abs(Math.sin(t * 6 + b * 0.7)) * 64;
+                ctx.fillStyle = b % 3 === 0 ? 'rgba(0, 240, 255, 0.35)' : b % 3 === 1 ? 'rgba(255, 0, 127, 0.35)' : 'rgba(252, 238, 10, 0.3)';
+                ctx.fillRect(sx + b * bw + 2, floorY - bh, bw - 6, bh);
+              }
+
+              var cx = w / 2 + sway * 16;
+              var cy = floorY - 12 - bounce;
               ctx.save();
               ctx.translate(cx, cy);
+              ctx.fillStyle = 'rgba(0,0,0,0.45)';
+              ctx.beginPath();
+              ctx.ellipse(0, 14 + bounce, 40, 9, 0, 0, Math.PI * 2);
+              ctx.fill();
+
+              ctx.strokeStyle = '#0f172a';
+              ctx.lineWidth = 13;
+              ctx.lineCap = 'round';
+              ctx.beginPath();
+              ctx.moveTo(-12, -50);
+              ctx.lineTo(-18 + sway * 8, -22);
+              ctx.lineTo(-14 - sway * 6, 4);
+              ctx.moveTo(12, -50);
+              ctx.lineTo(18 + sway * 8, -22);
+              ctx.lineTo(16 + sway * 5, 4);
+              ctx.stroke();
+
+              ctx.fillStyle = '#020617';
+              ctx.fillRect(-24 - sway * 6, 1, 18, 8);
+              ctx.fillRect(8 + sway * 5, 1, 18, 8);
+
+              ctx.save();
+              ctx.rotate(sway * 0.09);
               ctx.fillStyle = '#d6b48a';
-              ctx.fillRect(-24, -110, 48, 72);
+              ctx.beginPath();
+              ctx.moveTo(-26, -122);
+              ctx.lineTo(26, -122);
+              ctx.lineTo(35, -36);
+              ctx.lineTo(-35, -36);
+              ctx.closePath();
+              ctx.fill();
+
               ctx.fillStyle = '#111827';
-              ctx.fillRect(-9, -110, 18, 46);
+              ctx.beginPath();
+              ctx.moveTo(-12, -122);
+              ctx.lineTo(12, -122);
+              ctx.lineTo(6, -65);
+              ctx.lineTo(-6, -65);
+              ctx.closePath();
+              ctx.fill();
+
+              ctx.strokeStyle = '#d6b48a';
+              ctx.lineWidth = 12;
+              ctx.lineCap = 'round';
+              ctx.beginPath();
+              ctx.moveTo(-24, -114);
+              ctx.lineTo(-42 - beat * 8, -88 + sway * 10);
+              ctx.lineTo(-28 + beat * 12, -72 - sway * 12);
+              ctx.moveTo(24, -114);
+              ctx.lineTo(42 + beat * 8, -88 - sway * 10);
+              ctx.lineTo(28 - beat * 12, -72 + sway * 12);
+              ctx.stroke();
+
               ctx.fillStyle = '#f5cfa8';
               ctx.beginPath();
-              ctx.arc(0, -128, 16, 0, Math.PI * 2);
+              ctx.arc(-28 + beat * 12, -72 - sway * 12, 6, 0, Math.PI * 2);
+              ctx.arc(28 - beat * 12, -72 + sway * 12, 6, 0, Math.PI * 2);
               ctx.fill();
+
+              ctx.beginPath();
+              ctx.arc(0, -142, 18, 0, Math.PI * 2);
+              ctx.fill();
+
               ctx.fillStyle = '#b45309';
-              ctx.fillRect(-16, -148, 32, 12);
+              ctx.beginPath();
+              ctx.moveTo(-18, -144);
+              ctx.quadraticCurveTo(-20, -170, 4, -168);
+              ctx.quadraticCurveTo(24, -166, 18, -143);
+              ctx.quadraticCurveTo(4, -152, -18, -144);
+              ctx.fill();
+
               ctx.fillStyle = '#090d16';
-              ctx.fillRect(-12, -133, 10, 5);
-              ctx.fillRect(2, -133, 10, 5);
+              ctx.fillRect(-13, -147, 11, 6);
+              ctx.fillRect(2, -147, 11, 6);
+              ctx.fillStyle = '#00f0ff';
+              ctx.fillRect(-11, -145, 4, 2);
+              ctx.fillRect(4, -145, 4, 2);
+
+              ctx.strokeStyle = '#7c2d12';
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.arc(0, -136, 6, 0.15, Math.PI - 0.15);
+              ctx.stroke();
               ctx.restore();
+              ctx.restore();
+
+              ctx.font = 'bold 20px Outfit, sans-serif';
+              for (var n = 0; n < 4; n++) {
+                var ny = h * 0.45 - ((t * 45 + n * 65) % 150);
+                var nx = w * (0.16 + n * 0.22) + Math.sin(t * 2 + n) * 14;
+                ctx.fillStyle = n % 2 === 0 ? '#00f0ff' : '#ff007f';
+                ctx.globalAlpha = Math.max(0.15, Math.min(0.9, (ny - 20) / 140));
+                ctx.fillText(n % 2 === 0 ? '♪' : '♫', nx, ny);
+              }
+              ctx.globalAlpha = 1;
+
               animId = requestAnimationFrame(draw);
             }
             animId = requestAnimationFrame(draw);
@@ -770,7 +1080,7 @@
             keypadView.classList.remove('is-hidden');
             errEl.textContent = 'Ожидание ввода 4-значного кода...';
             errEl.classList.remove('is-error');
-            renderSlots();
+            renderSlots(false);
           }
 
           function openModal() {
@@ -790,7 +1100,7 @@
               isError = true;
               errEl.textContent = digits.length < 4 ? 'Введите 4 цифры кода доступа' : 'Неверный код доступа. Попробуйте снова.';
               errEl.classList.add('is-error');
-              renderSlots();
+              renderSlots(true);
             }
           }
 
@@ -804,7 +1114,7 @@
             }
             if (digits.length >= 4) return;
             digits += d;
-            renderSlots();
+            renderSlots(false);
             if (digits.length === 4) checkCode();
           }
 
@@ -820,7 +1130,7 @@
           document.getElementById('gk-back').addEventListener('click', function () {
             if (isError) { resetKeypad(); return; }
             digits = digits.slice(0, -1);
-            renderSlots();
+            renderSlots(false);
           });
           document.getElementById('gk-submit').addEventListener('click', checkCode);
           document.getElementById('gk-close-keypad').addEventListener('click', closeModal);
@@ -841,17 +1151,20 @@
             else if (!isUnlocked && /^\d$/.test(e.key)) addDigit(e.key);
             else if (!isUnlocked && e.key === 'Backspace') {
               digits = digits.slice(0, -1);
-              renderSlots();
+              renderSlots(false);
             } else if (!isUnlocked && e.key === 'Enter') checkCode();
           });
         };
 
-        window.addEventListener('load', function () {
-          if (!window.__GEEK_REACT_MOUNTED__) {
-            window.__GEEK_INIT_STATIC__();
-          }
+        document.addEventListener('DOMContentLoaded', function () {
+          setTimeout(function () {
+            if (!window.__GEEK_REACT_MOUNTED__) {
+              window.__GEEK_INIT_STATIC__();
+            }
+          }, 250);
         });
       })();
     </script>
+    <script type="module" src="/src/main.tsx" onerror="window.__GEEK_INIT_STATIC__ && window.__GEEK_INIT_STATIC__()"></script>
   </body>
 </html>
