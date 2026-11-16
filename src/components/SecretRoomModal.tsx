@@ -12,6 +12,7 @@ import {
 } from '../utils/secretCode';
 import { playKeypadTone } from '../utils/rickrollAudio';
 import { RickrollStage } from './RickrollStage';
+import { JohnnyStage } from './JohnnyStage';
 
 interface SecretRoomModalProps {
   isOpen: boolean;
@@ -120,7 +121,11 @@ export function SecretRoomModal({ isOpen, onClose }: SecretRoomModalProps) {
         <div className="absolute bottom-3 right-3 w-5 h-5 border-b-2 border-r-2 border-[#00f0ff] pointer-events-none" />
 
         {keypad.status === 'unlocked' ? (
-          <RickrollStage onClose={onClose} onResetKeypad={handleResetKeypad} />
+          keypad.unlockedReward === 'cyberpunk' ? (
+            <JohnnyStage onClose={onClose} onResetKeypad={handleResetKeypad} />
+          ) : (
+            <RickrollStage onClose={onClose} onResetKeypad={handleResetKeypad} />
+          )
         ) : (
           <div className="flex flex-col items-center">
             {/* Header */}

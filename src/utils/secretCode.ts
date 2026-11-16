@@ -1,11 +1,14 @@
 export const SECRET_CODE = '2027';
+export const CYBERPUNK_CODE = '2077';
 export const CODE_LENGTH = 4;
 
 export type KeypadStatus = 'locked' | 'error' | 'unlocked';
+export type SecretReward = 'rickroll' | 'cyberpunk';
 
 export interface KeypadState {
   digits: string;
   status: KeypadStatus;
+  unlockedReward: SecretReward | null;
   attempts: number;
   errorMessage: string | null;
 }
@@ -14,13 +17,25 @@ export function createInitialKeypadState(): KeypadState {
   return {
     digits: '',
     status: 'locked',
+    unlockedReward: null,
     attempts: 0,
     errorMessage: null,
   };
 }
 
+export function resolveSecretCode(code: string): SecretReward | null {
+  const normalized = code.trim();
+  if (normalized === SECRET_CODE) {
+    return 'rickroll';
+  }
+  if (normalized === CYBERPUNK_CODE) {
+    return 'cyberpunk';
+  }
+  return null;
+}
+
 export function verifySecretCode(code: string): boolean {
-  return code.trim() === SECRET_CODE;
+  return resolveSecretCode(code) !== null;
 }
 
 export function appendDigit(state: KeypadState, digit: string): KeypadState {
@@ -83,6 +98,7 @@ export function clearDigits(state: KeypadState): KeypadState {
     ...state,
     digits: '',
     status: 'locked',
+    unlockedReward: null,
     errorMessage: null,
   };
 }
@@ -96,15 +112,18 @@ export function submitCode(state: KeypadState): KeypadState {
     return {
       ...state,
       status: 'error',
+      unlockedReward: null,
       attempts: state.attempts + 1,
       errorMessage: `Введите ${CODE_LENGTH} цифры кода доступа`,
     };
   }
 
-  if (verifySecretCode(state.digits)) {
+  const reward = resolveSecretCode(state.digits);
+  if (reward !== null) {
     return {
       ...state,
       status: 'unlocked',
+      unlockedReward: reward,
       errorMessage: null,
     };
   }
@@ -112,6 +131,7 @@ export function submitCode(state: KeypadState): KeypadState {
   return {
     ...state,
     status: 'error',
+    unlockedReward: null,
     attempts: state.attempts + 1,
     errorMessage: 'Неверный код доступа. Попробуйте снова.',
   };
