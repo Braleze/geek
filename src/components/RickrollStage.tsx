@@ -295,7 +295,7 @@ export function RickrollStage({ onClose, onResetKeypad }: RickrollStageProps) {
       <div className="w-full flex items-center justify-between gap-4 mb-4">
         <div className="text-left">
           <p className="text-xs font-mono-tech text-[#fcee0a] tracking-widest uppercase">
-            ДОСТУП РАЗРЕШЁН · КОД 2027
+            ДОСТУП РАЗРЕШЁН · СЕКРЕТНЫЙ ПРОТОКОЛ
           </p>
           <h2 className="font-cyber font-black text-xl sm:text-2xl text-white">
             ВЫ БЫЛИ ЗАРИКРОЛЛЕНЫ!

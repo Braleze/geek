@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Bolt, Hash, KeyRound, Lock, Mic, Send, ShieldCheck } from 'lucide-react';
 import { GeekLogo } from './components/GeekLogo';
 import { SecretRoomModal } from './components/SecretRoomModal';
+import { RoadmapSection } from './components/RoadmapSection';
+import { FaqSection } from './components/FaqSection';
 
 const FEATURES = [
   {
@@ -85,7 +87,7 @@ export default function App() {
       />
 
       {/* Header */}
-      <header className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-6 flex justify-between items-center gap-3">
+      <header className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-6 flex justify-between items-center gap-4">
         <a href="#top" className="flex items-center space-x-3 shrink-0 group">
           <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#150f24] border border-[#00f0ff]/50 flex items-center justify-center shadow-neon-cyan overflow-hidden p-0.5">
             <GeekLogo size={40} className="w-full h-full" />
@@ -99,6 +101,18 @@ export default function App() {
             </span>
           </div>
         </a>
+
+        <nav className="hidden lg:flex items-center gap-7 text-xs font-cyber font-bold tracking-wider text-slate-300">
+          <a href="#features" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
+            ВОЗМОЖНОСТИ
+          </a>
+          <a href="#roadmap" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
+            ДОРОЖНАЯ КАРТА
+          </a>
+          <a href="#faq" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
+            FAQ
+          </a>
+        </nav>
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
@@ -129,7 +143,7 @@ export default function App() {
       {/* Main Hero Section */}
       <main
         id="top"
-        className="relative z-20 flex-grow flex flex-col items-center justify-center text-center px-6 py-12 max-w-5xl mx-auto w-full"
+        className="relative z-20 flex-grow flex flex-col items-center justify-center text-center px-6 py-12 max-w-6xl mx-auto w-full"
       >
         {/* Glowing Logo Container with Cyberpunk Corners (also acts as secret door) */}
         <div className="relative mb-12 floating">
@@ -195,7 +209,11 @@ export default function App() {
         </div>
 
         {/* Features Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl text-left">
+        <section
+          id="features"
+          aria-label="Ключевые возможности Geek"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-6xl text-left"
+        >
           {FEATURES.map((feature) => {
             const Icon = feature.icon;
             const accentStyles =
@@ -229,7 +247,13 @@ export default function App() {
               </div>
             );
           })}
-        </div>
+        </section>
+
+        {/* Roadmap Section */}
+        <RoadmapSection />
+
+        {/* FAQ Section */}
+        <FaqSection />
       </main>
 
       {/* Footer */}
@@ -239,6 +263,12 @@ export default function App() {
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-6">
+          <a href="#roadmap" className="hover:text-[#00f0ff] transition-colors">
+            Дорожная карта
+          </a>
+          <a href="#faq" className="hover:text-[#00f0ff] transition-colors">
+            FAQ
+          </a>
           <a
             href="https://t.me/geek_mes"
             target="_blank"

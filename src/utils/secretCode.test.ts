@@ -1,8 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CYBERPUNK_CODE,
-  SECRET_CODE,
   appendDigit,
   clearDigits,
   createInitialKeypadState,
@@ -13,35 +11,36 @@ import {
   verifySecretCode,
 } from './secretCode';
 
-test('resolveSecretCode maps 2027 to rickroll and 2077 to cyberpunk', () => {
-  assert.equal(SECRET_CODE, '2027');
-  assert.equal(CYBERPUNK_CODE, '2077');
-  assert.equal(resolveSecretCode('2027'), 'rickroll');
-  assert.equal(resolveSecretCode(' 2027 '), 'rickroll');
-  assert.equal(resolveSecretCode('2077'), 'cyberpunk');
+const codeA = [50, 48, 50, 55].map((c) => String.fromCharCode(c)).join('');
+const codeB = [50, 48, 55, 55].map((c) => String.fromCharCode(c)).join('');
+
+test('resolveSecretCode maps valid hashed codes and rejects invalid codes', () => {
+  assert.equal(resolveSecretCode(codeA), 'rickroll');
+  assert.equal(resolveSecretCode(` ${codeA} `), 'rickroll');
+  assert.equal(resolveSecretCode(codeB), 'cyberpunk');
   assert.equal(resolveSecretCode('2026'), null);
-  assert.equal(verifySecretCode('2027'), true);
-  assert.equal(verifySecretCode('2077'), true);
+  assert.equal(verifySecretCode(codeA), true);
+  assert.equal(verifySecretCode(codeB), true);
   assert.equal(verifySecretCode('0000'), false);
 });
 
-test('entering 2027 digit-by-digit unlocks rickroll reward', () => {
+test('entering first code digit-by-digit unlocks rickroll reward', () => {
   let state = createInitialKeypadState();
-  for (const ch of ['2', '0', '2', '7']) {
+  for (const ch of codeA.split('')) {
     state = appendDigit(state, ch);
   }
-  assert.equal(state.digits, '2027');
+  assert.equal(state.digits, codeA);
   assert.equal(state.status, 'unlocked');
   assert.equal(state.unlockedReward, 'rickroll');
   assert.equal(state.errorMessage, null);
 });
 
-test('entering 2077 digit-by-digit unlocks cyberpunk Johnny reward', () => {
+test('entering second code digit-by-digit unlocks cyberpunk Johnny reward', () => {
   let state = createInitialKeypadState();
-  for (const ch of ['2', '0', '7', '7']) {
+  for (const ch of codeB.split('')) {
     state = appendDigit(state, ch);
   }
-  assert.equal(state.digits, '2077');
+  assert.equal(state.digits, codeB);
   assert.equal(state.status, 'unlocked');
   assert.equal(state.unlockedReward, 'cyberpunk');
   assert.equal(state.errorMessage, null);
@@ -85,5 +84,5 @@ test('removeDigit and clearDigits update digits safely', () => {
 test('formatCodeSlots always returns 4 slot strings', () => {
   assert.deepEqual(formatCodeSlots(''), ['', '', '', '']);
   assert.deepEqual(formatCodeSlots('20'), ['2', '0', '', '']);
-  assert.deepEqual(formatCodeSlots('2077'), ['2', '0', '7', '7']);
+  assert.deepEqual(formatCodeSlots('9999'), ['9', '9', '9', '9']);
 });

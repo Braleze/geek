@@ -1,0 +1,17 @@
+DirectoryIndex index.html
+
+RedirectMatch 404 ^/\.git
+RedirectMatch 404 ^/src/
+RedirectMatch 404 ^/(package\.json|package-lock\.json|tsconfig\.json|vite\.config\.ts|metadata\.json)$
+
+<IfModule mod_mime.c>
+  AddType application/javascript .js .mjs
+  AddType text/css .css
+  AddType image/svg+xml .svg
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>

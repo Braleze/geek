@@ -1,5 +1,3 @@
-export const SECRET_CODE = '2027';
-export const CYBERPUNK_CODE = '2077';
 export const CODE_LENGTH = 4;
 
 export type KeypadStatus = 'locked' | 'error' | 'unlocked';
@@ -11,6 +9,29 @@ export interface KeypadState {
   unlockedReward: SecretReward | null;
   attempts: number;
   errorMessage: string | null;
+}
+
+const VAULT_DIGESTS: Record<string, SecretReward> = {
+  ce926369550a595a: 'rickroll',
+  e68654a845d9b010: 'cyberpunk',
+};
+
+export function hashAccessCode(input: string): string {
+  const salted = `gk::vault::${input.trim()}::relic9`;
+  let h1 = 0x811c9dc5;
+  let h2 = 0x9e3779b9;
+  for (let i = 0; i < salted.length; i++) {
+    const c = salted.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193);
+    h2 = Math.imul(h2 ^ (c + i * 17), 0x85ebca6b);
+  }
+  h1 ^= h1 >>> 16;
+  h1 = Math.imul(h1, 0x85ebca6b);
+  h1 ^= h1 >>> 13;
+  h2 ^= h2 >>> 15;
+  h2 = Math.imul(h2, 0xc2b2ae35);
+  h2 ^= h2 >>> 16;
+  return (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
 }
 
 export function createInitialKeypadState(): KeypadState {
@@ -25,13 +46,11 @@ export function createInitialKeypadState(): KeypadState {
 
 export function resolveSecretCode(code: string): SecretReward | null {
   const normalized = code.trim();
-  if (normalized === SECRET_CODE) {
-    return 'rickroll';
+  if (normalized.length !== CODE_LENGTH || !/^\d+$/.test(normalized)) {
+    return null;
   }
-  if (normalized === CYBERPUNK_CODE) {
-    return 'cyberpunk';
-  }
-  return null;
+  const digest = hashAccessCode(normalized);
+  return VAULT_DIGESTS[digest] ?? null;
 }
 
 export function verifySecretCode(code: string): boolean {

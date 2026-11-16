@@ -9,7 +9,7 @@ interface JohnnyStageProps {
 
 const JOHNNY_QUOTES = [
   '«Проснись, самурай. Нам пора сжечь этот город.»',
-  "Chippin' in... Протокол Relic 2077 активирован.",
+  "Chippin' in... Протокол Relic активирован.",
   '«В Найт-Сити легендами становятся не просто так.»',
   '«Никогда не сдавайся без боя, чумба.»',
 ];
@@ -300,7 +300,7 @@ export function JohnnyStage({ onClose, onResetKeypad }: JohnnyStageProps) {
       <div className="w-full flex items-center justify-between gap-4 mb-4">
         <div className="text-left">
           <p className="text-xs font-mono-tech text-[#fcee0a] tracking-widest uppercase">
-            RELIC ПРОТОКОЛ · КОД 2077
+            RELIC ПРОТОКОЛ · АКТИВИРОВАН
           </p>
           <h2 className="font-cyber font-black text-xl sm:text-2xl text-white">
             ПРОСНИСЬ, САМУРАЙ!
@@ -324,7 +324,7 @@ export function JohnnyStage({ onClose, onResetKeypad }: JohnnyStageProps) {
           width={560}
           height={300}
           className="w-full h-auto block"
-          aria-label="Голограмма Джонни Сильверхенда в стиле Cyberpunk 2077"
+          aria-label="Голограмма Джонни Сильверхенда"
         />
 
         <div className="px-4 py-3 bg-[#150f24]/95 border-t border-[#fcee0a]/30">

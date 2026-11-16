@@ -585,6 +585,130 @@
         justify-content: space-between;
         gap: 8px;
       }
+      .gk-nav {
+        display: flex;
+        align-items: center;
+        gap: 24px;
+      }
+      .gk-nav a {
+        font-family: "Orbitron", sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: #cbd5e1;
+        text-decoration: none;
+        white-space: nowrap;
+        transition: color 0.2s ease;
+      }
+      .gk-nav a:hover { color: #00f0ff; }
+      .gk-section {
+        width: 100%;
+        max-width: 1152px;
+        margin: 80px auto 0;
+        text-align: left;
+      }
+      .gk-section-head {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 16px;
+        margin-bottom: 36px;
+      }
+      .gk-kicker {
+        font-family: "Share Tech Mono", monospace;
+        font-size: 12px;
+        letter-spacing: 0.14em;
+        color: #00f0ff;
+        text-transform: uppercase;
+        margin: 0 0 8px;
+      }
+      .gk-h2 {
+        font-family: "Orbitron", sans-serif;
+        font-weight: 900;
+        font-size: clamp(26px, 3.5vw, 36px);
+        color: #fff;
+        text-transform: uppercase;
+        margin: 0;
+      }
+      .gk-roadmap-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 24px;
+      }
+      .gk-roadmap-card {
+        padding: 24px;
+        border-radius: 16px;
+        background: rgba(21, 15, 36, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+      }
+      .gk-roadmap-card.is-done { border-color: rgba(0, 240, 255, 0.45); }
+      .gk-roadmap-card.is-active { border-color: rgba(255, 0, 127, 0.55); }
+      .gk-roadmap-meta {
+        display: flex;
+        justify-content: space-between;
+        font-family: "Share Tech Mono", monospace;
+        font-size: 12px;
+        margin-bottom: 14px;
+        color: #94a3b8;
+      }
+      .gk-roadmap-card h3 {
+        font-family: "Orbitron", sans-serif;
+        font-size: 17px;
+        color: #fff;
+        margin: 0 0 10px;
+      }
+      .gk-roadmap-card p {
+        font-size: 12px;
+        color: #94a3b8;
+        margin: 0;
+        line-height: 1.55;
+      }
+      .gk-faq-section {
+        width: 100%;
+        max-width: 896px;
+        margin: 80px auto 32px;
+        text-align: left;
+      }
+      .gk-faq-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .gk-faq-item {
+        border-radius: 16px;
+        background: rgba(21, 15, 36, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+      }
+      .gk-faq-item.is-open { border-color: rgba(0, 240, 255, 0.6); }
+      .gk-faq-btn {
+        width: 100%;
+        padding: 20px 24px;
+        background: none;
+        border: none;
+        color: #fff;
+        font-family: "Orbitron", sans-serif;
+        font-weight: 700;
+        font-size: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        text-align: left;
+        cursor: pointer;
+      }
+      .gk-faq-answer {
+        display: none;
+        padding: 4px 24px 20px;
+        font-size: 14px;
+        color: #cbd5e1;
+        line-height: 1.6;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .gk-faq-item.is-open .gk-faq-answer { display: block; }
+      @media (max-width: 1024px) {
+        .gk-nav { display: none; }
+      }
       @media (max-width: 640px) {
         .gk-hide-sm { display: none; }
       }
@@ -618,6 +742,12 @@
               <span class="gk-brand-sub">VOICE &amp; CHAT</span>
             </div>
           </a>
+
+          <nav class="gk-nav">
+            <a href="#features">ВОЗМОЖНОСТИ</a>
+            <a href="#roadmap">ДОРОЖНАЯ КАРТА</a>
+            <a href="#faq">FAQ</a>
+          </nav>
 
           <div class="gk-header-actions">
             <button type="button" class="gk-cyber-btn gk-btn-cyan" data-gk-open-secret aria-label="Открыть секретную комнату">
@@ -670,7 +800,7 @@
             </a>
           </div>
 
-          <div class="gk-features">
+          <section id="features" class="gk-features">
             <div class="gk-feature-card">
               <div class="gk-feat-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
@@ -699,12 +829,92 @@
               <h3>Скорость</h3>
               <p>Легковесный клиент, открытое API для ботов и мгновенный отклик на любых устройствах.</p>
             </div>
-          </div>
+          </section>
+
+          <section id="roadmap" class="gk-section" aria-labelledby="gk-roadmap-title">
+            <div class="gk-section-head">
+              <div>
+                <p class="gk-kicker">ПЛАН РАЗВИТИЯ ПЛАТФОРМЫ</p>
+                <h2 id="gk-roadmap-title" class="gk-h2">Дорожная карта</h2>
+              </div>
+              <p style="font-size:14px;color:#94a3b8;max-width:420px;margin:0;">
+                Последовательно запускаем ключевые модули от текстового ядра до нативных клиентов и открытого API.
+              </p>
+            </div>
+            <div class="gk-roadmap-grid">
+              <article class="gk-roadmap-card is-done">
+                <div class="gk-roadmap-meta"><span>Этап 01</span><span style="color:#00f0ff;">Завершено</span></div>
+                <h3>01. Ядро платформы и чаты</h3>
+                <p>Архитектура серверов, текстовые каналы, ролевая модель доступа и мгновенная доставка сообщений без задержек.</p>
+              </article>
+              <article class="gk-roadmap-card is-active">
+                <div class="gk-roadmap-meta"><span>Этап 02</span><span style="color:#ff007f;">В разработке</span></div>
+                <h3>02. P2P Голос и шифрование</h3>
+                <p>Голосовые комнаты со сверхнизким пингом, умное шумоподавление, пространственное аудио и E2E-защита звонков.</p>
+              </article>
+              <article class="gk-roadmap-card">
+                <div class="gk-roadmap-meta"><span>Этап 03</span><span style="color:#fcee0a;">Запланировано</span></div>
+                <h3>03. SDK для ботов и импорт</h3>
+                <p>Открытый API для ботов, вебхуки, кастомные темы оформления и быстрый перенос структуры серверов.</p>
+              </article>
+              <article class="gk-roadmap-card">
+                <div class="gk-roadmap-meta"><span>Этап 04</span><span style="color:#fcee0a;">Скоро</span></div>
+                <h3>04. Публичный релиз и клиенты</h3>
+                <p>Закрытое бета-тестирование с комьюнити из Telegram и выпуск нативных приложений для ПК и смартфонов.</p>
+              </article>
+            </div>
+          </section>
+
+          <section id="faq" class="gk-faq-section" aria-labelledby="gk-faq-title">
+            <div style="text-align:center;margin-bottom:36px;">
+              <p class="gk-kicker" style="color:#ff007f;">ОТВЕТЫ НА ГЛАВНОЕ</p>
+              <h2 id="gk-faq-title" class="gk-h2">Частые вопросы</h2>
+            </div>
+            <div class="gk-faq-list" id="gk-faq-list">
+              <div class="gk-faq-item is-open">
+                <button type="button" class="gk-faq-btn" aria-expanded="true" data-gk-faq>
+                  <span><span style="color:#00f0ff;font-family:'Share Tech Mono',monospace;margin-right:10px;">01.</span>Когда выйдет Geek и как попасть на закрытое тестирование?</span>
+                  <span style="color:#00f0ff;">▾</span>
+                </button>
+                <div class="gk-faq-answer">Запуск проходит поэтапно. Первые приглашения в закрытую бету, ранние привилегии и доступ к тестовым голосовым нодам будут распределяться среди участников Telegram-канала @geek_mes.</div>
+              </div>
+              <div class="gk-faq-item">
+                <button type="button" class="gk-faq-btn" aria-expanded="false" data-gk-faq>
+                  <span><span style="color:#00f0ff;font-family:'Share Tech Mono',monospace;margin-right:10px;">02.</span>Будет ли платформа бесплатной для обычных пользователей и комьюнити?</span>
+                  <span style="color:#00f0ff;">▾</span>
+                </button>
+                <div class="gk-faq-answer">Да. Создание серверов, текстовые каналы, голосовой чат с высоким битрейтом и демонстрация экрана будут доступны бесплатно без искусственных ограничений базовых функций.</div>
+              </div>
+              <div class="gk-faq-item">
+                <button type="button" class="gk-faq-btn" aria-expanded="false" data-gk-faq>
+                  <span><span style="color:#00f0ff;font-family:'Share Tech Mono',monospace;margin-right:10px;">03.</span>Как в Geek устроены приватность и низкая задержка голоса?</span>
+                  <span style="color:#00f0ff;">▾</span>
+                </button>
+                <div class="gk-faq-answer">Голосовые комнаты используют прямые P2P-маршруты и независимые ноды с минимальным пингом, а личные и групповые каналы защищаются сквозным шифрованием.</div>
+              </div>
+              <div class="gk-faq-item">
+                <button type="button" class="gk-faq-btn" aria-expanded="false" data-gk-faq>
+                  <span><span style="color:#00f0ff;font-family:'Share Tech Mono',monospace;margin-right:10px;">04.</span>Можно ли будет переносить ботов и структуру серверов из Discord?</span>
+                  <span style="color:#00f0ff;">▾</span>
+                </button>
+                <div class="gk-faq-answer">На третьем этапе дорожной карты появится открытый SDK для разработчиков, поддержка вебхуков и инструмент быстрого импорта ролей, категорий и каналов.</div>
+              </div>
+              <div class="gk-faq-item">
+                <button type="button" class="gk-faq-btn" aria-expanded="false" data-gk-faq>
+                  <span><span style="color:#00f0ff;font-family:'Share Tech Mono',monospace;margin-right:10px;">05.</span>На каких устройствах будет работать клиент Geek?</span>
+                  <span style="color:#00f0ff;">▾</span>
+                </button>
+                <div class="gk-faq-answer">Платформа откроется в браузере и в виде лёгкого десктоп-приложения для Windows, macOS и Linux, а затем выйдут нативные клиенты для iOS и Android.</div>
+              </div>
+            </div>
+          </section>
         </main>
 
         <footer class="gk-footer">
           <div>&copy; 2026 GEEK PLATFORM. ВСЕ ПРАВА ЗАЩИЩЕНЫ.</div>
           <div class="gk-footer-links">
+            <a href="#roadmap">Дорожная карта</a>
+            <a href="#faq">FAQ</a>
             <a href="https://t.me/geek_mes" target="_blank" rel="noopener noreferrer">Telegram-канал</a>
             <button type="button" data-gk-open-secret>Войти в секретную комнату</button>
           </div>
@@ -757,7 +967,7 @@
             <div class="gk-rick-stage" id="gk-rick-stage">
               <div class="gk-modal-head">
                 <div>
-                  <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;letter-spacing:0.12em;">ДОСТУП РАЗРЕШЁН · КОД 2027</div>
+                  <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;letter-spacing:0.12em;">ДОСТУП РАЗРЕШЁН · СЕКРЕТНЫЙ ПРОТОКОЛ</div>
                   <h2 style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:22px;color:#fff;margin:4px 0 0;">ВЫ БЫЛИ ЗАРИКРОЛЛЕНЫ!</h2>
                 </div>
                 <button type="button" class="gk-close-btn" id="gk-close-rick" aria-label="Закрыть секретную комнату">&times;</button>
@@ -780,7 +990,7 @@
             <div class="gk-johnny-stage" id="gk-johnny-stage">
               <div class="gk-modal-head">
                 <div>
-                  <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;letter-spacing:0.12em;">RELIC ПРОТОКОЛ · КОД 2077</div>
+                  <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;letter-spacing:0.12em;">RELIC ПРОТОКОЛ · АКТИВИРОВАН</div>
                   <h2 style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:22px;color:#fff;margin:4px 0 0;">ПРОСНИСЬ, САМУРАЙ!</h2>
                 </div>
                 <button type="button" class="gk-close-btn" id="gk-close-johnny" aria-label="Закрыть секретную комнату">&times;</button>
@@ -846,7 +1056,7 @@
           ];
           var JOHNNY_QUOTES = [
             '«Проснись, самурай. Нам пора сжечь этот город.»',
-            "Chippin' in... Протокол Relic 2077 активирован.",
+            "Chippin' in... Протокол Relic активирован.",
             '«В Найт-Сити легендами становятся не просто так.»',
             '«Никогда не сдавайся без боя, чумба.»'
           ];
@@ -1373,10 +1583,29 @@
             modal.classList.remove('is-open');
           }
 
+          function hashAccessCode(input) {
+            var salted = 'gk::vault::' + String(input).trim() + '::relic9';
+            var h1 = 0x811c9dc5;
+            var h2 = 0x9e3779b9;
+            for (var i = 0; i < salted.length; i++) {
+              var c = salted.charCodeAt(i);
+              h1 = Math.imul(h1 ^ c, 0x01000193);
+              h2 = Math.imul(h2 ^ (c + i * 17), 0x85ebca6b);
+            }
+            h1 ^= h1 >>> 16;
+            h1 = Math.imul(h1, 0x85ebca6b);
+            h1 ^= h1 >>> 13;
+            h2 ^= h2 >>> 15;
+            h2 = Math.imul(h2, 0xc2b2ae35);
+            h2 ^= h2 >>> 16;
+            return (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
+          }
+
           function checkCode() {
-            if (digits === '2027') {
+            var digest = digits.length === 4 ? hashAccessCode(digits) : '';
+            if (digest === 'ce926369550a595a') {
               startRick();
-            } else if (digits === '2077') {
+            } else if (digest === 'e68654a845d9b010') {
               startJohnny();
             } else {
               isError = true;
@@ -1399,6 +1628,23 @@
             renderSlots(false);
             if (digits.length === 4) checkCode();
           }
+
+          document.querySelectorAll('[data-gk-faq]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var item = btn.closest('.gk-faq-item');
+              if (!item) return;
+              var wasOpen = item.classList.contains('is-open');
+              document.querySelectorAll('.gk-faq-item').forEach(function (el) {
+                el.classList.remove('is-open');
+                var b = el.querySelector('[data-gk-faq]');
+                if (b) b.setAttribute('aria-expanded', 'false');
+              });
+              if (!wasOpen) {
+                item.classList.add('is-open');
+                btn.setAttribute('aria-expanded', 'true');
+              }
+            });
+          });
 
           document.querySelectorAll('[data-gk-open-secret]').forEach(function (el) {
             el.addEventListener('click', openModal);

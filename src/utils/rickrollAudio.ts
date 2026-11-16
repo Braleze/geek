@@ -1,7 +1,7 @@
 // Pure Web Audio API synthesizers for:
 // 1. Keypad feedback tones
-// 2. "Never Gonna Give You Up" synthwave loop (code 2027)
-// 3. Cyberpunk 2077 dark industrial synthwave loop (code 2077)
+// 2. "Never Gonna Give You Up" synthwave loop (vault protocol A)
+// 3. Dark industrial synthwave loop (vault protocol B)
 
 type NoteStep = {
   freq: number;
@@ -69,7 +69,7 @@ const CHORUS_SEQUENCE: NoteStep[] = [
   { freq: NOTE.R, bassFreq: NOTE.G3 / 2, durationSteps: 4 },
 ];
 
-// Driving Cyberpunk 2077 Phrygian / dark industrial synthwave motif (~132 BPM)
+// Driving Phrygian / dark industrial synthwave motif (~132 BPM)
 type CyberStep = {
   leadFreq: number;
   bassFreq: number;
