@@ -524,13 +524,13 @@ export function PlatformPreview() {
 
               {/* Messages Container */}
               <div
-                className="px-3 py-2 space-y-2 max-h-[285px] overflow-y-auto"
+                className="px-3 py-2 space-y-2 max-h-[360px] overflow-y-auto"
                 data-testid="preview-messages"
               >
                 {allMessages.map((msg) => (
                   <div
                     key={msg.id}
-                    className="flex gap-3 px-3 py-2.5 rounded-lg bg-[#0a1320]/90 border border-[#00f0ff]/15"
+                    className="flex gap-3 px-3 py-2.5 rounded-lg border bg-[#0a1320]/90 border-[#00f0ff]/15"
                   >
                     <HexAvatar
                       initials={msg.initials}

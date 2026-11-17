@@ -18,6 +18,7 @@ import {
 import { RickrollStage } from './RickrollStage';
 import { JohnnyStage } from './JohnnyStage';
 import { GorshenevStage } from './GorshenevStage';
+import { LoveStage } from './LoveStage';
 
 interface SecretRoomModalProps {
   isOpen: boolean;
@@ -143,6 +144,8 @@ export function SecretRoomModal({ isOpen, onClose }: SecretRoomModalProps) {
             <JohnnyStage onClose={onClose} onResetKeypad={handleResetKeypad} />
           ) : keypad.unlockedReward === 'tribute' ? (
             <GorshenevStage onClose={onClose} onResetKeypad={handleResetKeypad} />
+          ) : keypad.unlockedReward === 'love' ? (
+            <LoveStage onClose={onClose} onResetKeypad={handleResetKeypad} />
           ) : (
             <RickrollStage onClose={onClose} onResetKeypad={handleResetKeypad} />
           )

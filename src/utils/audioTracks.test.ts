@@ -8,13 +8,14 @@ import {
   type AudioElementLike,
 } from './audioTracks';
 
-const FORBIDDEN_DIGITS = ['20' + '13', '20' + '27', '20' + '77'];
+const FORBIDDEN_DIGITS = ['20' + '13', '20' + '27', '20' + '77', '06' + '02'];
 
 test('TRACK_FILENAMES use expected clean names without exposing secret codes', () => {
   assert.deepEqual(TRACK_FILENAMES, {
     rickroll: 'rickroll.mp3',
     cyberpunk: 'cyberpunk.mp3',
     tribute: 'gorshenev.mp3',
+    love: 'love.mp3',
   });
 
   const combined = [
@@ -34,6 +35,10 @@ test('getTrackCandidateUrls orders ./audio and ./public/audio candidates cleanly
   assert.ok(tributeUrls.includes('./audio/gorshenev.ogg'));
   assert.ok(tributeUrls.includes('./audio/gorshenev.wav'));
   assert.ok(tributeUrls.includes('./audio/gorshenev.m4a'));
+
+  const loveUrls = getTrackCandidateUrls('love');
+  assert.equal(loveUrls[0], './audio/love.mp3');
+  assert.equal(loveUrls[1], './public/audio/love.mp3');
 });
 
 test('TrackAudioPlayer cycles candidates on error, handles mute/unmute, and stops cleanly', () => {

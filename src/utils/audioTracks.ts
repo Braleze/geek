@@ -1,15 +1,17 @@
-export type TrackKey = 'rickroll' | 'cyberpunk' | 'tribute';
+export type TrackKey = 'rickroll' | 'cyberpunk' | 'tribute' | 'love';
 
 export const TRACK_BASENAMES: Record<TrackKey, string> = {
   rickroll: 'rickroll',
   cyberpunk: 'cyberpunk',
   tribute: 'gorshenev',
+  love: 'love',
 };
 
 export const TRACK_FILENAMES: Record<TrackKey, string> = {
   rickroll: 'rickroll.mp3',
   cyberpunk: 'cyberpunk.mp3',
   tribute: 'gorshenev.mp3',
+  love: 'love.mp3',
 };
 
 const AUDIO_EXTENSIONS = ['mp3', 'ogg', 'wav', 'm4a'] as const;

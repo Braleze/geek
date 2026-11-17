@@ -746,7 +746,7 @@
         display: flex;
         flex-direction: column;
         gap: 8px;
-        max-height: 285px;
+        max-height: 360px;
         overflow-y: auto;
       }
       .gk-cn-msg {
@@ -1066,8 +1066,8 @@
         margin: 0;
       }
       .gk-error-msg.is-error { color: #ff007f; }
-      .gk-rick-stage, .gk-johnny-stage, .gk-tribute-stage { display: none; }
-      .gk-rick-stage.is-visible, .gk-johnny-stage.is-visible, .gk-tribute-stage.is-visible { display: block; }
+      .gk-rick-stage, .gk-johnny-stage, .gk-tribute-stage, .gk-love-stage { display: none; }
+      .gk-rick-stage.is-visible, .gk-johnny-stage.is-visible, .gk-tribute-stage.is-visible, .gk-love-stage.is-visible { display: block; }
       .gk-keypad-view.is-hidden { display: none; }
       .gk-rick-frame {
         border-radius: 16px;
@@ -1119,6 +1119,24 @@
         font-weight: 700;
         color: #fcd34d;
         font-size: 14px;
+      }
+      .gk-love-frame {
+        border-radius: 16px;
+        overflow: hidden;
+        border: 2px solid rgba(255, 42, 133, 0.75);
+        box-shadow: 0 0 28px rgba(255, 42, 133, 0.4);
+        background: #09050f;
+        margin-bottom: 16px;
+      }
+      .gk-love-quote {
+        padding: 12px;
+        background: #150f24;
+        border-top: 1px solid rgba(255, 42, 133, 0.35);
+        font-family: "Orbitron", sans-serif;
+        font-weight: 700;
+        color: #ff8ac4;
+        font-size: 13px;
+        text-align: center;
       }
       .gk-rick-actions {
         display: flex;
@@ -1970,6 +1988,7 @@
                 </button>
               </div>
             </div>
+            <div class="gk-love-stage" id="gk-love-stage"></div>
           </div>
         </div>
       </div>
@@ -1988,6 +2007,7 @@
           var rickStage = document.getElementById('gk-rick-stage');
           var johnnyStage = document.getElementById('gk-johnny-stage');
           var tributeStage = document.getElementById('gk-tribute-stage');
+          var loveStage = document.getElementById('gk-love-stage');
           var slotsEl = document.getElementById('gk-slots');
           var errEl = document.getElementById('gk-error-msg');
           var canvas = document.getElementById('gk-rick-canvas');
@@ -1999,6 +2019,7 @@
           var muteBtn = document.getElementById('gk-toggle-mute');
           var muteJohnnyBtn = document.getElementById('gk-toggle-mute-johnny');
           var muteTributeBtn = document.getElementById('gk-toggle-mute-tribute');
+          var muteLoveBtn = null;
 
           var digits = '';
           var isError = false;
@@ -2565,6 +2586,140 @@
             animId = requestAnimationFrame(draw);
           }
 
+          var LOVE_SUBTITLES = [
+            '«Я всё ещё её люблю...»',
+            '«Сколько бы времени ни прошло — это чувство никуда не исчезло.»',
+            '«Пока звучит эта мелодия — сердце всё ещё помнит.»',
+            '«Некоторые чувства не стираются даже временем.»'
+          ];
+
+          function startLove() {
+            if (!loveStage) return;
+            isUnlocked = true;
+            keypadView.classList.add('is-hidden');
+            loveStage.innerHTML =
+              '<div class="gk-modal-head">' +
+                '<div>' +
+                  '<div style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:#00f0ff;letter-spacing:0.12em;">ЛИЧНОЕ ПОСЛАНИЕ · СЕКРЕТНЫЙ КАНАЛ</div>' +
+                  '<h2 style="font-family:\'Orbitron\',sans-serif;font-weight:900;font-size:20px;color:#fff;margin:4px 0 0;">Я ВСЁ ЕЩЁ ЕЁ ЛЮБЛЮ</h2>' +
+                '</div>' +
+                '<button type="button" class="gk-close-btn" id="gk-close-love" aria-label="Закрыть секретную комнату">&times;</button>' +
+              '</div>' +
+              '<div class="gk-love-frame">' +
+                '<canvas id="gk-love-canvas" width="520" height="280" style="width:100%;height:auto;display:block;"></canvas>' +
+                '<div class="gk-love-quote">' +
+                  '<div style="color:#fff;font-size:15px;margin-bottom:4px;">Я всё ещё её люблю.</div>' +
+                  '<div id="gk-love-sub">' + LOVE_SUBTITLES[0] + '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="gk-rick-actions">' +
+                '<div style="display:flex;gap:8px;">' +
+                  '<button type="button" class="gk-cyber-btn gk-btn-cyan" id="gk-toggle-mute-love">' + (isMuted ? 'ЗВУК ВКЛ' : 'БЕЗ ЗВУКА') + '</button>' +
+                  '<button type="button" class="gk-cyber-btn gk-btn-pink" id="gk-reset-code-love">СБРОСИТЬ КОД</button>' +
+                '</div>' +
+                '<button type="button" class="gk-cyber-btn gk-cta-primary" id="gk-exit-love">ВЕРНУТЬСЯ НА САЙТ</button>' +
+              '</div>';
+            loveStage.classList.add('is-visible');
+
+            var loveSubEl = document.getElementById('gk-love-sub');
+            muteLoveBtn = document.getElementById('gk-toggle-mute-love');
+            document.getElementById('gk-close-love').addEventListener('click', closeModal);
+            document.getElementById('gk-exit-love').addEventListener('click', closeModal);
+            document.getElementById('gk-reset-code-love').addEventListener('click', resetKeypad);
+            muteLoveBtn.addEventListener('click', toggleMute);
+
+            var li = 0;
+            lyricTimer = setInterval(function () {
+              li = (li + 1) % LOVE_SUBTITLES.length;
+              if (loveSubEl) loveSubEl.textContent = LOVE_SUBTITLES[li];
+            }, 3200);
+            startTrackAudio('love');
+
+            var lCanvas = document.getElementById('gk-love-canvas');
+            var ctx = lCanvas && lCanvas.getContext ? lCanvas.getContext('2d') : null;
+            if (!ctx) return;
+            var t0 = performance.now();
+            function drawHeartPath(cx, cy, sc) {
+              ctx.beginPath();
+              for (var a = 0; a <= Math.PI * 2 + 0.05; a += 0.08) {
+                var hx = 16 * Math.pow(Math.sin(a), 3);
+                var hy = -(13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a));
+                var px = cx + hx * sc;
+                var py = cy + hy * sc;
+                if (a === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+              }
+              ctx.closePath();
+            }
+            function draw(now) {
+              var t = (now - t0) / 1000;
+              var w = lCanvas.width;
+              var h = lCanvas.height;
+              var floorY = h * 0.82;
+              var beat = 1 + Math.pow(Math.max(0, Math.sin(t * 2.4)), 6) * 0.14;
+
+              var bg = ctx.createLinearGradient(0, 0, 0, h);
+              bg.addColorStop(0, '#07040f');
+              bg.addColorStop(0.55, '#190822');
+              bg.addColorStop(1, '#0b0714');
+              ctx.fillStyle = bg;
+              ctx.fillRect(0, 0, w, h);
+
+              var aura = ctx.createRadialGradient(w / 2, h * 0.45, 10, w / 2, h * 0.45, 155 * beat);
+              aura.addColorStop(0, 'rgba(255, 42, 133, 0.34)');
+              aura.addColorStop(0.5, 'rgba(184, 41, 255, 0.16)');
+              aura.addColorStop(1, 'rgba(0, 0, 0, 0)');
+              ctx.fillStyle = aura;
+              ctx.beginPath();
+              ctx.arc(w / 2, h * 0.45, 155 * beat, 0, Math.PI * 2);
+              ctx.fill();
+
+              ctx.fillStyle = '#07040d';
+              ctx.fillRect(0, floorY, w, h - floorY);
+              ctx.strokeStyle = 'rgba(255, 42, 133, 0.35)';
+              ctx.beginPath();
+              ctx.moveTo(0, floorY);
+              ctx.lineTo(w, floorY);
+              ctx.stroke();
+
+              for (var i = 0; i < 24; i++) {
+                var bh = 4 + Math.abs(Math.sin(t * 2.1 + i * 0.5)) * 16;
+                ctx.fillStyle = i % 2 === 0 ? 'rgba(255, 42, 133, 0.32)' : 'rgba(0, 240, 255, 0.22)';
+                ctx.fillRect(42 + i * 19, floorY - bh, 7, bh);
+              }
+
+              for (var p = 0; p < 34; p++) {
+                var py = (((p * 37) % 280 - t * (12 + (p % 5) * 5)) % floorY + floorY) % floorY;
+                var px = (p * 53) % 520 + Math.sin(t * 1.4 + p * 0.7) * 8;
+                ctx.fillStyle = p % 2 === 0 ? 'rgba(255, 110, 175, 0.72)' : 'rgba(0, 240, 255, 0.55)';
+                ctx.beginPath();
+                ctx.arc(px, py, 1 + (p % 3) * 0.75, 0, Math.PI * 2);
+                ctx.fill();
+              }
+
+              ctx.strokeStyle = 'rgba(0, 240, 255, 0.25)';
+              ctx.lineWidth = 1.2;
+              ctx.beginPath();
+              ctx.arc(w / 2, h * 0.44, 62 * beat, 0, Math.PI * 2);
+              ctx.stroke();
+
+              drawHeartPath(w / 2, h * 0.44, 2.65 * beat);
+              ctx.fillStyle = 'rgba(255, 42, 133, 0.32)';
+              ctx.fill();
+              ctx.strokeStyle = '#ff4fa3';
+              ctx.lineWidth = 2.6;
+              ctx.stroke();
+
+              drawHeartPath(w / 2, h * 0.44, 2.65 * beat * 0.76);
+              ctx.strokeStyle = 'rgba(0, 240, 255, 0.45)';
+              ctx.lineWidth = 1.2;
+              ctx.stroke();
+
+              animId = requestAnimationFrame(draw);
+            }
+            animId = requestAnimationFrame(draw);
+          }
+
           function resetKeypad() {
             stopRick();
             isUnlocked = false;
@@ -2573,6 +2728,11 @@
             rickStage.classList.remove('is-visible');
             johnnyStage.classList.remove('is-visible');
             tributeStage.classList.remove('is-visible');
+            if (loveStage) {
+              loveStage.classList.remove('is-visible');
+              loveStage.innerHTML = '';
+            }
+            muteLoveBtn = null;
             keypadView.classList.remove('is-hidden');
             errEl.textContent = 'Ожидание ввода 4-значного кода...';
             errEl.classList.remove('is-error');
@@ -2698,6 +2858,9 @@
             } else if (digest === '5b08d5ffbb480858') {
               playStaticKeypadTone('unlock');
               startGorshenev();
+            } else if (digest === '450ee0e10fb53b4f') {
+              playStaticKeypadTone('unlock');
+              startLove();
             } else {
               playStaticKeypadTone('error');
               isError = true;
@@ -2809,6 +2972,7 @@
             muteBtn.textContent = label;
             muteJohnnyBtn.textContent = label;
             muteTributeBtn.textContent = label;
+            if (muteLoveBtn) muteLoveBtn.textContent = label;
           }
           muteBtn.addEventListener('click', toggleMute);
           muteJohnnyBtn.addEventListener('click', toggleMute);
@@ -2859,8 +3023,8 @@
                   name: 'игровая-комната',
                   messages: [
                     { author: 'СИСТЕМА GEEK', initials: 'СГ', color: '#00f0ff', badge: 'set1', time: '00:00', text: 'Добро пожаловать в «Ночной клуб»! Прямые звонки, индикатор голоса, фото/видео в чате и синхронизация активны.' },
-                    { author: 'Niko', initials: 'NI', color: '#ff2a85', badge: 'set3', time: '23:42', text: 'Залетайте в «Ночной эфир», тестируем шумоподавление и демонстрацию экрана без потерь.' },
-                    { author: 'Kira', initials: 'KI', color: '#3b82f6', badge: 'set2', time: '23:44', text: 'Уже на месте! Голос чистый, зелёный индикатор речи срабатывает моментально.' }
+                    { author: 'Niko', initials: 'NI', color: '#ff2a85', badge: 'set3', time: '23:42', text: 'Залетайте в «Ночной эфир» — вчера в логах ретранслятора выловил пакет MTk4Nw==, кто помнит старый интернет-хит с кассетой, сразу узнает год. А стабильный релиз узла выйдет ровно через 0b101000 циклов после него.' },
+                    { author: 'Kira', initials: 'KI', color: '#3b82f6', badge: 'set2', time: '23:44', text: 'Уже на месте! Кстати, пока ковыряла сборку SAMURAI, нашла в дампе пару простых множителей из хроники Пондсмита: первый равен 0x1F, а второй в ASCII отвечает за заглавную литеру C. Их произведение — ровно год той самой башни.' }
                   ]
                 },
                 {
