@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Delete, KeyRound, Lock, ShieldAlert, X } from 'lucide-react';
 import {
   CODE_LENGTH,
@@ -10,7 +10,11 @@ import {
   submitCode,
   type KeypadState,
 } from '../utils/secretCode';
-import { playKeypadTone } from '../utils/rickrollAudio';
+import {
+  playKeypadTone,
+  warmUpKeypadAudio,
+  type KeypadToneType,
+} from '../utils/rickrollAudio';
 import { RickrollStage } from './RickrollStage';
 import { JohnnyStage } from './JohnnyStage';
 import { GorshenevStage } from './GorshenevStage';
@@ -24,20 +28,27 @@ const KEYPAD_DIGITS = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
 export function SecretRoomModal({ isOpen, onClose }: SecretRoomModalProps) {
   const [keypad, setKeypad] = useState<KeypadState>(createInitialKeypadState);
+  const keypadRef = useRef<KeypadState>(keypad);
 
-  const applyUpdate = useCallback((updater: (prev: KeypadState) => KeypadState) => {
-    setKeypad((prev) => {
+  const applyUpdate = useCallback(
+    (updater: (prev: KeypadState) => KeypadState, fallbackTone?: KeypadToneType) => {
+      const prev = keypadRef.current;
       const next = updater(prev);
+      keypadRef.current = next;
+      setKeypad(next);
+
       if (next.status === 'unlocked' && prev.status !== 'unlocked') {
         playKeypadTone('unlock');
       } else if (next.status === 'error' && next.attempts > prev.attempts) {
         playKeypadTone('error');
       } else if (next.digits.length > prev.digits.length) {
         playKeypadTone('digit');
+      } else if (fallbackTone) {
+        playKeypadTone(fallbackTone);
       }
-      return next;
-    });
-  }, []);
+    },
+    [],
+  );
 
   const handleDigit = useCallback(
     (digit: string) => {
@@ -47,11 +58,11 @@ export function SecretRoomModal({ isOpen, onClose }: SecretRoomModalProps) {
   );
 
   const handleBackspace = useCallback(() => {
-    applyUpdate((prev) => removeDigit(prev));
+    applyUpdate((prev) => removeDigit(prev), 'backspace');
   }, [applyUpdate]);
 
   const handleClear = useCallback(() => {
-    applyUpdate((prev) => clearDigits(prev));
+    applyUpdate((prev) => clearDigits(prev), 'clear');
   }, [applyUpdate]);
 
   const handleSubmit = useCallback(() => {
@@ -59,13 +70,19 @@ export function SecretRoomModal({ isOpen, onClose }: SecretRoomModalProps) {
   }, [applyUpdate]);
 
   const handleResetKeypad = useCallback(() => {
-    setKeypad(createInitialKeypadState());
+    const fresh = createInitialKeypadState();
+    keypadRef.current = fresh;
+    setKeypad(fresh);
   }, []);
 
-  // Reset keypad when modal closes
+  // Reset keypad when modal closes and warm up AudioContext when opened
   useEffect(() => {
     if (!isOpen) {
-      setKeypad(createInitialKeypadState());
+      const fresh = createInitialKeypadState();
+      keypadRef.current = fresh;
+      setKeypad(fresh);
+    } else {
+      warmUpKeypadAudio();
     }
   }, [isOpen]);
 

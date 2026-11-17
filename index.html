@@ -1076,9 +1076,13 @@
           </section>
 
           <section id="faq" class="gk-faq-section" aria-labelledby="gk-faq-title">
-            <div style="text-align:center;margin-bottom:36px;">
+            <div style="text-align:center;margin-bottom:28px;">
               <p class="gk-kicker" style="color:#ff007f;">ОТВЕТЫ НА ГЛАВНОЕ</p>
               <h2 id="gk-faq-title" class="gk-h2">Частые вопросы</h2>
+            </div>
+            <div style="margin-bottom:24px;padding:16px 24px;border-radius:16px;background:rgba(28,20,50,0.88);border:1px solid rgba(255,0,127,0.45);box-shadow:0 0 20px rgba(255,0,127,0.16);font-size:14px;color:#e2e8f0;line-height:1.6;">
+              <div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:#fcee0a;margin-bottom:6px;">ОТ КОМАНДЫ РАЗРАБОТЧИКОВ</div>
+              <div>Проект Geek создаётся командой из двух разработчиков, которые трудятся на чистом энтузиазме в свободное время. Мы вкладываем душу в каждую деталь и искренне просим прощения за возможные неудобства и отставание от сроков.</div>
             </div>
             <div class="gk-faq-list" id="gk-faq-list">
               <div class="gk-faq-item is-open">
@@ -1929,15 +1933,99 @@
             return (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
           }
 
+          var keypadCtx = null;
+
+          function getKeypadCtx() {
+            var Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return null;
+            try {
+              if (!keypadCtx || keypadCtx.state === 'closed') keypadCtx = new Ctx();
+              return keypadCtx;
+            } catch (e) { return null; }
+          }
+
+          function warmUpKeypadCtx() {
+            var ctx = getKeypadCtx();
+            if (ctx && ctx.state === 'suspended') {
+              try { ctx.resume().catch(function () {}); } catch (e) {}
+            }
+          }
+
+          function triggerKeypadOsc(ctx, type) {
+            var now = ctx.currentTime;
+            var osc = ctx.createOscillator();
+            var gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            if (type === 'digit') {
+              osc.type = 'triangle';
+              osc.frequency.setValueAtTime(840, now);
+              osc.frequency.exponentialRampToValueAtTime(540, now + 0.065);
+              gain.gain.setValueAtTime(0.14, now);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+              osc.start(now);
+              osc.stop(now + 0.08);
+            } else if (type === 'backspace') {
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(420, now);
+              osc.frequency.exponentialRampToValueAtTime(280, now + 0.055);
+              gain.gain.setValueAtTime(0.11, now);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+              osc.start(now);
+              osc.stop(now + 0.07);
+            } else if (type === 'clear') {
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(520, now);
+              osc.frequency.setValueAtTime(340, now + 0.045);
+              gain.gain.setValueAtTime(0.11, now);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+              osc.start(now);
+              osc.stop(now + 0.12);
+            } else if (type === 'error') {
+              osc.type = 'sawtooth';
+              osc.frequency.setValueAtTime(190, now);
+              osc.frequency.setValueAtTime(140, now + 0.1);
+              gain.gain.setValueAtTime(0.12, now);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+              osc.start(now);
+              osc.stop(now + 0.25);
+            } else {
+              osc.type = 'triangle';
+              osc.frequency.setValueAtTime(523.25, now);
+              osc.frequency.setValueAtTime(659.25, now + 0.08);
+              osc.frequency.setValueAtTime(783.99, now + 0.16);
+              gain.gain.setValueAtTime(0.14, now);
+              gain.gain.exponentialRampToValueAtTime(0.001, now + 0.34);
+              osc.start(now);
+              osc.stop(now + 0.35);
+            }
+          }
+
+          function playStaticKeypadTone(type) {
+            var ctx = getKeypadCtx();
+            if (!ctx) return;
+            try {
+              if (ctx.state === 'suspended') {
+                ctx.resume().then(function () { triggerKeypadOsc(ctx, type); }).catch(function () {});
+                return;
+              }
+              triggerKeypadOsc(ctx, type);
+            } catch (e) {}
+          }
+
           function checkCode() {
             var digest = digits.length === 4 ? hashAccessCode(digits) : '';
             if (digest === 'ce926369550a595a') {
+              playStaticKeypadTone('unlock');
               startRick();
             } else if (digest === 'e68654a845d9b010') {
+              playStaticKeypadTone('unlock');
               startJohnny();
             } else if (digest === '5b08d5ffbb480858') {
+              playStaticKeypadTone('unlock');
               startGorshenev();
             } else {
+              playStaticKeypadTone('error');
               isError = true;
               errEl.textContent = digits.length < 4 ? 'Введите 4 цифры кода доступа' : 'Неверный код доступа. Попробуйте снова.';
               errEl.classList.add('is-error');
@@ -1956,7 +2044,11 @@
             if (digits.length >= 4) return;
             digits += d;
             renderSlots(false);
-            if (digits.length === 4) checkCode();
+            if (digits.length === 4) {
+              checkCode();
+            } else {
+              playStaticKeypadTone('digit');
+            }
           }
 
           document.querySelectorAll('.gk-feature-card, .gk-roadmap-card').forEach(function (card) {
@@ -1985,15 +2077,22 @@
           });
 
           document.querySelectorAll('[data-gk-open-secret]').forEach(function (el) {
-            el.addEventListener('click', openModal);
+            el.addEventListener('click', function () {
+              warmUpKeypadCtx();
+              openModal();
+            });
           });
           document.querySelectorAll('[data-gk-digit]').forEach(function (el) {
             el.addEventListener('click', function () {
               addDigit(el.getAttribute('data-gk-digit'));
             });
           });
-          document.getElementById('gk-clear').addEventListener('click', resetKeypad);
+          document.getElementById('gk-clear').addEventListener('click', function () {
+            playStaticKeypadTone('clear');
+            resetKeypad();
+          });
           document.getElementById('gk-back').addEventListener('click', function () {
+            playStaticKeypadTone('backspace');
             if (isError) { resetKeypad(); return; }
             digits = digits.slice(0, -1);
             renderSlots(false);
@@ -2133,6 +2232,7 @@
             if (e.key === 'Escape') closeModal();
             else if (!isUnlocked && /^\d$/.test(e.key)) addDigit(e.key);
             else if (!isUnlocked && e.key === 'Backspace') {
+              playStaticKeypadTone('backspace');
               digits = digits.slice(0, -1);
               renderSlots(false);
             } else if (!isUnlocked && e.key === 'Enter') checkCode();

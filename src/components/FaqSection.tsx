@@ -53,7 +53,7 @@ export function FaqSection() {
       aria-labelledby="faq-heading"
       className="w-full max-w-4xl mx-auto mt-20 mb-8 text-left"
     >
-      <div className="text-center mb-10">
+      <div className="text-center mb-8">
         <p className="text-xs font-mono-tech text-[#ff007f] tracking-widest uppercase mb-2">
           ОТВЕТЫ НА ГЛАВНОЕ
         </p>
@@ -63,6 +63,18 @@ export function FaqSection() {
         >
           Частые вопросы
         </h2>
+      </div>
+
+      <div
+        className="mb-6 px-6 py-4 rounded-2xl bg-[#1c1432]/85 border border-[#ff007f]/45 shadow-[0_0_20px_rgba(255,0,127,0.16)] text-sm text-slate-200 leading-relaxed"
+        data-testid="faq-team-note"
+      >
+        <p className="font-mono-tech text-[11px] uppercase tracking-widest text-[#fcee0a] mb-1.5">
+          ОТ КОМАНДЫ РАЗРАБОТЧИКОВ
+        </p>
+        <p>
+          Проект Geek создаётся командой из двух разработчиков, которые трудятся на чистом энтузиазме в свободное время. Мы вкладываем душу в каждую деталь и искренне просим прощения за возможные неудобства и отставание от сроков.
+        </p>
       </div>
 
       <div className="space-y-3">
