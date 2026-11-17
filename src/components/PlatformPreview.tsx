@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react';
-import { Headphones, Mic, MicOff, Monitor, Paperclip, Users, Video, Volume2, VolumeX, Zap } from 'lucide-react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { Headphones, Mic, MicOff, Monitor, Paperclip, PhoneCall, Users, Video, Volume2, VolumeX, Zap } from 'lucide-react';
 import {
   BADGE_META,
   PREVIEW_SERVERS,
@@ -8,6 +8,9 @@ import {
   type PreviewMessage,
   type PreviewServerId,
 } from '../utils/platformPreview';
+import { usePreBetaCall } from '../hooks/usePreBetaCall';
+import { PreBetaWorkspace } from './PreBetaWorkspace';
+import { formatCountdownMs, normalizePreBetaCode } from '../utils/preBetaSession';
 
 const WAVE_DELAYS = ['0s', '.2s', '.4s', '.1s', '.3s', '.5s', '.15s', '.35s', '.05s', '.25s', '.45s', '.12s'];
 
@@ -60,6 +63,8 @@ function CyberBadge({ setKey }: { setKey: PreviewBadgeSet }) {
 
 export function PlatformPreview() {
   const [activeServerId, setActiveServerId] = useState<PreviewServerId>('cy-4371');
+  const [preBetaMode, setPreBetaMode] = useState<boolean>(false);
+  const [initialPreBetaCode, setInitialPreBetaCode] = useState<string>('');
   const [activeChannelByServer, setActiveChannelByServer] = useState<Record<PreviewServerId, string>>({
     'cy-4371': 'игровая-комната',
     'hc-node': 'код-и-архитектура',
@@ -74,6 +79,24 @@ export function PlatformPreview() {
   const [screenActive, setScreenActive] = useState(false);
   const [showMembers, setShowMembers] = useState(true);
   const [inviteCopied, setInviteCopied] = useState(false);
+
+  const preBeta = usePreBetaCall();
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const codeParam = params.get('prebeta');
+      if (codeParam) {
+        const normalized = normalizePreBetaCode(codeParam);
+        if (normalized) {
+          setInitialPreBetaCode(normalized);
+          setPreBetaMode(true);
+        }
+      }
+    } catch {
+      // Ignore malformed URL params
+    }
+  }, []);
 
   const activeServer =
     PREVIEW_SERVERS.find((srv) => srv.id === activeServerId) ?? PREVIEW_SERVERS[0];
@@ -115,6 +138,7 @@ export function PlatformPreview() {
   ];
 
   const handleSelectServer = (srvId: PreviewServerId) => {
+    setPreBetaMode(false);
     setActiveServerId(srvId);
   };
 
@@ -137,7 +161,10 @@ export function PlatformPreview() {
   };
 
   const handleCopyInvite = async () => {
-    const shareUrl = `${window.location.origin}${window.location.pathname}?room=${activeServer.id}`;
+    const shareUrl =
+      preBetaMode && preBeta.roomSnapshot
+        ? `${window.location.origin}${window.location.pathname}?prebeta=${encodeURIComponent(preBeta.roomSnapshot.code)}#preview`
+        : `${window.location.origin}${window.location.pathname}?room=${activeServer.id}`;
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
@@ -189,10 +216,28 @@ export function PlatformPreview() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setPreBetaMode((prev) => !prev)}
+              aria-pressed={preBetaMode}
+              data-testid="prebeta-mode-btn"
+              className={`inline-flex items-center gap-1.5 text-[10.5px] font-extrabold px-2.5 py-1 rounded-md border transition-all cursor-pointer whitespace-nowrap ${
+                preBetaMode
+                  ? 'bg-[#00f0ff] border-[#00f0ff] text-[#031518] shadow-[0_0_12px_rgba(0,240,255,0.55)]'
+                  : 'bg-[#ff2a85]/15 border-[#ff2a85]/60 text-[#ff8ac4] hover:bg-[#ff2a85]/30 hover:text-white'
+              }`}
+            >
+              <PhoneCall className="w-3 h-3" />
+              <span>
+                {preBeta.roomSnapshot
+                  ? `PRE-BETA LIVE (${formatCountdownMs(preBeta.remainingMs)})`
+                  : 'PRE-BETA СВЯЗЬ · 30 МИН'}
+              </span>
+            </button>
             <span className="inline-flex items-center gap-1.5 bg-[#10b981]/10 border border-[#10b981]/40 text-[#6ee7b7] text-[10.5px] font-bold px-2.5 py-1 rounded-md">
               <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
-              <span>{activeServer.id}</span>
+              <span>{preBetaMode ? 'pre-beta-1on1' : activeServer.id}</span>
             </span>
             <button
               type="button"
@@ -205,17 +250,19 @@ export function PlatformPreview() {
         </div>
 
         {/* Sub Sync Bar */}
-        <div className="h-8 bg-[#060b14]/95 border-b border-[#00f0ff]/15 px-3 flex items-center justify-between text-[11px]">
-          <div className="flex items-center gap-1.5 font-bold text-[#00f0ff] truncate">
-            <span>●</span>
-            <span className="hidden sm:inline">АКТИВНАЯ СЕТЬ:</span>
-            <span className="text-white font-extrabold">P2P СИНХРОНИЗАЦИЯ</span>
+        <div className="h-8 bg-[#060b14]/95 border-b border-[#00f0ff]/15 px-3 flex items-center justify-between gap-2 text-[11px]">
+          <div className="flex items-center gap-1.5 font-bold text-[#00f0ff] min-w-0 truncate">
+            <span className="shrink-0">●</span>
+            <span className="hidden sm:inline shrink-0">АКТИВНАЯ СЕТЬ:</span>
+            <span className="text-white font-extrabold truncate">
+              {preBetaMode ? 'PRE-BETA 1-НА-1 // 30 МИН' : 'P2P СИНХРОНИЗАЦИЯ'}
+            </span>
           </div>
           <button
             type="button"
             onClick={() => setShowMembers((prev) => !prev)}
             aria-pressed={showMembers}
-            className="bg-[#00f0ff]/10 border border-[#00f0ff]/20 hover:border-[#00f0ff]/50 text-[#e6f7ff] text-[10.5px] font-bold px-2.5 py-1 rounded flex items-center gap-1.5 cursor-pointer transition-colors"
+            className="bg-[#00f0ff]/10 border border-[#00f0ff]/20 hover:border-[#00f0ff]/50 text-[#e6f7ff] text-[10.5px] font-bold px-2.5 py-1 rounded flex items-center gap-1.5 cursor-pointer transition-colors shrink-0"
           >
             <Users className="w-3 h-3 text-[#00f0ff]" />
             <span>УЧАСТНИКИ</span>
@@ -240,7 +287,7 @@ export function PlatformPreview() {
             <div className="w-px h-6 lg:w-6 lg:h-px bg-[#00f0ff]/20 shrink-0" />
 
             {PREVIEW_SERVERS.map((srv) => {
-              const isAct = srv.id === activeServer.id;
+              const isAct = !preBetaMode && srv.id === activeServer.id;
               return (
                 <div key={srv.id} className="relative lg:w-full flex items-center justify-center shrink-0">
                   <span
@@ -265,7 +312,41 @@ export function PlatformPreview() {
                 </div>
               );
             })}
+
+            <div className="w-px h-6 lg:w-6 lg:h-px bg-[#ff2a85]/35 shrink-0" />
+
+            <div className="relative lg:w-full flex items-center justify-center shrink-0">
+              <span
+                className={`hidden lg:block absolute left-0 w-[3px] rounded-r bg-[#ff2a85] transition-all ${
+                  preBetaMode ? 'h-8 opacity-100' : 'h-2 opacity-0'
+                }`}
+              />
+              <button
+                type="button"
+                onClick={() => setPreBetaMode(true)}
+                aria-label="Pre-Beta живая связь 1-на-1"
+                aria-pressed={preBetaMode}
+                title="PRE-BETA // Связь 1-на-1 (30 мин до релиза)"
+                data-testid="prebeta-rail-btn"
+                className={`w-11 h-11 geek-hex font-extrabold text-xs flex items-center justify-center transition-all cursor-pointer ${
+                  preBetaMode
+                    ? 'bg-[#ff2a85] text-white shadow-[0_0_14px_rgba(255,42,133,0.75)]'
+                    : 'bg-[#1a0d1c] text-[#ff8ac4] hover:bg-[#ff2a85] hover:text-white'
+                }`}
+              >
+                PB
+              </button>
+            </div>
           </div>
+
+          {preBetaMode ? (
+            <PreBetaWorkspace
+              controller={preBeta}
+              initialJoinCode={initialPreBetaCode}
+              showMembers={showMembers}
+            />
+          ) : (
+            <>
 
           {/* 2. Channels Sidebar + Voice Dock + User Bar */}
           <aside className="lg:w-[272px] bg-[#060b14]/92 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 flex flex-col justify-between shrink-0">
@@ -649,6 +730,8 @@ export function PlatformPreview() {
                 </>
               )}
             </aside>
+          )}
+            </>
           )}
         </div>
       </div>
