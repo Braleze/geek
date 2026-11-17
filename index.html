@@ -229,7 +229,7 @@
         justify-content: center;
         text-align: center;
         padding: 40px 24px;
-        max-width: 1040px;
+        max-width: 1152px;
         margin: 0 auto;
         width: 100%;
       }
@@ -360,119 +360,453 @@
         transform: scale(1.02);
         opacity: 0.95;
       }
-      .gk-preview-card {
-        border-radius: 24px;
-        background: rgba(21, 15, 36, 0.92);
-        border: 1px solid rgba(0, 240, 255, 0.4);
-        box-shadow: 0 0 25px rgba(0, 240, 255, 0.35);
+      @keyframes gkCnGrad {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+      }
+      @keyframes gkCnEq {
+        0%, 100% { transform: scaleY(0.28); }
+        50% { transform: scaleY(1); }
+      }
+      @keyframes gkCnSpeak {
+        0%, 100% { transform: scaleY(0.35); }
+        50% { transform: scaleY(1); }
+      }
+      .gk-cn-hex {
+        clip-path: polygon(50% 0%, 93.3% 25%, 93.3% 75%, 50% 100%, 6.7% 75%, 6.7% 25%);
+      }
+      .gk-cn-shell {
+        border-radius: 16px;
+        background-color: #050911;
+        background-image: url("data:image/svg+xml,%3Csvg width='120' height='120' viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 20h40l15 15h35M20 0v30l20 20v70M120 80H80L65 65H20' stroke='rgba(0,240,255,0.06)' stroke-width='1.5' fill='none'/%3E%3Ccircle cx='40' cy='20' r='3' fill='rgba(0,240,255,0.1)'/%3E%3Ccircle cx='90' cy='35' r='3' fill='rgba(255,42,133,0.1)'/%3E%3Ccircle cx='20' cy='65' r='3' fill='rgba(0,240,255,0.08)'/%3E%3C/svg%3E");
+        border: 1px solid rgba(0, 240, 255, 0.35);
+        box-shadow: 0 0 28px rgba(0, 240, 255, 0.25);
         overflow: hidden;
+        color: #e6f7ff;
+        text-align: left;
       }
-      .gk-preview-grid {
-        display: grid;
-        grid-template-columns: 320px 1fr;
-        min-height: 400px;
+      .gk-cn-topbar {
+        min-height: 42px;
+        background: rgba(4, 7, 13, 0.96);
+        border-bottom: 1px solid rgba(0, 240, 255, 0.16);
+        padding: 6px 12px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
       }
-      .gk-preview-aside {
-        background: #0e091b;
-        border-right: 1px solid rgba(255, 255, 255, 0.1);
-        padding: 20px;
+      .gk-cn-brand {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .gk-cn-logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-weight: 900;
+        font-size: 12px;
+        letter-spacing: 0.06em;
+        color: #fff;
+      }
+      .gk-cn-tag-pink {
+        background: rgba(255, 42, 133, 0.2);
+        border: 1px solid rgba(255, 42, 133, 0.5);
+        color: #ff7aa8;
+        font-size: 9px;
+        font-weight: 800;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+      .gk-cn-proto-pill {
+        background: rgba(0, 240, 255, 0.06);
+        border: 1px solid rgba(0, 240, 255, 0.16);
+        color: #63809b;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 10px;
+        border-radius: 4px;
+      }
+      .gk-cn-node-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        color: #6ee7b7;
+        font-size: 10.5px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 6px;
+      }
+      .gk-cn-node-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 9999px;
+        background: #10b981;
+      }
+      .gk-cn-invite-btn {
+        background: linear-gradient(135deg, rgba(255, 42, 133, 0.35), rgba(157, 23, 77, 0.5));
+        border: 1px solid #ff2a85;
+        color: #fff;
+        font-size: 10.5px;
+        font-weight: 800;
+        padding: 4px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .gk-cn-subbar {
+        height: 32px;
+        background: rgba(6, 11, 20, 0.96);
+        border-bottom: 1px solid rgba(0, 240, 255, 0.16);
+        padding: 0 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+      }
+      .gk-cn-members-toggle {
+        background: rgba(0, 240, 255, 0.1);
+        border: 1px solid rgba(0, 240, 255, 0.22);
+        color: #e6f7ff;
+        font-size: 10.5px;
+        font-weight: 700;
+        padding: 3px 10px;
+        border-radius: 4px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+      }
+      .gk-cn-workspace {
+        display: flex;
+        min-height: 470px;
+      }
+      .gk-cn-rail {
+        width: 66px;
+        background: rgba(4, 7, 13, 0.96);
+        border-right: 1px solid rgba(0, 240, 255, 0.16);
+        padding: 12px 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      .gk-cn-rail-sep {
+        width: 24px;
+        height: 1px;
+        background: rgba(0, 240, 255, 0.2);
+      }
+      .gk-cn-srv-wrap {
+        position: relative;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .gk-cn-srv-bar {
+        position: absolute;
+        left: 0;
+        width: 3px;
+        height: 8px;
+        border-radius: 0 3px 3px 0;
+        background: #00f0ff;
+        opacity: 0;
+        transition: all 0.2s ease;
+      }
+      .gk-cn-srv-wrap.is-active .gk-cn-srv-bar {
+        height: 32px;
+        opacity: 1;
+      }
+      .gk-cn-srv-btn {
+        width: 44px;
+        height: 44px;
+        border: none;
+        background: #0c1626;
+        color: #b4cde0;
+        font-weight: 800;
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .gk-cn-srv-btn:hover,
+      .gk-cn-srv-wrap.is-active .gk-cn-srv-btn {
+        background: #00f0ff;
+        color: #031518;
+      }
+      .gk-cn-channels {
+        width: 272px;
+        background: rgba(6, 11, 20, 0.92);
+        border-right: 1px solid rgba(0, 240, 255, 0.16);
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        gap: 20px;
+        flex-shrink: 0;
       }
-      .gk-preview-tabs {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        margin-bottom: 20px;
-      }
-      .gk-preview-tab {
-        width: 100%;
+      .gk-cn-srv-head {
         padding: 10px 14px;
-        border-radius: 12px;
+        border-bottom: 1px solid rgba(0, 240, 255, 0.16);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .gk-cn-packet {
+        margin: 10px 10px 6px;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, rgba(255, 42, 133, 0.15), rgba(10, 19, 32, 0.9));
+        border: 1px solid rgba(255, 42, 133, 0.45);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .gk-cn-ch-btn {
+        width: 100%;
+        padding: 6px 10px;
+        border-radius: 6px;
         border: 1px solid transparent;
         background: transparent;
-        color: #94a3b8;
-        font-family: "Share Tech Mono", monospace;
-        font-size: 12px;
+        color: #b4cde0;
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
         text-align: left;
         cursor: pointer;
-        transition: all 0.2s ease;
+        margin-bottom: 2px;
       }
-      .gk-preview-tab:hover {
+      .gk-cn-ch-btn:hover {
+        background: rgba(0, 240, 255, 0.08);
         color: #fff;
-        background: rgba(255, 255, 255, 0.05);
       }
-      .gk-preview-tab.is-active {
-        background: rgba(0, 240, 255, 0.14);
-        border-color: rgba(0, 240, 255, 0.6);
+      .gk-cn-ch-btn.is-active {
+        background: rgba(0, 240, 255, 0.15);
+        border-color: rgba(0, 240, 255, 0.4);
         color: #fff;
-        box-shadow: 0 0 16px rgba(0, 240, 255, 0.2);
       }
-      .gk-preview-voice-box {
-        border-radius: 12px;
-        background: #150f24;
-        border: 1px solid rgba(255, 0, 127, 0.35);
-        padding: 12px;
-        font-size: 12px;
-      }
-      .gk-vc-controls {
+      .gk-cn-voice-row {
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 1px solid transparent;
+        font-size: 13px;
+        font-weight: 600;
         display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+      }
+      .gk-cn-voice-row.is-active {
+        background: rgba(16, 185, 129, 0.15);
+        border-color: rgba(16, 185, 129, 0.45);
+        color: #6ee7b7;
+      }
+      .gk-cn-vpeer {
+        display: flex;
+        align-items: center;
         gap: 8px;
-        padding-top: 12px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+        border: 1px solid transparent;
+        color: #b4cde0;
+        margin-bottom: 3px;
       }
-      .gk-vc-btn {
-        flex: 1;
+      .gk-cn-vpeer.is-speaking {
+        background: rgba(16, 185, 129, 0.15);
+        border-color: rgba(16, 185, 129, 0.5);
+        color: #fff;
+      }
+      .gk-cn-speak-bars {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        height: 12px;
+        flex-shrink: 0;
+      }
+      .gk-cn-speak-bar {
+        width: 2.5px;
+        height: 11px;
+        background: #10b981;
+        border-radius: 9999px;
+        animation: gkCnSpeak 0.45s ease-in-out infinite;
+      }
+      .gk-cn-vdock {
+        background: rgba(6, 16, 26, 0.96);
+        border-top: 1px solid rgba(0, 240, 255, 0.35);
         padding: 8px 10px;
-        border-radius: 10px;
-        background: #150f24;
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        color: #e2e8f0;
-        font-family: "Share Tech Mono", monospace;
-        font-size: 11px;
+      }
+      .gk-cn-vdock-btn {
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 10.5px;
+        font-weight: 800;
         cursor: pointer;
-        transition: all 0.2s ease;
+        border: 1px solid rgba(0, 240, 255, 0.5);
+        background: #00f0ff;
+        color: #031518;
       }
-      .gk-vc-btn:hover { border-color: rgba(0, 240, 255, 0.6); }
-      .gk-vc-btn.is-muted {
-        background: rgba(255, 0, 127, 0.15);
-        border-color: rgba(255, 0, 127, 0.6);
-        color: #ff007f;
+      .gk-cn-vdock-btn.is-in {
+        background: rgba(255, 42, 133, 0.25);
+        border-color: #ff2a85;
+        color: #ff80a0;
       }
-      .gk-vc-btn.is-yellow {
-        background: rgba(252, 238, 10, 0.15);
-        border-color: rgba(252, 238, 10, 0.6);
-        color: #fcee0a;
+      .gk-cn-tool-btn {
+        padding: 5px 8px;
+        border-radius: 4px;
+        border: 1px solid rgba(0, 240, 255, 0.16);
+        background: #0d1829;
+        color: #b4cde0;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
       }
-      .gk-preview-main {
-        padding: 24px;
+      .gk-cn-tool-btn.is-cam {
+        background: rgba(16, 185, 129, 0.25);
+        border-color: #10b981;
+        color: #6ee7b7;
+      }
+      .gk-cn-tool-btn.is-screen {
+        background: rgba(255, 42, 133, 0.25);
+        border-color: #ff2a85;
+        color: #ffaec2;
+      }
+      .gk-cn-userbar {
+        height: 54px;
+        padding: 0 10px;
+        background: #040810;
+        border-top: 1px solid rgba(0, 240, 255, 0.16);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .gk-cn-hexbtn {
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: #0d1829;
+        color: #00f0ff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .gk-cn-hexbtn.is-muted {
+        background: rgba(255, 42, 133, 0.25);
+        color: #ff2a85;
+      }
+      .gk-cn-chat {
+        flex: 1;
+        min-width: 0;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        background: rgba(21, 15, 36, 0.7);
+        background: rgba(8, 16, 28, 0.9);
       }
-      .gk-preview-messages {
+      .gk-cn-streamhead {
+        margin: 12px 12px 4px;
+        padding: 8px 12px;
+        border-radius: 10px;
+        background: rgba(10, 19, 32, 0.9);
+        border: 1px solid rgba(0, 240, 255, 0.16);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .gk-cn-eq {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        height: 20px;
+      }
+      .gk-cn-eq-bar {
+        width: 3px;
+        height: 100%;
+        background: #00f0ff;
+        border-radius: 2px;
+        opacity: 0.8;
+        animation: gkCnEq 1.1s ease-in-out infinite;
+      }
+      .gk-cn-eq.is-paused .gk-cn-eq-bar {
+        animation: none;
+        opacity: 0.3;
+        transform: scaleY(0.25);
+      }
+      .gk-cn-messages {
+        padding: 8px 12px;
         display: flex;
         flex-direction: column;
-        gap: 12px;
-        max-height: 250px;
+        gap: 8px;
+        max-height: 285px;
         overflow-y: auto;
-        margin-bottom: 18px;
-        padding-right: 4px;
       }
-      .gk-preview-msg {
-        border-radius: 12px;
-        background: rgba(11, 7, 20, 0.78);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        padding: 12px 14px;
-      }
-      .gk-preview-form {
+      .gk-cn-msg {
         display: flex;
-        gap: 10px;
-        padding-top: 10px;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: rgba(10, 19, 32, 0.9);
+        border: 1px solid rgba(0, 240, 255, 0.16);
+      }
+      .gk-cn-console {
+        margin: 4px 12px 12px;
+        border-radius: 8px;
+        background: rgba(10, 19, 32, 0.95);
+        border: 1px solid rgba(0, 240, 255, 0.4);
+        padding: 8px 10px;
+      }
+      .gk-cn-members {
+        width: 225px;
+        background: rgba(6, 11, 20, 0.92);
+        border-left: 1px solid rgba(0, 240, 255, 0.16);
+        padding: 12px 10px;
+        flex-shrink: 0;
+      }
+      .gk-cn-members.is-hidden {
+        display: none;
+      }
+      .gk-cn-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 9px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        white-space: nowrap;
+      }
+      .gk-cn-badge-set1 {
+        background: linear-gradient(90deg, #00f0ff, #b829ff, #ff2a85);
+        background-size: 200% auto;
+        animation: gkCnGrad 3s linear infinite;
+        color: #fff;
+      }
+      .gk-cn-badge-set2 {
+        background: linear-gradient(90deg, #fcee09, #10b981, #00f0ff);
+        background-size: 200% auto;
+        animation: gkCnGrad 3s linear infinite;
+        color: #031518;
+      }
+      .gk-cn-badge-set3 {
+        background: linear-gradient(90deg, #ff003c, #fcee09, #ff003c);
+        background-size: 200% auto;
+        animation: gkCnGrad 2s linear infinite;
+        color: #fff;
       }
       .gk-scroll-top {
         position: fixed;
@@ -1042,14 +1376,37 @@
       .gk-faq-item.is-open .gk-faq-answer { display: block; }
       @media (max-width: 1024px) {
         .gk-nav { display: none; }
-        .gk-preview-grid { grid-template-columns: 1fr; }
-        .gk-preview-aside { border-right: none; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .gk-cn-workspace { flex-direction: column; }
+        .gk-cn-rail {
+          width: 100%;
+          flex-direction: row;
+          padding: 10px 12px;
+          border-right: none;
+          border-bottom: 1px solid rgba(0, 240, 255, 0.16);
+          overflow-x: auto;
+        }
+        .gk-cn-rail-sep { width: 1px; height: 24px; }
+        .gk-cn-srv-wrap { width: auto; }
+        .gk-cn-srv-bar { display: none; }
+        .gk-cn-channels {
+          width: 100%;
+          border-right: none;
+          border-bottom: 1px solid rgba(0, 240, 255, 0.16);
+        }
+        .gk-cn-members {
+          width: 100%;
+          border-left: none;
+          border-top: 1px solid rgba(0, 240, 255, 0.16);
+        }
       }
       @media (max-width: 640px) {
         .gk-hide-sm { display: none; }
+        .gk-cn-proto-pill, .gk-cn-eq { display: none; }
       }
       @media (prefers-reduced-motion: reduce) {
-        .gk-grid, .gk-hero-emblem-wrap, .gk-shake { animation: none; }
+        .gk-grid, .gk-hero-emblem-wrap, .gk-shake,
+        .gk-cn-badge-set1, .gk-cn-badge-set2, .gk-cn-badge-set3,
+        .gk-cn-eq-bar, .gk-cn-speak-bar { animation: none; }
       }
     </style>
   </head>
@@ -1206,66 +1563,151 @@
           <section id="preview" class="gk-section" aria-labelledby="gk-preview-title">
             <div class="gk-section-head">
               <div>
-                <p class="gk-kicker">ИНТЕРАКТИВНЫЙ ПРОТОТИП</p>
+                <p class="gk-kicker">GEEK // CYBER.NET · ПРЕВЬЮ КЛИЕНТА</p>
                 <h2 id="gk-preview-title" class="gk-h2">Как выглядит Geek внутри</h2>
               </div>
               <p style="font-size:14px;color:#94a3b8;max-width:440px;margin:0;">
-                Переключайте текстовые каналы, напишите пробное сообщение или проверьте панель управления голосовой комнатой.
+                Переключайте серверы и текстовые каналы, напишите сообщение в консоль или проверьте управление голосовым эфиром.
               </p>
             </div>
-            <div class="gk-preview-card">
-              <div class="gk-preview-grid">
-                <aside class="gk-preview-aside">
+            <div class="gk-cn-shell">
+              <div class="gk-cn-topbar">
+                <div class="gk-cn-brand">
+                  <span class="gk-cn-logo">⚡ GEEK</span>
+                  <span class="gk-cn-tag-pink">CYBER.NET</span>
+                  <span class="gk-cn-proto-pill">МЕСТО ДЛЯ СВОИХ // P2P ПРОТОКОЛ</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span class="gk-cn-node-pill">
+                    <span class="gk-cn-node-dot"></span>
+                    <span id="gk-cn-node-id">cy-4371</span>
+                  </span>
+                  <button type="button" id="gk-cn-invite" class="gk-cn-invite-btn">+ ПРИГЛАСИТЬ</button>
+                </div>
+              </div>
+              <div class="gk-cn-subbar">
+                <div style="display:flex;align-items:center;gap:6px;font-weight:700;color:#00f0ff;">
+                  <span>●</span>
+                  <span class="gk-hide-sm">АКТИВНАЯ СЕТЬ:</span>
+                  <span style="color:#fff;font-weight:800;">P2P СИНХРОНИЗАЦИЯ</span>
+                </div>
+                <button type="button" id="gk-cn-toggle-members" class="gk-cn-members-toggle" aria-pressed="true">
+                  <span>👥</span>
+                  <span>УЧАСТНИКИ</span>
+                </button>
+              </div>
+              <div class="gk-cn-workspace">
+                <nav class="gk-cn-rail" aria-label="Серверы Geek">
+                  <div class="gk-cn-hex" style="width:40px;height:40px;background:#0d1829;color:#fcee09;display:flex;align-items:center;justify-content:center;font-weight:900;flex-shrink:0;" title="Профиль GEEK // CYBER.NET">⚡</div>
+                  <div class="gk-cn-rail-sep"></div>
+                  <div class="gk-cn-srv-wrap is-active" data-gk-srv-wrap="cy-4371">
+                    <span class="gk-cn-srv-bar"></span>
+                    <button type="button" class="gk-cn-hex gk-cn-srv-btn" data-gk-server="cy-4371" aria-label="Сервер Ночной клуб" aria-pressed="true" title="Ночной клуб">НК</button>
+                  </div>
+                  <div class="gk-cn-srv-wrap" data-gk-srv-wrap="hc-node">
+                    <span class="gk-cn-srv-bar"></span>
+                    <button type="button" class="gk-cn-hex gk-cn-srv-btn" data-gk-server="hc-node" aria-label="Сервер Кибер Узел" aria-pressed="false" title="Кибер Узел">HC</button>
+                  </div>
+                  <div class="gk-cn-srv-wrap" data-gk-srv-wrap="ma-club">
+                    <span class="gk-cn-srv-bar"></span>
+                    <button type="button" class="gk-cn-hex gk-cn-srv-btn" data-gk-server="ma-club" aria-label="Сервер Мастерская" aria-pressed="false" title="Мастерская">MA</button>
+                  </div>
+                </nav>
+                <aside class="gk-cn-channels">
                   <div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.1);">
-                      <span style="font-family:'Orbitron',sans-serif;font-weight:700;font-size:13px;color:#fff;letter-spacing:0.06em;">GEEK · КОМЬЮНИТИ</span>
-                      <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#00f0ff;">ПРЕВЬЮ</span>
+                    <div class="gk-cn-srv-head">
+                      <div style="min-width:0;">
+                        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#00f0ff;">ОТКРЫТЫЙ СЕРВЕР</div>
+                        <div id="gk-cn-srv-name" style="font-size:15px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">Ночной клуб</div>
+                      </div>
+                      <span id="gk-cn-srv-badge" style="background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.4);color:#00f0ff;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:4px;">cy-4371</span>
                     </div>
-                    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Текстовые каналы</div>
-                    <div class="gk-preview-tabs" role="tablist" aria-label="Демо текстовых каналов">
-                      <button type="button" class="gk-preview-tab is-active" role="tab" aria-selected="true" data-gk-channel="general"># общий-чат</button>
-                      <button type="button" class="gk-preview-tab" role="tab" aria-selected="false" data-gk-channel="ideas"># идеи-комьюнити</button>
-                      <button type="button" class="gk-preview-tab" role="tab" aria-selected="false" data-gk-channel="beta"># новости-беты</button>
+                    <div class="gk-cn-packet">
+                      <div>
+                        <div style="font-size:9px;font-weight:800;color:#b4cde0;">ОЧЕРЕДЬ ПАКЕТОВ</div>
+                        <div style="font-size:11px;font-weight:800;color:#fff;font-family:'Share Tech Mono',monospace;">108.4 FM // P2P</div>
+                      </div>
+                      <span style="font-size:9.5px;font-weight:800;color:#ff2a85;">▲ LIVE</span>
                     </div>
-                    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Голосовая комната</div>
-                    <div class="gk-preview-voice-box">
-                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                        <span style="color:#fff;font-weight:600;">Лаунж #1</span>
-                        <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;">3 участника</span>
+                    <div style="padding:6px 10px;">
+                      <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#63809b;padding:6px 4px;">◈ ТЕКСТОВЫЕ КАНАЛЫ</div>
+                      <div id="gk-cn-channel-list" role="tablist" aria-label="Текстовые каналы сервера" style="margin-bottom:10px;"></div>
+                      <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#63809b;padding:6px 4px;">🔊 ГОЛОСОВЫЕ КАНАЛЫ</div>
+                      <div id="gk-cn-voice-row" class="gk-cn-voice-row is-active">
+                        <span id="gk-cn-voice-name">🔊 Ночной эфир</span>
+                        <span id="gk-cn-voice-live" style="font-size:9px;font-weight:800;color:#10b981;">LIVE</span>
                       </div>
-                      <div style="display:flex;justify-content:space-between;color:#e2e8f0;margin-bottom:6px;">
-                        <span>Вы (Гость)</span>
-                        <span id="gk-vc-guest-status" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#00f0ff;">В эфире</span>
-                      </div>
-                      <div style="display:flex;justify-content:space-between;color:#94a3b8;margin-bottom:6px;">
-                        <span>Niko</span>
-                        <span style="font-family:'Share Tech Mono',monospace;font-size:10px;">В эфире</span>
-                      </div>
-                      <div style="display:flex;justify-content:space-between;color:#94a3b8;">
-                        <span>Vex</span>
-                        <span style="font-family:'Share Tech Mono',monospace;font-size:10px;">Слушает</span>
-                      </div>
+                      <div id="gk-cn-voice-peers" style="padding-left:6px;margin-bottom:8px;"></div>
                     </div>
                   </div>
-                  <div class="gk-vc-controls">
-                    <button type="button" id="gk-vc-mic" class="gk-vc-btn" aria-pressed="false">Микрофон</button>
-                    <button type="button" id="gk-vc-deaf" class="gk-vc-btn" aria-pressed="false">Звук вкл</button>
-                    <button type="button" id="gk-vc-noise" class="gk-vc-btn is-yellow" aria-pressed="true">Шум</button>
+                  <div>
+                    <div class="gk-cn-vdock">
+                      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
+                        <div style="min-width:0;">
+                          <div id="gk-cn-vdock-status" style="font-size:10px;font-weight:800;color:#10b981;text-transform:uppercase;">🟢 В ЭФИРЕ</div>
+                          <div id="gk-cn-vdock-room" style="font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Ночной эфир</div>
+                        </div>
+                        <button type="button" id="gk-cn-join-voice" class="gk-cn-vdock-btn is-in">ВЫЙТИ</button>
+                      </div>
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                        <button type="button" id="gk-cn-cam" class="gk-cn-tool-btn" aria-pressed="false">📷 Камера</button>
+                        <button type="button" id="gk-cn-screen" class="gk-cn-tool-btn" aria-pressed="false">🖥️ Экран</button>
+                      </div>
+                    </div>
+                    <div class="gk-cn-userbar">
+                      <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;overflow:hidden;">
+                        <div class="gk-cn-hex" style="width:32px;height:32px;background:#3b82f6;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;">ГО</div>
+                        <div style="min-width:0;flex:1;overflow:hidden;">
+                          <div style="display:flex;align-items:center;gap:4px;min-width:0;">
+                            <span style="font-size:11.5px;font-weight:800;color:#fff;white-space:nowrap;flex-shrink:0;">Вы (Гость)</span>
+                            <span class="gk-cn-badge gk-cn-badge-set1" style="font-size:8px;padding:1px 4px;">🌙 LUCY NET</span>
+                          </div>
+                          <div id="gk-vc-guest-status" style="font-size:10px;color:#00f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">В сети</div>
+                        </div>
+                      </div>
+                      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
+                        <button type="button" id="gk-vc-mic" class="gk-cn-hex gk-cn-hexbtn" aria-pressed="false" aria-label="Выключить микрофон" title="Выключить микрофон">🎤</button>
+                        <button type="button" id="gk-vc-deaf" class="gk-cn-hex gk-cn-hexbtn" aria-pressed="false" aria-label="Отключить звук" title="Отключить звук">🎧</button>
+                      </div>
+                    </div>
                   </div>
                 </aside>
-                <div class="gk-preview-main">
+                <div class="gk-cn-chat">
                   <div>
-                    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.1);">
-                      <span id="gk-preview-ch-name" style="font-family:'Orbitron',sans-serif;font-weight:700;font-size:15px;color:#fff;"># общий-чат</span>
-                      <span id="gk-preview-ch-topic" style="font-size:12px;color:#94a3b8;">Живое общение комьюнити и тесты голосовых комнат</span>
+                    <div class="gk-cn-streamhead">
+                      <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                        <span style="color:#00f0ff;font-size:18px;font-weight:900;">#</span>
+                        <div style="min-width:0;">
+                          <div id="gk-preview-ch-topic" style="font-size:9.5px;font-weight:800;text-transform:uppercase;color:#00f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">АКТИВНЫЙ ПОТОК // НОЧНОЙ КЛУБ</div>
+                          <div id="gk-preview-ch-name" style="font-size:14px;font-weight:800;color:#fff;">игровая-комната</div>
+                        </div>
+                      </div>
+                      <div id="gk-cn-eq" class="gk-cn-eq" aria-hidden="true">
+                        <span class="gk-cn-eq-bar" style="animation-delay:0s;"></span>
+                        <span class="gk-cn-eq-bar" style="animation-delay:0.2s;"></span>
+                        <span class="gk-cn-eq-bar" style="animation-delay:0.4s;"></span>
+                        <span class="gk-cn-eq-bar" style="animation-delay:0.1s;"></span>
+                        <span class="gk-cn-eq-bar" style="animation-delay:0.3s;"></span>
+                        <span class="gk-cn-eq-bar" style="animation-delay:0.5s;"></span>
+                        <span class="gk-cn-eq-bar" style="animation-delay:0.15s;"></span>
+                        <span class="gk-cn-eq-bar" style="animation-delay:0.35s;"></span>
+                      </div>
                     </div>
-                    <div class="gk-preview-messages" id="gk-preview-messages" data-testid="preview-messages"></div>
+                    <div class="gk-cn-messages" id="gk-preview-messages" data-testid="preview-messages"></div>
                   </div>
-                  <form id="gk-preview-form" class="gk-preview-form">
-                    <input type="text" id="gk-preview-input" class="gk-fb-input" placeholder="Написать в #общий-чат..." aria-label="Сообщение в демо канал" />
-                    <button type="submit" class="gk-cyber-btn" style="background:#00f0ff;color:#0b0714;border:none;font-weight:900;">ОТПРАВИТЬ</button>
-                  </form>
+                  <div class="gk-cn-console">
+                    <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:800;text-transform:uppercase;color:#63809b;margin-bottom:6px;">
+                      <span>ОКНО ВВОДА // КОНСОЛЬ</span>
+                      <span id="gk-cn-console-tag">КАНАЛ #ИГРОВАЯ-КОМНАТА</span>
+                    </div>
+                    <form id="gk-preview-form" style="display:flex;align-items:center;gap:8px;">
+                      <span style="width:36px;height:36px;border-radius:6px;background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.4);color:#00f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;" aria-hidden="true">📎</span>
+                      <input type="text" id="gk-preview-input" class="gk-fb-input" style="background:#050a12;border-radius:6px;padding:8px 12px;" placeholder="Написать в #игровая-комната..." aria-label="Сообщение в демо канал" />
+                      <button type="submit" style="background:#00f0ff;color:#031518;border:none;border-radius:6px;padding:9px 14px;font-weight:800;font-size:11.5px;text-transform:uppercase;cursor:pointer;flex-shrink:0;">ОТПРАВИТЬ</button>
+                    </form>
+                  </div>
                 </div>
+                <aside id="gk-cn-members" class="gk-cn-members" aria-label="Участники сервера"></aside>
               </div>
             </div>
           </section>
@@ -2398,146 +2840,475 @@
             });
           }
 
-          // Interactive Platform Preview (static fallback)
-          var previewChannels = {
-            general: {
-              name: 'общий-чат',
-              topic: 'Живое общение комьюнити и тесты голосовых комнат',
-              messages: [
-                { author: 'Niko', color: '#00f0ff', time: '20:14', text: 'Кто сегодня залетит в голосовой канал тестировать шумоподавление?' },
-                { author: 'Vex', color: '#ff007f', time: '20:15', text: 'Я уже в комнате! Звук чистый, без эха даже с механикой.' },
-                { author: 'Kira', color: '#fcee0a', time: '20:16', text: 'Интерфейс ощущается очень лёгким, ничего лишнего на экране.' }
+          // Interactive GEEK // CYBER.NET Preview (static fallback)
+          var cnBadgeLabels = {
+            set1: { label: '🌙 LUCY NET', cls: 'gk-cn-badge gk-cn-badge-set1' },
+            set2: { label: '⚠️ EDGERUN', cls: 'gk-cn-badge gk-cn-badge-set2' },
+            set3: { label: '🔥 SAMURAI', cls: 'gk-cn-badge gk-cn-badge-set3' }
+          };
+          var cnServers = {
+            'cy-4371': {
+              id: 'cy-4371',
+              name: 'Ночной клуб',
+              voiceChannel: 'Ночной эфир',
+              channels: [
+                {
+                  id: 'игровая-комната',
+                  name: 'игровая-комната',
+                  messages: [
+                    { author: 'СИСТЕМА GEEK', initials: 'СГ', color: '#00f0ff', badge: 'set1', time: '00:00', text: 'Добро пожаловать в «Ночной клуб»! Прямые звонки, индикатор голоса, фото/видео в чате и синхронизация активны.' },
+                    { author: 'Niko', initials: 'NI', color: '#ff2a85', badge: 'set3', time: '23:42', text: 'Залетайте в «Ночной эфир», тестируем шумоподавление и демонстрацию экрана без потерь.' },
+                    { author: 'Kira', initials: 'KI', color: '#3b82f6', badge: 'set2', time: '23:44', text: 'Уже на месте! Голос чистый, зелёный индикатор речи срабатывает моментально.' }
+                  ]
+                },
+                {
+                  id: 'общий',
+                  name: 'общий',
+                  messages: [
+                    { author: 'Artyom', initials: 'AR', color: '#10b981', badge: 'set1', time: '22:18', text: 'Как вам гексагональные аватары и неоновые наборы рамок профиля?' },
+                    { author: 'Vex', initials: 'VX', color: '#b829ff', badge: 'set2', time: '22:20', text: 'Набор SAMURAI с Джонни — топ. А бинды Ctrl/Alt вообще спасают в катках.' }
+                  ]
+                },
+                {
+                  id: 'знакомства',
+                  name: 'знакомства',
+                  messages: [
+                    { author: 'Lina', initials: 'LI', color: '#ff2a85', badge: 'set1', time: '21:10', text: 'Ищем тиму на вечерние коопы и обсуждаем свежие сборки.' }
+                  ]
+                },
+                {
+                  id: 'музыка',
+                  name: 'музыка',
+                  messages: [
+                    { author: 'Silver', initials: 'SV', color: '#ff003c', badge: 'set3', time: '23:15', text: '108.4 FM // Вечерний синтвейв и гитарные риффы для кодинга.' }
+                  ]
+                }
+              ],
+              members: [
+                { nick: 'Niko', initials: 'NI', color: '#ff2a85', badge: 'set3', online: true, status: 'В эфире GEEK', inVoice: true, speaking: true },
+                { nick: 'Kira', initials: 'KI', color: '#3b82f6', badge: 'set2', online: true, status: 'Настройка P2P узла', inVoice: true, speaking: false },
+                { nick: 'Vex', initials: 'VX', color: '#b829ff', badge: 'set1', online: true, status: 'Читает чат', inVoice: false, speaking: false },
+                { nick: 'Artyom', initials: 'AR', color: '#10b981', badge: 'set1', online: false, status: '', inVoice: false, speaking: false }
               ]
             },
-            ideas: {
-              name: 'идеи-комьюнити',
-              topic: 'Предложения по новым функциям и темам оформления Geek',
-              messages: [
-                { author: 'Artyom', color: '#fcee0a', time: '19:40', text: 'Было бы круто иметь горячие клавиши для быстрого переключения комнат.' },
-                { author: 'DevTeam', color: '#00f0ff', time: '19:44', text: 'Записали в бэклог! Также готовим кастомные цветовые пресеты для серверов.' }
+            'hc-node': {
+              id: 'hc-node',
+              name: 'Кибер Узел',
+              voiceChannel: 'Техно-стрим',
+              channels: [
+                {
+                  id: 'код-и-архитектура',
+                  name: 'код-и-архитектура',
+                  messages: [
+                    { author: 'DevCore', initials: 'DC', color: '#00f0ff', badge: 'set1', time: '19:40', text: 'Перевели голосовые комнаты на прямые WebRTC P2P-каналы с резервным релеем.' },
+                    { author: 'Alex', initials: 'AL', color: '#3b82f6', badge: 'set2', time: '19:45', text: 'Отличный апдейт! Ждём наборы ранних тестировщиков в @geek_mes.' }
+                  ]
+                },
+                {
+                  id: 'релизы',
+                  name: 'релизы',
+                  messages: [
+                    { author: 'СИСТЕМА GEEK', initials: 'СГ', color: '#00f0ff', badge: 'set1', time: '18:00', text: 'Любые вопросы и предложения по функциям приходят нам на admin@geek-voice.ru.' }
+                  ]
+                }
+              ],
+              members: [
+                { nick: 'DevCore', initials: 'DC', color: '#00f0ff', badge: 'set1', online: true, status: 'Собирает билд', inVoice: true, speaking: true },
+                { nick: 'Alex', initials: 'AL', color: '#3b82f6', badge: 'set2', online: true, status: 'В коде', inVoice: false, speaking: false }
               ]
             },
-            beta: {
-              name: 'новости-беты',
-              topic: 'Объявления от разработчиков и наборы на закрытый тест',
-              messages: [
-                { author: 'GeekCore', color: '#ff007f', time: '18:00', text: 'Собираем первые отзывы через форму ниже — всё читаем лично на admin@geek-voice.ru.' },
-                { author: 'Alex', color: '#00f0ff', time: '18:12', text: 'Ждём инвайты в @geek_mes!' }
+            'ma-club': {
+              id: 'ma-club',
+              name: 'Мастерская',
+              voiceChannel: 'Студия #1',
+              channels: [
+                {
+                  id: 'идеи-комьюнити',
+                  name: 'идеи-комьюнити',
+                  messages: [
+                    { author: 'Muse', initials: 'MU', color: '#ff2a85', badge: 'set2', time: '20:05', text: 'Добавили шторку регулировки камер и фильтр 18+ со спойлером прямо в чате.' }
+                  ]
+                }
+              ],
+              members: [
+                { nick: 'Muse', initials: 'MU', color: '#ff2a85', badge: 'set2', online: true, status: 'Рисует рамки', inVoice: true, speaking: false }
               ]
             }
           };
-          var previewCustom = { general: [], ideas: [], beta: [] };
-          var activePreviewChannel = 'general';
-          var previewMsgsEl = document.getElementById('gk-preview-messages');
-          var previewChNameEl = document.getElementById('gk-preview-ch-name');
-          var previewChTopicEl = document.getElementById('gk-preview-ch-topic');
-          var previewFormEl = document.getElementById('gk-preview-form');
-          var previewInputEl = document.getElementById('gk-preview-input');
 
-          function renderPreviewChannel() {
-            var ch = previewChannels[activePreviewChannel] || previewChannels.general;
-            if (previewChNameEl) previewChNameEl.textContent = '# ' + ch.name;
-            if (previewChTopicEl) previewChTopicEl.textContent = ch.topic;
-            if (previewInputEl) previewInputEl.placeholder = 'Написать в #' + ch.name + '...';
-            document.querySelectorAll('[data-gk-channel]').forEach(function (tab) {
-              var id = tab.getAttribute('data-gk-channel');
-              var isAct = id === activePreviewChannel;
-              tab.classList.toggle('is-active', isAct);
-              tab.setAttribute('aria-selected', isAct ? 'true' : 'false');
-            });
-            if (!previewMsgsEl) return;
-            previewMsgsEl.innerHTML = '';
-            var all = ch.messages.concat(previewCustom[activePreviewChannel] || []);
-            all.forEach(function (m) {
-              var box = document.createElement('div');
-              box.className = 'gk-preview-msg';
-              var head = document.createElement('div');
-              head.style.display = 'flex';
-              head.style.justifyContent = 'space-between';
-              head.style.marginBottom = '4px';
-              var author = document.createElement('span');
-              author.style.fontFamily = "'Orbitron', sans-serif";
-              author.style.fontWeight = '700';
-              author.style.fontSize = '12px';
-              author.style.color = m.color || '#00f0ff';
-              author.textContent = m.author;
-              var tm = document.createElement('span');
-              tm.style.fontFamily = "'Share Tech Mono', monospace";
-              tm.style.fontSize = '11px';
-              tm.style.color = '#64748b';
-              tm.textContent = m.time;
-              var txt = document.createElement('p');
-              txt.style.margin = '0';
-              txt.style.fontSize = '13px';
-              txt.style.color = '#e2e8f0';
-              txt.style.lineHeight = '1.5';
-              txt.textContent = m.text;
-              head.appendChild(author);
-              head.appendChild(tm);
-              box.appendChild(head);
-              box.appendChild(txt);
-              previewMsgsEl.appendChild(box);
-            });
+          var cnActiveSrvId = 'cy-4371';
+          var cnActiveChannels = {
+            'cy-4371': 'игровая-комната',
+            'hc-node': 'код-и-архитектура',
+            'ma-club': 'идеи-комьюнити'
+          };
+          var cnCustomMsgs = {};
+          var cnInVoice = true;
+          var cnMicMuted = false;
+          var cnDeafened = false;
+          var cnCam = false;
+          var cnScreen = false;
+          var cnShowMembers = true;
+
+          var cnMsgsEl = document.getElementById('gk-preview-messages');
+          var cnChNameEl = document.getElementById('gk-preview-ch-name');
+          var cnChTopicEl = document.getElementById('gk-preview-ch-topic');
+          var cnFormEl = document.getElementById('gk-preview-form');
+          var cnInputEl = document.getElementById('gk-preview-input');
+          var cnChListEl = document.getElementById('gk-cn-channel-list');
+          var cnSrvNameEl = document.getElementById('gk-cn-srv-name');
+          var cnSrvBadgeEl = document.getElementById('gk-cn-srv-badge');
+          var cnNodeIdEl = document.getElementById('gk-cn-node-id');
+          var cnVoiceNameEl = document.getElementById('gk-cn-voice-name');
+          var cnVoiceRowEl = document.getElementById('gk-cn-voice-row');
+          var cnVoiceLiveEl = document.getElementById('gk-cn-voice-live');
+          var cnVoicePeersEl = document.getElementById('gk-cn-voice-peers');
+          var cnVdockStatusEl = document.getElementById('gk-cn-vdock-status');
+          var cnVdockRoomEl = document.getElementById('gk-cn-vdock-room');
+          var cnJoinVoiceBtn = document.getElementById('gk-cn-join-voice');
+          var cnCamBtn = document.getElementById('gk-cn-cam');
+          var cnScreenBtn = document.getElementById('gk-cn-screen');
+          var cnMembersEl = document.getElementById('gk-cn-members');
+          var cnToggleMembersBtn = document.getElementById('gk-cn-toggle-members');
+          var cnInviteBtn = document.getElementById('gk-cn-invite');
+          var cnConsoleTagEl = document.getElementById('gk-cn-console-tag');
+          var cnEqEl = document.getElementById('gk-cn-eq');
+          var vcMicBtn = document.getElementById('gk-vc-mic');
+          var vcDeafBtn = document.getElementById('gk-vc-deaf');
+          var vcGuestStatus = document.getElementById('gk-vc-guest-status');
+
+          function makeBadgeNode(badgeKey) {
+            var meta = cnBadgeLabels[badgeKey];
+            if (!meta) return null;
+            var sp = document.createElement('span');
+            sp.className = meta.cls;
+            sp.textContent = meta.label;
+            return sp;
           }
 
-          document.querySelectorAll('[data-gk-channel]').forEach(function (tab) {
-            tab.addEventListener('click', function () {
-              activePreviewChannel = tab.getAttribute('data-gk-channel') || 'general';
-              renderPreviewChannel();
+          function makeHexAvatar(initials, color, sizePx, fontPx) {
+            var wrap = document.createElement('div');
+            wrap.className = 'gk-cn-hex';
+            wrap.style.width = sizePx + 'px';
+            wrap.style.height = sizePx + 'px';
+            wrap.style.background = color;
+            wrap.style.color = '#fff';
+            wrap.style.fontWeight = '800';
+            wrap.style.fontSize = fontPx + 'px';
+            wrap.style.display = 'flex';
+            wrap.style.alignItems = 'center';
+            wrap.style.justifyContent = 'center';
+            wrap.style.flexShrink = '0';
+            wrap.textContent = initials;
+            return wrap;
+          }
+
+          function renderCyberNet() {
+            var srv = cnServers[cnActiveSrvId] || cnServers['cy-4371'];
+            var chId = cnActiveChannels[srv.id] || srv.channels[0].id;
+            var ch = srv.channels.find(function (c) { return c.id === chId; }) || srv.channels[0];
+
+            document.querySelectorAll('[data-gk-srv-wrap]').forEach(function (w) {
+              var sid = w.getAttribute('data-gk-srv-wrap');
+              var act = sid === srv.id;
+              w.classList.toggle('is-active', act);
+              var btn = w.querySelector('[data-gk-server]');
+              if (btn) btn.setAttribute('aria-pressed', act ? 'true' : 'false');
+            });
+
+            if (cnSrvNameEl) cnSrvNameEl.textContent = srv.name;
+            if (cnSrvBadgeEl) cnSrvBadgeEl.textContent = srv.id;
+            if (cnNodeIdEl) cnNodeIdEl.textContent = srv.id;
+            if (cnChNameEl) cnChNameEl.textContent = ch.name;
+            if (cnChTopicEl) cnChTopicEl.textContent = 'АКТИВНЫЙ ПОТОК // ' + srv.name.toUpperCase();
+            if (cnConsoleTagEl) cnConsoleTagEl.textContent = 'КАНАЛ #' + ch.name.toUpperCase();
+            if (cnInputEl) cnInputEl.placeholder = 'Написать в #' + ch.name + '...';
+
+            if (cnChListEl) {
+              cnChListEl.innerHTML = '';
+              srv.channels.forEach(function (c) {
+                var btn = document.createElement('button');
+                btn.type = 'button';
+                btn.setAttribute('role', 'tab');
+                var act = c.id === ch.id;
+                btn.setAttribute('aria-selected', act ? 'true' : 'false');
+                btn.className = 'gk-cn-ch-btn' + (act ? ' is-active' : '');
+                var hash = document.createElement('span');
+                hash.style.color = '#00f0ff';
+                hash.style.fontWeight = '800';
+                hash.textContent = '#';
+                var nm = document.createElement('span');
+                nm.textContent = c.name;
+                btn.appendChild(hash);
+                btn.appendChild(nm);
+                btn.addEventListener('click', function () {
+                  cnActiveChannels[srv.id] = c.id;
+                  renderCyberNet();
+                });
+                cnChListEl.appendChild(btn);
+              });
+            }
+
+            if (cnVoiceNameEl) cnVoiceNameEl.textContent = '🔊 ' + srv.voiceChannel;
+            if (cnVdockRoomEl) cnVdockRoomEl.textContent = srv.voiceChannel;
+            if (cnVoiceRowEl) cnVoiceRowEl.classList.toggle('is-active', cnInVoice);
+            if (cnVoiceLiveEl) cnVoiceLiveEl.style.display = cnInVoice ? 'inline' : 'none';
+            if (cnVdockStatusEl) {
+              cnVdockStatusEl.textContent = cnInVoice ? '🟢 В ЭФИРЕ' : '📡 ГОЛОСОВОЙ КАНАЛ';
+              cnVdockStatusEl.style.color = cnInVoice ? '#10b981' : '#63809b';
+            }
+            if (cnJoinVoiceBtn) {
+              cnJoinVoiceBtn.classList.toggle('is-in', cnInVoice);
+              cnJoinVoiceBtn.textContent = cnInVoice ? 'ВЫЙТИ' : 'ВОЙТИ';
+            }
+            if (cnCamBtn) {
+              cnCamBtn.classList.toggle('is-cam', cnCam);
+              cnCamBtn.setAttribute('aria-pressed', cnCam ? 'true' : 'false');
+            }
+            if (cnScreenBtn) {
+              cnScreenBtn.classList.toggle('is-screen', cnScreen);
+              cnScreenBtn.setAttribute('aria-pressed', cnScreen ? 'true' : 'false');
+            }
+            if (cnEqEl) {
+              cnEqEl.classList.toggle('is-paused', !cnInVoice || cnDeafened);
+            }
+
+            if (cnVoicePeersEl) {
+              cnVoicePeersEl.innerHTML = '';
+              var peers = [];
+              if (cnInVoice) {
+                peers.push({
+                  nick: 'Вы (Гость)' + (cnCam ? ' 📷' : '') + (cnScreen ? ' 🖥️' : ''),
+                  initials: 'ГО',
+                  color: '#3b82f6',
+                  speaking: !cnMicMuted && !cnDeafened
+                });
+              }
+              srv.members.forEach(function (m) {
+                if (m.online && m.inVoice) {
+                  peers.push({
+                    nick: m.nick,
+                    initials: m.initials,
+                    color: m.color,
+                    speaking: Boolean(m.speaking)
+                  });
+                }
+              });
+              peers.forEach(function (vp) {
+                var row = document.createElement('div');
+                row.className = 'gk-cn-vpeer' + (vp.speaking ? ' is-speaking' : '');
+                row.appendChild(makeHexAvatar(vp.initials, vp.color, 26, 9));
+                var nm = document.createElement('span');
+                nm.style.flex = '1';
+                nm.style.overflow = 'hidden';
+                nm.style.textOverflow = 'ellipsis';
+                nm.style.whiteSpace = 'nowrap';
+                nm.textContent = vp.nick;
+                row.appendChild(nm);
+                if (vp.speaking) {
+                  var bars = document.createElement('span');
+                  bars.className = 'gk-cn-speak-bars';
+                  bars.setAttribute('aria-hidden', 'true');
+                  ['0s', '0.15s', '0.3s'].forEach(function (d) {
+                    var b = document.createElement('span');
+                    b.className = 'gk-cn-speak-bar';
+                    b.style.animationDelay = d;
+                    bars.appendChild(b);
+                  });
+                  row.appendChild(bars);
+                }
+                cnVoicePeersEl.appendChild(row);
+              });
+            }
+
+            if (vcMicBtn) {
+              vcMicBtn.classList.toggle('is-muted', cnMicMuted);
+              vcMicBtn.setAttribute('aria-pressed', cnMicMuted ? 'true' : 'false');
+              vcMicBtn.setAttribute('aria-label', cnMicMuted ? 'Включить микрофон' : 'Выключить микрофон');
+            }
+            if (vcDeafBtn) {
+              vcDeafBtn.classList.toggle('is-muted', cnDeafened);
+              vcDeafBtn.setAttribute('aria-pressed', cnDeafened ? 'true' : 'false');
+              vcDeafBtn.setAttribute('aria-label', cnDeafened ? 'Включить звук' : 'Отключить звук');
+            }
+            if (vcGuestStatus) {
+              vcGuestStatus.textContent = !cnInVoice ? 'Оффлайн в голосе' : cnDeafened ? 'Звук выкл' : cnMicMuted ? 'Микрофон выкл' : 'В сети';
+            }
+
+            if (cnMsgsEl) {
+              cnMsgsEl.innerHTML = '';
+              var key = srv.id + ':' + ch.id;
+              var all = ch.messages.concat(cnCustomMsgs[key] || []);
+              all.forEach(function (m) {
+                var box = document.createElement('div');
+                box.className = 'gk-cn-msg';
+                box.appendChild(makeHexAvatar(m.initials, m.color, 38, 11));
+                var body = document.createElement('div');
+                body.style.flex = '1';
+                body.style.minWidth = '0';
+                var head = document.createElement('div');
+                head.style.display = 'flex';
+                head.style.alignItems = 'center';
+                head.style.gap = '6px';
+                head.style.flexWrap = 'wrap';
+                var author = document.createElement('span');
+                author.style.fontSize = '13.5px';
+                author.style.fontWeight = '800';
+                author.style.color = '#00f0ff';
+                author.textContent = m.author;
+                head.appendChild(author);
+                var b = makeBadgeNode(m.badge);
+                if (b) head.appendChild(b);
+                var tm = document.createElement('span');
+                tm.style.fontFamily = "'Share Tech Mono', monospace";
+                tm.style.fontSize = '10.5px';
+                tm.style.color = '#63809b';
+                tm.textContent = m.time;
+                head.appendChild(tm);
+                var txt = document.createElement('p');
+                txt.style.margin = '4px 0 0';
+                txt.style.fontSize = '13.5px';
+                txt.style.color = '#e6f7ff';
+                txt.style.lineHeight = '1.45';
+                txt.textContent = m.text;
+                body.appendChild(head);
+                body.appendChild(txt);
+                box.appendChild(body);
+                cnMsgsEl.appendChild(box);
+              });
+            }
+
+            if (cnMembersEl) {
+              cnMembersEl.classList.toggle('is-hidden', !cnShowMembers);
+              if (cnShowMembers) {
+                cnMembersEl.innerHTML = '';
+                var onlineList = srv.members.filter(function (m) { return m.online; });
+                var offlineList = srv.members.filter(function (m) { return !m.online; });
+
+                var onTitle = document.createElement('div');
+                onTitle.style.fontSize = '10.5px';
+                onTitle.style.fontWeight = '800';
+                onTitle.style.textTransform = 'uppercase';
+                onTitle.style.color = '#00f0ff';
+                onTitle.style.padding = '0 6px 6px';
+                onTitle.textContent = '⬢ В сети — ' + onlineList.length;
+                cnMembersEl.appendChild(onTitle);
+
+                onlineList.forEach(function (m) {
+                  var item = document.createElement('div');
+                  item.style.display = 'flex';
+                  item.style.alignItems = 'center';
+                  item.style.gap = '10px';
+                  item.style.padding = '6px 8px';
+                  item.appendChild(makeHexAvatar(m.initials, m.color, 32, 10));
+                  var info = document.createElement('div');
+                  info.style.minWidth = '0';
+                  info.style.flex = '1';
+                  var top = document.createElement('div');
+                  top.style.display = 'flex';
+                  top.style.alignItems = 'center';
+                  top.style.gap = '4px';
+                  var nm = document.createElement('span');
+                  nm.style.fontSize = '12px';
+                  nm.style.fontWeight = '700';
+                  nm.style.color = '#e6f7ff';
+                  nm.textContent = m.nick + (m.inVoice ? ' 🔊' : '');
+                  top.appendChild(nm);
+                  var b = makeBadgeNode(m.badge);
+                  if (b) top.appendChild(b);
+                  info.appendChild(top);
+                  if (m.status) {
+                    var st = document.createElement('div');
+                    st.style.fontSize = '10px';
+                    st.style.color = '#63809b';
+                    st.textContent = m.status;
+                    info.appendChild(st);
+                  }
+                  item.appendChild(info);
+                  cnMembersEl.appendChild(item);
+                });
+
+                if (offlineList.length > 0) {
+                  var offTitle = document.createElement('div');
+                  offTitle.style.fontSize = '10.5px';
+                  offTitle.style.fontWeight = '800';
+                  offTitle.style.textTransform = 'uppercase';
+                  offTitle.style.color = '#00f0ff';
+                  offTitle.style.padding = '10px 6px 6px';
+                  offTitle.textContent = '⬡ Не в сети — ' + offlineList.length;
+                  cnMembersEl.appendChild(offTitle);
+                  offlineList.forEach(function (m) {
+                    var item = document.createElement('div');
+                    item.style.display = 'flex';
+                    item.style.alignItems = 'center';
+                    item.style.gap = '10px';
+                    item.style.padding = '6px 8px';
+                    item.style.opacity = '0.55';
+                    item.appendChild(makeHexAvatar(m.initials, m.color, 32, 10));
+                    var nm = document.createElement('span');
+                    nm.style.fontSize = '12px';
+                    nm.style.fontWeight = '700';
+                    nm.style.color = '#b4cde0';
+                    nm.textContent = m.nick;
+                    item.appendChild(nm);
+                    cnMembersEl.appendChild(item);
+                  });
+                }
+              }
+            }
+            if (cnToggleMembersBtn) {
+              cnToggleMembersBtn.setAttribute('aria-pressed', cnShowMembers ? 'true' : 'false');
+            }
+          }
+
+          document.querySelectorAll('[data-gk-server]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              cnActiveSrvId = btn.getAttribute('data-gk-server') || 'cy-4371';
+              renderCyberNet();
             });
           });
-          if (previewFormEl && previewInputEl) {
-            previewFormEl.addEventListener('submit', function (e) {
+          if (cnFormEl && cnInputEl) {
+            cnFormEl.addEventListener('submit', function (e) {
               e.preventDefault();
-              var val = previewInputEl.value.trim();
+              var val = cnInputEl.value.trim();
               if (!val) return;
               var now = new Date();
               var hh = String(now.getHours()).padStart(2, '0');
               var mm = String(now.getMinutes()).padStart(2, '0');
-              var arr = previewCustom[activePreviewChannel] || [];
+              var srv = cnServers[cnActiveSrvId] || cnServers['cy-4371'];
+              var chId = cnActiveChannels[srv.id] || srv.channels[0].id;
+              var key = srv.id + ':' + chId;
+              var arr = cnCustomMsgs[key] || [];
               arr.push({
                 author: 'Вы (Гость)',
-                color: '#00f0ff',
+                initials: 'ГО',
+                color: '#3b82f6',
+                badge: 'set1',
                 time: hh + ':' + mm,
                 text: val.slice(0, 220)
               });
-              previewCustom[activePreviewChannel] = arr.slice(-6);
-              previewInputEl.value = '';
-              renderPreviewChannel();
+              cnCustomMsgs[key] = arr.slice(-6);
+              cnInputEl.value = '';
+              renderCyberNet();
             });
           }
-          renderPreviewChannel();
-
-          var vcMicBtn = document.getElementById('gk-vc-mic');
-          var vcDeafBtn = document.getElementById('gk-vc-deaf');
-          var vcNoiseBtn = document.getElementById('gk-vc-noise');
-          var vcGuestStatus = document.getElementById('gk-vc-guest-status');
-          var vcMicMuted = false;
-          var vcDeafened = false;
-          var vcNoise = true;
-          function updateVcUi() {
-            if (vcMicBtn) {
-              vcMicBtn.classList.toggle('is-muted', vcMicMuted);
-              vcMicBtn.setAttribute('aria-pressed', vcMicMuted ? 'true' : 'false');
-              vcMicBtn.textContent = vcMicMuted ? 'Микр. выкл' : 'Микрофон';
-            }
-            if (vcDeafBtn) {
-              vcDeafBtn.classList.toggle('is-muted', vcDeafened);
-              vcDeafBtn.setAttribute('aria-pressed', vcDeafened ? 'true' : 'false');
-              vcDeafBtn.textContent = vcDeafened ? 'Без звука' : 'Звук вкл';
-            }
-            if (vcNoiseBtn) {
-              vcNoiseBtn.classList.toggle('is-yellow', vcNoise);
-              vcNoiseBtn.setAttribute('aria-pressed', vcNoise ? 'true' : 'false');
-            }
-            if (vcGuestStatus) {
-              vcGuestStatus.textContent = vcDeafened ? 'Звук выкл' : vcMicMuted ? 'Микрофон выкл' : 'В эфире';
-              vcGuestStatus.style.color = vcDeafened || vcMicMuted ? '#94a3b8' : '#00f0ff';
-            }
+          if (cnJoinVoiceBtn) cnJoinVoiceBtn.addEventListener('click', function () { cnInVoice = !cnInVoice; renderCyberNet(); });
+          if (vcMicBtn) vcMicBtn.addEventListener('click', function () { cnMicMuted = !cnMicMuted; renderCyberNet(); });
+          if (vcDeafBtn) vcDeafBtn.addEventListener('click', function () { cnDeafened = !cnDeafened; renderCyberNet(); });
+          if (cnCamBtn) cnCamBtn.addEventListener('click', function () { cnCam = !cnCam; renderCyberNet(); });
+          if (cnScreenBtn) cnScreenBtn.addEventListener('click', function () { cnScreen = !cnScreen; renderCyberNet(); });
+          if (cnToggleMembersBtn) cnToggleMembersBtn.addEventListener('click', function () { cnShowMembers = !cnShowMembers; renderCyberNet(); });
+          if (cnInviteBtn) {
+            cnInviteBtn.addEventListener('click', function () {
+              var shareUrl = window.location.origin + window.location.pathname + '?room=' + cnActiveSrvId;
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(shareUrl).catch(function () {});
+              }
+              cnInviteBtn.textContent = '✓ СКОПИРОВАНО';
+              setTimeout(function () { cnInviteBtn.textContent = '+ ПРИГЛАСИТЬ'; }, 1800);
+            });
           }
-          if (vcMicBtn) vcMicBtn.addEventListener('click', function () { vcMicMuted = !vcMicMuted; updateVcUi(); });
-          if (vcDeafBtn) vcDeafBtn.addEventListener('click', function () { vcDeafened = !vcDeafened; updateVcUi(); });
-          if (vcNoiseBtn) vcNoiseBtn.addEventListener('click', function () { vcNoise = !vcNoise; updateVcUi(); });
+          renderCyberNet();
 
           // Feedback form handler (static fallback)
           var fbForm = document.getElementById('gk-fb-form');
