@@ -52,6 +52,14 @@ export default function App() {
   const voiceTapRef = useRef<VoicePanelTapState>({ count: 0, lastTapMs: 0 });
 
   const handleOpenPreBeta = () => {
+    window.__GEEK_OPEN_PREBETA_ON_MOUNT__ = true;
+    try {
+      if (window.location.hash !== '#prebeta') {
+        window.history.replaceState(null, '', '#prebeta');
+      }
+    } catch {
+      // Ignore history restriction
+    }
     setPreBetaOpenSignal((prev) => prev + 1);
     document.getElementById('preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };

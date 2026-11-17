@@ -83,19 +83,35 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
   const preBeta = usePreBetaCall();
 
   useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const codeParam = params.get('prebeta');
-      if (codeParam) {
-        const normalized = normalizePreBetaCode(codeParam);
-        if (normalized) {
-          setInitialPreBetaCode(normalized);
-          setPreBetaMode(true);
+    const syncFromUrlOrIntent = () => {
+      let shouldOpen = Boolean(window.__GEEK_OPEN_PREBETA_ON_MOUNT__);
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const codeParam = params.get('prebeta');
+        if (codeParam) {
+          const normalized = normalizePreBetaCode(codeParam);
+          if (normalized) {
+            setInitialPreBetaCode(normalized);
+            shouldOpen = true;
+          }
         }
+        if (window.location.hash === '#prebeta') {
+          shouldOpen = true;
+        }
+      } catch {
+        // Ignore malformed URL params
       }
-    } catch {
-      // Ignore malformed URL params
-    }
+      if (shouldOpen) {
+        setPreBetaMode(true);
+        window.setTimeout(() => {
+          document.getElementById('preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 60);
+      }
+    };
+
+    syncFromUrlOrIntent();
+    window.addEventListener('hashchange', syncFromUrlOrIntent);
+    return () => window.removeEventListener('hashchange', syncFromUrlOrIntent);
   }, []);
 
   useEffect(() => {
@@ -225,10 +241,10 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
             onClick={() => setPreBetaMode(true)}
             aria-pressed={preBetaMode}
             data-testid="prebeta-banner-btn"
-            className={`px-4 py-2.5 rounded-xl font-cyber font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-colors cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl font-cyber font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
               preBetaMode
-                ? 'bg-[#ff2a85] border border-[#ff2a85] text-white shadow-[0_0_20px_rgba(255,42,133,0.45)]'
-                : 'bg-gradient-to-r from-[#ff2a85]/25 to-[#00f0ff]/20 border border-[#ff2a85]/70 text-[#ff9ec7] hover:text-white hover:border-[#ff2a85]'
+                ? 'bg-[#00f0ff] border border-[#00f0ff] text-[#031518] shadow-[0_0_24px_rgba(0,240,255,0.65)]'
+                : 'bg-gradient-to-r from-[#ff007f] to-[#ff2a85] border border-[#ff8ac4]/70 text-white shadow-[0_0_24px_rgba(255,0,127,0.55)] hover:brightness-110'
             }`}
           >
             <PhoneCall className="w-4 h-4 shrink-0" />
@@ -269,8 +285,8 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
               data-testid="prebeta-mode-btn"
               className={`inline-flex items-center gap-1.5 text-[10.5px] font-extrabold px-2.5 py-1 rounded-md border transition-all cursor-pointer whitespace-nowrap ${
                 preBetaMode
-                  ? 'bg-[#00f0ff] border-[#00f0ff] text-[#031518] shadow-[0_0_12px_rgba(0,240,255,0.55)]'
-                  : 'bg-[#ff2a85]/15 border-[#ff2a85]/60 text-[#ff8ac4] hover:bg-[#ff2a85]/30 hover:text-white'
+                  ? 'bg-[#00f0ff] border-[#00f0ff] text-[#031518] shadow-[0_0_16px_rgba(0,240,255,0.6)]'
+                  : 'bg-gradient-to-r from-[#ff007f] to-[#ff2a85] border-[#ff8ac4]/60 text-white shadow-[0_0_16px_rgba(255,0,127,0.5)] hover:brightness-110'
               }`}
             >
               <PhoneCall className="w-3 h-3" />
@@ -375,8 +391,8 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
                 data-testid="prebeta-rail-btn"
                 className={`w-11 h-11 geek-hex font-extrabold text-xs flex items-center justify-center transition-all cursor-pointer ${
                   preBetaMode
-                    ? 'bg-[#ff2a85] text-white shadow-[0_0_14px_rgba(255,42,133,0.75)]'
-                    : 'bg-[#1a0d1c] text-[#ff8ac4] hover:bg-[#ff2a85] hover:text-white'
+                    ? 'bg-[#ff2a85] text-white shadow-[0_0_18px_rgba(255,42,133,0.8)]'
+                    : 'bg-[#2b0f26] text-[#ff7aa8] shadow-[0_0_12px_rgba(255,42,133,0.35)] hover:bg-[#ff2a85] hover:text-white'
                 }`}
               >
                 PB

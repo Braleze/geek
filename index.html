@@ -1387,9 +1387,134 @@
         border-top: 1px solid rgba(255, 255, 255, 0.06);
       }
       .gk-faq-item.is-open .gk-faq-answer { display: block; }
+      .gk-pb-bar {
+        margin-bottom: 16px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-radius: 16px;
+        background: rgba(11, 18, 32, 0.92);
+        border: 1px solid rgba(0, 240, 255, 0.25);
+        padding: 10px;
+      }
+      .gk-pb-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .gk-pb-tab {
+        padding: 10px 16px;
+        border-radius: 12px;
+        font-family: "Orbitron", sans-serif;
+        font-weight: 700;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: #060b14;
+        color: #cbd5e1;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s ease;
+      }
+      .gk-pb-tab.is-demo-active {
+        background: rgba(0, 240, 255, 0.2);
+        border-color: #00f0ff;
+        color: #fff;
+      }
+      .gk-pb-tab-live {
+        font-weight: 900;
+        background: linear-gradient(90deg, #ff007f, #ff2a85);
+        border-color: rgba(255, 138, 196, 0.7);
+        color: #fff;
+        box-shadow: 0 0 24px rgba(255, 0, 127, 0.55);
+      }
+      .gk-pb-tab-live.is-live-active {
+        background: #00f0ff;
+        border-color: #00f0ff;
+        color: #031518;
+        box-shadow: 0 0 24px rgba(0, 240, 255, 0.65);
+      }
+      .gk-cn-pb-topbtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10.5px;
+        font-weight: 800;
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(255, 138, 196, 0.6);
+        background: linear-gradient(90deg, #ff007f, #ff2a85);
+        color: #fff;
+        box-shadow: 0 0 16px rgba(255, 0, 127, 0.5);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .gk-cn-pb-topbtn.is-active {
+        background: #00f0ff;
+        border-color: #00f0ff;
+        color: #031518;
+        box-shadow: 0 0 16px rgba(0, 240, 255, 0.6);
+      }
+      .gk-cn-pb-rail {
+        background: #2b0f26;
+        color: #ff7aa8;
+        box-shadow: 0 0 12px rgba(255, 42, 133, 0.35);
+      }
+      .gk-cn-pb-rail:hover,
+      .gk-cn-srv-wrap.is-active .gk-cn-pb-rail {
+        background: #ff2a85;
+        color: #fff;
+      }
+      .gk-pb-pane {
+        flex: 1;
+        min-width: 0;
+        display: none;
+      }
+      .gk-pb-pane.is-visible {
+        display: flex;
+        flex-direction: column;
+      }
+      .gk-pb-lobby {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 20px;
+        background: rgba(8, 16, 28, 0.95);
+        gap: 16px;
+      }
+      .gk-pb-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 16px;
+      }
+      .gk-pb-card {
+        border-radius: 12px;
+        background: rgba(6, 11, 20, 0.95);
+        border: 1px solid rgba(0, 240, 255, 0.35);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      .gk-pb-card.is-pink {
+        border-color: rgba(255, 42, 133, 0.4);
+      }
+      .gk-pb-active-wrap {
+        display: flex;
+        flex: 1;
+        min-width: 0;
+      }
       @media (max-width: 1024px) {
         .gk-nav { display: none; }
-        .gk-cn-workspace { flex-direction: column; }
+        .gk-cn-workspace, .gk-pb-active-wrap { flex-direction: column; }
         .gk-cn-rail {
           width: 100%;
           flex-direction: row;
@@ -1473,9 +1598,9 @@
           </nav>
 
           <div class="gk-header-actions">
-            <a href="#preview" class="gk-cyber-btn gk-btn-cyan">
+            <button type="button" id="gk-header-prebeta-btn" data-gk-open-prebeta="1" data-testid="header-prebeta-btn" class="gk-cyber-btn gk-btn-cyan" style="border-color:rgba(0,240,255,0.7);box-shadow:0 0 20px rgba(0,240,255,0.35);">
               <span><span class="gk-hide-sm">PRE-BETA </span>СВЯЗЬ</span>
-            </a>
+            </button>
             <a href="https://t.me/geek_mes" target="_blank" rel="noopener noreferrer" class="gk-cyber-btn gk-btn-pink">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
               <span>TG</span>
@@ -1531,9 +1656,9 @@
               Первыми узнай о дате закрытого бета-тестирования, получи эксклюзивный доступ и ранние привилегии на сервере.
             </p>
             <div class="gk-cta-actions">
-              <a href="#preview" class="gk-cyber-btn gk-btn-cyan" style="padding:15px 22px;border-radius:12px;">
+              <button type="button" id="gk-hero-prebeta-btn" data-gk-open-prebeta="1" data-testid="hero-prebeta-btn" class="gk-cyber-btn" style="padding:15px 22px;border-radius:12px;background:#00f0ff;color:#0b0714;border:none;font-weight:900;box-shadow:0 0 25px rgba(0,240,255,0.45);">
                 PRE-BETA СВЯЗЬ · 30 МИН
-              </a>
+              </button>
               <a href="https://t.me/geek_mes" target="_blank" rel="noopener noreferrer" class="gk-cyber-btn gk-cta-primary">
                 ПРИСОЕДИНИТЬСЯ К ТГ КАНАЛУ
               </a>
@@ -1581,8 +1706,15 @@
                 <h2 id="gk-preview-title" class="gk-h2">Как выглядит Geek внутри</h2>
               </div>
               <p style="font-size:14px;color:#94a3b8;max-width:440px;margin:0;">
-                Переключайте серверы и текстовые каналы, напишите сообщение в консоль или проверьте управление голосовым эфиром.
+                Переключайте серверы, тестируйте чат или запустите живую Pre-Beta связь 1-на-1 по уникальному коду.
               </p>
+            </div>
+            <div class="gk-pb-bar">
+              <div class="gk-pb-tabs">
+                <button type="button" id="gk-pb-tab-demo" class="gk-pb-tab is-demo-active" aria-pressed="true">Обзор клиента (Демо-серверы)</button>
+                <button type="button" id="gk-pb-tab-live" class="gk-pb-tab gk-pb-tab-live" data-testid="prebeta-banner-btn" aria-pressed="false">📞 PRE-BETA СВЯЗЬ 1-НА-1 · 30 МИН ДО РЕЛИЗА</button>
+              </div>
+              <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;padding:0 6px;">1 одноразовый код · макс. 2 участника · лимит 30:00</span>
             </div>
             <div class="gk-cn-shell">
               <div class="gk-cn-topbar">
@@ -1591,7 +1723,8 @@
                   <span class="gk-cn-tag-pink">CYBER.NET</span>
                   <span class="gk-cn-proto-pill">МЕСТО ДЛЯ СВОИХ // P2P ПРОТОКОЛ</span>
                 </div>
-                <div style="display:flex;align-items:center;gap:8px;">
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                  <button type="button" id="gk-cn-prebeta-topbtn" data-testid="prebeta-mode-btn" class="gk-cn-pb-topbtn" aria-pressed="false">📞 PRE-BETA СВЯЗЬ · 30 МИН</button>
                   <span class="gk-cn-node-pill">
                     <span class="gk-cn-node-dot"></span>
                     <span id="gk-cn-node-id">cy-4371</span>
@@ -1603,7 +1736,7 @@
                 <div style="display:flex;align-items:center;gap:6px;font-weight:700;color:#00f0ff;">
                   <span>●</span>
                   <span class="gk-hide-sm">АКТИВНАЯ СЕТЬ:</span>
-                  <span style="color:#fff;font-weight:800;">P2P СИНХРОНИЗАЦИЯ</span>
+                  <span id="gk-cn-net-label" style="color:#fff;font-weight:800;">P2P СИНХРОНИЗАЦИЯ</span>
                 </div>
                 <button type="button" id="gk-cn-toggle-members" class="gk-cn-members-toggle" aria-pressed="true">
                   <span>👥</span>
@@ -1626,8 +1759,144 @@
                     <span class="gk-cn-srv-bar"></span>
                     <button type="button" class="gk-cn-hex gk-cn-srv-btn" data-gk-server="ma-club" aria-label="Сервер Мастерская" aria-pressed="false" title="Мастерская">MA</button>
                   </div>
+                  <div class="gk-cn-rail-sep" style="background:rgba(255,42,133,0.35);"></div>
+                  <div class="gk-cn-srv-wrap" id="gk-cn-pb-rail-wrap">
+                    <span class="gk-cn-srv-bar" style="background:#ff2a85;"></span>
+                    <button type="button" id="gk-cn-pb-rail" data-testid="prebeta-rail-btn" class="gk-cn-hex gk-cn-srv-btn gk-cn-pb-rail" aria-label="Pre-Beta живая связь 1-на-1" aria-pressed="false" title="PRE-BETA // Связь 1-на-1 (30 мин до релиза)">PB</button>
+                  </div>
                 </nav>
-                <aside class="gk-cn-channels">
+                <div id="gk-cn-prebeta-pane" class="gk-pb-pane">
+                  <audio id="gk-pb-remote-audio" autoplay playsinline style="display:none;"></audio>
+                  <div id="gk-pb-lobby-view" class="gk-pb-lobby">
+                    <div style="display:flex;flex-direction:column;gap:14px;">
+                      <div style="border-radius:12px;border:1px solid rgba(255,42,133,0.45);background:linear-gradient(90deg,rgba(255,42,133,0.12),#0a1320,rgba(0,240,255,0.12));padding:16px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">
+                        <div style="max-width:600px;">
+                          <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#ff7aa8;text-transform:uppercase;letter-spacing:0.1em;">PRE-BETA // ПРЯМАЯ СВЯЗЬ 1-НА-1</div>
+                          <h3 style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:18px;color:#fff;margin:4px 0 0;">Живой тест голоса и чата до релиза</h3>
+                          <p style="font-size:12px;color:#cbd5e1;margin:6px 0 0;line-height:1.5;">Получите уникальный одноразовый код, отправьте его другу и общайтесь напрямую в этом превью. Лимит до релиза: <strong style="color:#fcee0a;">30 минут всего</strong>, максимум <strong style="color:#00f0ff;">2 человека</strong> в одном диалоге.</p>
+                        </div>
+                        <div style="border-radius:8px;background:rgba(4,7,13,0.92);border:1px solid rgba(252,238,10,0.45);padding:8px 14px;text-align:right;">
+                          <div style="font-family:'Share Tech Mono',monospace;font-size:9.5px;color:#fcee0a;text-transform:uppercase;">ЛИМИТ ДО РЕЛИЗА</div>
+                          <div id="gk-pb-quota-timer" data-testid="prebeta-quota-timer" style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:18px;color:#fff;">30:00</div>
+                        </div>
+                      </div>
+                      <div style="border-radius:12px;background:#060b14;border:1px solid rgba(0,240,255,0.22);padding:12px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
+                        <label for="gk-pb-nick-input" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#00f0ff;text-transform:uppercase;">Ваш позывной:</label>
+                        <input id="gk-pb-nick-input" type="text" maxlength="22" placeholder="Например: CyberNiko (необязательно)" class="gk-fb-input" style="flex:1;min-width:180px;background:#04070d;padding:8px 12px;font-size:13px;" />
+                      </div>
+                      <div id="gk-pb-error" data-testid="prebeta-error" role="alert" style="display:none;border-radius:12px;border:1px solid #ff2a85;background:rgba(255,42,133,0.16);padding:12px 14px;color:#ffc2d8;font-size:13px;"></div>
+                      <div class="gk-pb-cards">
+                        <div class="gk-pb-card">
+                          <div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                              <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#00f0ff;">ШАГ 1 // ЕДИНОРАЗОВЫЙ КОД</span>
+                              <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.3);color:#00f0ff;">1-НА-1</span>
+                            </div>
+                            <h4 style="font-family:'Orbitron',sans-serif;font-weight:700;font-size:15px;color:#fff;margin:0 0 6px;">Создать диалог и позвать друга</h4>
+                            <p style="font-size:12px;color:#94a3b8;margin:0;line-height:1.5;">Устройство получает один уникальный код на 30 минут до релиза. Повторная выдача нового кода заблокирована.</p>
+                          </div>
+                          <div id="gk-pb-host-actions">
+                            <button type="button" id="gk-pb-issue-btn" data-testid="prebeta-issue-btn" style="width:100%;padding:12px 16px;border-radius:8px;border:none;background:linear-gradient(90deg,#00f0ff,#38bdf8);color:#031518;font-family:'Orbitron',sans-serif;font-weight:900;font-size:12px;cursor:pointer;">ПОЛУЧИТЬ ЕДИНОРАЗОВЫЙ КОД</button>
+                          </div>
+                        </div>
+                        <form id="gk-pb-join-form" class="gk-pb-card is-pink">
+                          <div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                              <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#ff7aa8;">ШАГ 2 // ВХОД ПО КОДУ ДРУГА</span>
+                              <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(255,42,133,0.1);border:1px solid rgba(255,42,133,0.3);color:#ff7aa8;">МАКС. 2/2</span>
+                            </div>
+                            <h4 style="font-family:'Orbitron',sans-serif;font-weight:700;font-size:15px;color:#fff;margin:0 0 6px;">Подключиться к собеседнику</h4>
+                            <p style="font-size:12px;color:#94a3b8;margin:0;line-height:1.5;">Введите код, который прислал вам друг. Если в комнате уже 2 человека или время истекло, вход будет отклонён.</p>
+                          </div>
+                          <div style="display:flex;flex-direction:column;gap:10px;">
+                            <input id="gk-pb-code-input" data-testid="prebeta-code-input" type="text" placeholder="GK-XXXX-XXXX" aria-label="Код комнаты друга" class="gk-fb-input" style="background:#04070d;border-color:rgba(255,42,133,0.45);font-family:'Orbitron',sans-serif;letter-spacing:0.12em;" />
+                            <button type="submit" id="gk-pb-join-btn" data-testid="prebeta-join-btn" style="width:100%;padding:12px 16px;border-radius:8px;border:none;background:linear-gradient(90deg,#ff2a85,#db2777);color:#fff;font-family:'Orbitron',sans-serif;font-weight:900;font-size:12px;cursor:pointer;">ПОДКЛЮЧИТЬСЯ К РАЗГОВОРУ</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                    <div style="padding-top:12px;border-top:1px solid rgba(0,240,255,0.15);display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#63809b;">
+                      <span>ПРОТОКОЛ: WEBSOCKET СИГНАЛИНГ + WEBRTC P2P AUDIO</span>
+                      <span>ОГРАНИЧЕНИЕ PRE-BETA: 30:00 ДО РЕЛИЗА · 2 УЧАСТНИКА</span>
+                    </div>
+                  </div>
+                  <div id="gk-pb-active-view" class="gk-pb-active-wrap" style="display:none;">
+                    <aside class="gk-cn-channels">
+                      <div>
+                        <div class="gk-cn-srv-head" style="border-bottom-color:rgba(255,42,133,0.25);">
+                          <div style="min-width:0;">
+                            <div style="font-size:9px;font-weight:800;text-transform:uppercase;color:#ff7aa8;">PRE-BETA КАНАЛ 1-НА-1</div>
+                            <div id="gk-pb-active-code" data-testid="prebeta-active-code" style="font-family:'Orbitron',sans-serif;font-size:14px;font-weight:900;color:#fff;margin-top:2px;">GK-XXXX-XXXX</div>
+                          </div>
+                          <button type="button" id="gk-pb-copy-code" style="background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.4);color:#00f0ff;font-size:10px;font-weight:700;padding:4px 8px;border-radius:4px;cursor:pointer;">КОД</button>
+                        </div>
+                        <div style="margin:10px 10px 8px;padding:10px;border-radius:8px;background:linear-gradient(135deg,rgba(255,42,133,0.15),rgba(10,19,32,0.9));border:1px solid rgba(255,42,133,0.45);">
+                          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;">
+                            <div>
+                              <div style="font-size:9px;font-weight:800;color:#b4cde0;">ОСТАТОК ДО РЕЛИЗА</div>
+                              <div id="gk-pb-countdown" data-testid="prebeta-countdown" style="font-family:'Orbitron',sans-serif;font-size:16px;font-weight:900;color:#fcee0a;">30:00</div>
+                            </div>
+                            <span id="gk-pb-peer-count" data-testid="prebeta-peer-count" style="font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:4px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.45);color:#6ee7b7;">1/2</span>
+                          </div>
+                          <button type="button" id="gk-pb-copy-link" style="width:100%;padding:6px 8px;border-radius:4px;background:rgba(4,7,13,0.8);border:1px solid rgba(0,240,255,0.3);color:#00f0ff;font-size:10.5px;font-weight:700;cursor:pointer;">ССЫЛКА-ПРИГЛАШЕНИЕ ДРУГУ</button>
+                        </div>
+                        <div style="padding:6px 10px;">
+                          <div id="gk-pb-voice-title" style="font-size:10px;font-weight:800;text-transform:uppercase;color:#63809b;padding:6px 4px;">🔊 ЖИВОЙ ДИАЛОГ (1/2)</div>
+                          <div id="gk-pb-peers-sidebar" style="padding-left:4px;"></div>
+                        </div>
+                      </div>
+                      <div>
+                        <div class="gk-cn-vdock">
+                          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+                            <div style="min-width:0;">
+                              <div id="gk-pb-rtc-status" style="font-size:10px;font-weight:800;color:#10b981;text-transform:uppercase;">ОЖИДАНИЕ 2-ГО УЧАСТНИКА</div>
+                              <div id="gk-pb-mic-status" style="font-size:11px;font-weight:600;color:#cbd5e1;">Чат активен</div>
+                            </div>
+                            <button type="button" id="gk-pb-leave-btn" data-testid="prebeta-leave-btn" class="gk-cn-vdock-btn is-in">ВЫЙТИ</button>
+                          </div>
+                        </div>
+                        <div class="gk-cn-userbar">
+                          <div style="min-width:0;flex:1;">
+                            <div id="gk-pb-self-nick" style="font-size:12px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Вы</div>
+                            <div id="gk-pb-self-state" style="font-size:10px;color:#00f0ff;">В диалоге 1-на-1</div>
+                          </div>
+                          <div style="display:flex;gap:4px;">
+                            <button type="button" id="gk-pb-mic-btn" class="gk-cn-hex gk-cn-hexbtn" aria-pressed="false" aria-label="Выключить микрофон Pre-Beta">🎤</button>
+                            <button type="button" id="gk-pb-deaf-btn" class="gk-cn-hex gk-cn-hexbtn" aria-pressed="false" aria-label="Отключить звук Pre-Beta">🎧</button>
+                          </div>
+                        </div>
+                      </div>
+                    </aside>
+                    <div class="gk-cn-chat">
+                      <div>
+                        <div class="gk-cn-streamhead" style="border-color:rgba(255,42,133,0.35);">
+                          <div style="display:flex;align-items:center;gap:8px;">
+                            <span style="color:#ff2a85;font-size:18px;font-weight:900;">#</span>
+                            <div>
+                              <div id="gk-pb-chat-topic" style="font-size:9.5px;font-weight:800;color:#ff7aa8;">PRE-BETA ЖИВОЙ ДИАЛОГ</div>
+                              <div style="font-size:14px;font-weight:800;color:#fff;">прямая-связь-1-на-1</div>
+                            </div>
+                          </div>
+                          <span id="gk-pb-chat-timer" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;">⏱ 30:00</span>
+                        </div>
+                        <div id="gk-pb-messages" data-testid="prebeta-messages" class="gk-cn-messages"></div>
+                      </div>
+                      <div class="gk-cn-console">
+                        <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:800;text-transform:uppercase;color:#63809b;margin-bottom:6px;">
+                          <span>PRE-BETA КОНСОЛЬ // ЖИВОЙ ЭФИР</span>
+                          <span id="gk-pb-console-code">КОД GK-XXXX</span>
+                        </div>
+                        <form id="gk-pb-chat-form" data-testid="prebeta-chat-form" style="display:flex;align-items:center;gap:8px;">
+                          <span style="width:36px;height:36px;border-radius:6px;background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.4);color:#00f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;" aria-hidden="true">📎</span>
+                          <input id="gk-pb-chat-input" data-testid="prebeta-chat-input" type="text" placeholder="Написать собеседнику в реальном времени..." class="gk-fb-input" style="background:#050a12;border-radius:6px;padding:8px 12px;" />
+                          <button type="submit" data-testid="prebeta-chat-send" style="background:#00f0ff;color:#031518;border:none;border-radius:6px;padding:9px 14px;font-weight:800;font-size:11.5px;text-transform:uppercase;cursor:pointer;flex-shrink:0;">ОТПРАВИТЬ</button>
+                        </form>
+                      </div>
+                    </div>
+                    <aside id="gk-pb-members-panel" class="gk-cn-members" aria-label="Участники Pre-Beta диалога"></aside>
+                  </div>
+                </div>
+                <aside id="gk-cn-demo-channels" class="gk-cn-channels">
                   <div>
                     <div class="gk-cn-srv-head">
                       <div style="min-width:0;">
@@ -1686,7 +1955,7 @@
                     </div>
                   </div>
                 </aside>
-                <div class="gk-cn-chat">
+                <div id="gk-cn-demo-chat" class="gk-cn-chat">
                   <div>
                     <div class="gk-cn-streamhead">
                       <div style="display:flex;align-items:center;gap:8px;min-width:0;">
@@ -3433,9 +3702,621 @@
             }
           }
 
+          var pbActive = false;
+          var pbTabDemo = document.getElementById('gk-pb-tab-demo');
+          var pbTabLive = document.getElementById('gk-pb-tab-live');
+          var pbTopBtn = document.getElementById('gk-cn-prebeta-topbtn');
+          var pbRailBtn = document.getElementById('gk-cn-pb-rail');
+          var pbRailWrap = document.getElementById('gk-cn-pb-rail-wrap');
+          var pbPaneEl = document.getElementById('gk-cn-prebeta-pane');
+          var pbDemoChannels = document.getElementById('gk-cn-demo-channels');
+          var pbDemoChat = document.getElementById('gk-cn-demo-chat');
+          var pbNetLabel = document.getElementById('gk-cn-net-label');
+
+          var pbLobbyView = document.getElementById('gk-pb-lobby-view');
+          var pbActiveView = document.getElementById('gk-pb-active-view');
+          var pbQuotaTimerEl = document.getElementById('gk-pb-quota-timer');
+          var pbNickInput = document.getElementById('gk-pb-nick-input');
+          var pbErrorEl = document.getElementById('gk-pb-error');
+          var pbHostActions = document.getElementById('gk-pb-host-actions');
+          var pbJoinForm = document.getElementById('gk-pb-join-form');
+          var pbCodeInput = document.getElementById('gk-pb-code-input');
+          var pbJoinBtn = document.getElementById('gk-pb-join-btn');
+          var pbActiveCodeEl = document.getElementById('gk-pb-active-code');
+          var pbCopyCodeBtn = document.getElementById('gk-pb-copy-code');
+          var pbCopyLinkBtn = document.getElementById('gk-pb-copy-link');
+          var pbCountdownEl = document.getElementById('gk-pb-countdown');
+          var pbPeerCountEl = document.getElementById('gk-pb-peer-count');
+          var pbVoiceTitleEl = document.getElementById('gk-pb-voice-title');
+          var pbPeersSidebarEl = document.getElementById('gk-pb-peers-sidebar');
+          var pbRtcStatusEl = document.getElementById('gk-pb-rtc-status');
+          var pbMicStatusEl = document.getElementById('gk-pb-mic-status');
+          var pbLeaveBtn = document.getElementById('gk-pb-leave-btn');
+          var pbSelfNickEl = document.getElementById('gk-pb-self-nick');
+          var pbSelfStateEl = document.getElementById('gk-pb-self-state');
+          var pbMicBtn = document.getElementById('gk-pb-mic-btn');
+          var pbDeafBtn = document.getElementById('gk-pb-deaf-btn');
+          var pbChatTopicEl = document.getElementById('gk-pb-chat-topic');
+          var pbChatTimerEl = document.getElementById('gk-pb-chat-timer');
+          var pbMsgsEl = document.getElementById('gk-pb-messages');
+          var pbConsoleCodeEl = document.getElementById('gk-pb-console-code');
+          var pbChatForm = document.getElementById('gk-pb-chat-form');
+          var pbChatInput = document.getElementById('gk-pb-chat-input');
+          var pbMembersPanel = document.getElementById('gk-pb-members-panel');
+          var pbRemoteAudio = document.getElementById('gk-pb-remote-audio');
+
+          var pbClientId = (function () {
+            try {
+              var k = 'geek_prebeta_client_id_v1';
+              var cur = localStorage.getItem(k);
+              if (cur && cur.length >= 6) return cur;
+              var gen = 'gk-' + Math.random().toString(36).slice(2, 14) + Date.now().toString(36);
+              localStorage.setItem(k, gen);
+              return gen;
+            } catch (e) {
+              return 'gk-' + Math.random().toString(36).slice(2, 14);
+            }
+          })();
+
+          var pbQuota = { status: 'AVAILABLE', code: null, expiresAt: null, remainingMs: 1800000 };
+          var pbRoom = null;
+          var pbMyPeerId = null;
+          var pbRemainingMs = 1800000;
+          var pbMicMuted = false;
+          var pbDeafened = false;
+          var pbHasMicAudio = false;
+          var pbRtcStatus = 'idle';
+          var pbBusy = false;
+          var pbWs = null;
+          var pbPc = null;
+          var pbLocalStream = null;
+          var pbQuotaTick = setInterval(function () {
+            if (pbQuota.status === 'ACTIVE' && pbQuota.expiresAt) {
+              var left = Math.max(0, pbQuota.expiresAt - Date.now());
+              pbQuota.remainingMs = left;
+              if (left <= 0) pbQuota.status = 'EXHAUSTED';
+              renderPreBeta();
+            }
+          }, 1000);
+
+          function pbFormatMs(ms) {
+            var total = Math.max(0, Math.floor((ms || 0) / 1000));
+            var mins = Math.floor(total / 60);
+            var secs = total % 60;
+            return String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+          }
+
+          function pbNormalizeCode(raw) {
+            var cleaned = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (cleaned.indexOf('GK') === 0) cleaned = cleaned.slice(2);
+            if (cleaned.length !== 8) return null;
+            return 'GK-' + cleaned.slice(0, 4) + '-' + cleaned.slice(4, 8);
+          }
+
+          function pbShowError(msg) {
+            if (!pbErrorEl) return;
+            if (!msg) {
+              pbErrorEl.style.display = 'none';
+              pbErrorEl.textContent = '';
+            } else {
+              pbErrorEl.style.display = 'block';
+              pbErrorEl.textContent = msg;
+            }
+          }
+
+          function pbStopMedia() {
+            if (pbLocalStream) {
+              pbLocalStream.getTracks().forEach(function (t) { t.stop(); });
+              pbLocalStream = null;
+            }
+            pbHasMicAudio = false;
+          }
+
+          function pbCleanupRtc() {
+            if (pbPc) {
+              pbPc.onicecandidate = null;
+              pbPc.ontrack = null;
+              pbPc.onconnectionstatechange = null;
+              pbPc.close();
+              pbPc = null;
+            }
+            if (pbRemoteAudio) pbRemoteAudio.srcObject = null;
+            pbRtcStatus = 'idle';
+          }
+
+          function pbSendWs(obj) {
+            if (pbWs && pbWs.readyState === 1) {
+              pbWs.send(JSON.stringify(obj));
+            }
+          }
+
+          function pbEnsurePc() {
+            if (pbPc) return pbPc;
+            if (typeof RTCPeerConnection === 'undefined') { pbRtcStatus = 'text-only'; return null; }
+            var pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+            pbPc = pc;
+            if (pbLocalStream) {
+              pbLocalStream.getTracks().forEach(function (t) { pc.addTrack(t, pbLocalStream); });
+            } else {
+              try { pc.addTransceiver('audio', { direction: 'recvonly' }); } catch (e) {}
+            }
+            pc.onicecandidate = function (ev) {
+              if (ev.candidate) {
+                pbSendWs({ type: 'rtc:signal', signalType: 'ice', payload: ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate });
+              }
+            };
+            pc.ontrack = function (ev) {
+              if (pbRemoteAudio && ev.streams && ev.streams[0]) {
+                pbRemoteAudio.srcObject = ev.streams[0];
+                pbRemoteAudio.muted = pbDeafened;
+                var pr = pbRemoteAudio.play();
+                if (pr && pr.catch) pr.catch(function () {});
+              }
+              pbRtcStatus = 'connected';
+              renderPreBeta();
+            };
+            pc.onconnectionstatechange = function () {
+              if (pc.connectionState === 'connected') pbRtcStatus = 'connected';
+              else if (pc.connectionState === 'connecting') pbRtcStatus = 'negotiating';
+              else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
+                if (pbRtcStatus !== 'idle') pbRtcStatus = 'text-only';
+              }
+              renderPreBeta();
+            };
+            return pc;
+          }
+
+          function pbRefreshQuota() {
+            fetch('./api/prebeta/status?clientId=' + encodeURIComponent(pbClientId))
+              .then(function (r) { return r.ok ? r.json() : null; })
+              .then(function (d) {
+                if (!d) return;
+                pbQuota = {
+                  status: d.status || 'AVAILABLE',
+                  code: d.code || null,
+                  expiresAt: d.expiresAt || null,
+                  remainingMs: typeof d.remainingMs === 'number' ? d.remainingMs : 1800000
+                };
+                renderPreBeta();
+              })
+              .catch(function () {});
+          }
+
+          function pbEnsureSocket() {
+            if (pbWs && pbWs.readyState === 1) return Promise.resolve(pbWs);
+            return new Promise(function (resolve, reject) {
+              var proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+              var ws = new WebSocket(proto + '//' + window.location.host + '/ws/prebeta');
+              pbWs = ws;
+              var tm = setTimeout(function () {
+                if (ws.readyState !== 1) {
+                  ws.close();
+                  reject(new Error('Таймаут подключения к серверу Pre-Beta связи.'));
+                }
+              }, 6000);
+              ws.onopen = function () { clearTimeout(tm); resolve(ws); };
+              ws.onerror = function () { clearTimeout(tm); reject(new Error('Не удалось установить WebSocket-соединение с сервером.')); };
+              ws.onclose = function () { pbWs = null; };
+              ws.onmessage = function (ev) {
+                var data;
+                try { data = JSON.parse(String(ev.data)); } catch (e) { return; }
+                var t = data.type;
+                if (t === 'ws:welcome' && data.peerId) { pbMyPeerId = data.peerId; }
+                else if (t === 'room:joined') {
+                  if (data.peerId) pbMyPeerId = data.peerId;
+                  pbRoom = data.snapshot || null;
+                  if (pbRoom) {
+                    pbRemainingMs = pbRoom.remainingMs;
+                    pbRtcStatus = pbRoom.participants.length < 2 ? 'waiting-peer' : pbRoom.participants.some(function (p) { return p.hasAudio; }) ? 'negotiating' : 'text-only';
+                  }
+                  pbShowError('');
+                  pbBusy = false;
+                  pbRefreshQuota();
+                  renderPreBeta();
+                } else if (t === 'room:state') {
+                  pbRoom = data.snapshot || null;
+                  if (pbRoom) {
+                    pbRemainingMs = pbRoom.remainingMs;
+                    if (pbRoom.participants.length < 2) { pbCleanupRtc(); pbRtcStatus = 'waiting-peer'; }
+                  }
+                  renderPreBeta();
+                } else if (t === 'room:tick') {
+                  if (typeof data.remainingMs === 'number') pbRemainingMs = data.remainingMs;
+                  renderPreBeta();
+                } else if (t === 'chat:message' && data.message && pbRoom) {
+                  if (!pbRoom.messages.some(function (m) { return m.id === data.message.id; })) {
+                    pbRoom.messages = pbRoom.messages.concat([data.message]).slice(-80);
+                    renderPreBeta();
+                  }
+                } else if (t === 'rtc:initiate') {
+                  var pc = pbEnsurePc();
+                  if (!pc) return;
+                  pbRtcStatus = pbLocalStream ? 'negotiating' : 'text-only';
+                  pc.createOffer().then(function (offer) {
+                    return pc.setLocalDescription(offer).then(function () {
+                      pbSendWs({ type: 'rtc:signal', signalType: 'offer', payload: offer });
+                    });
+                  }).catch(function () { pbRtcStatus = 'text-only'; renderPreBeta(); });
+                } else if (t === 'rtc:signal') {
+                  var pc2 = pbEnsurePc();
+                  if (!pc2) return;
+                  if (data.signalType === 'offer' && data.payload) {
+                    pc2.setRemoteDescription(new RTCSessionDescription(data.payload))
+                      .then(function () { return pc2.createAnswer(); })
+                      .then(function (ans) { return pc2.setLocalDescription(ans).then(function () { pbSendWs({ type: 'rtc:signal', signalType: 'answer', payload: ans }); }); })
+                      .catch(function () {});
+                  } else if (data.signalType === 'answer' && data.payload) {
+                    pc2.setRemoteDescription(new RTCSessionDescription(data.payload)).catch(function () {});
+                  } else if (data.signalType === 'ice' && data.payload) {
+                    pc2.addIceCandidate(new RTCIceCandidate(data.payload)).catch(function () {});
+                  }
+                } else if (t === 'peer:left') {
+                  pbCleanupRtc();
+                  pbRtcStatus = 'waiting-peer';
+                  renderPreBeta();
+                } else if (t === 'room:left') {
+                  pbCleanupRtc();
+                  pbRoom = null;
+                  pbBusy = false;
+                  renderPreBeta();
+                } else if (t === 'session:expired') {
+                  pbCleanupRtc();
+                  pbStopMedia();
+                  pbRoom = null;
+                  pbRemainingMs = 0;
+                  pbBusy = false;
+                  pbShowError(data.message || '30-минутный pre-beta лимит до релиза истёк.');
+                  pbRefreshQuota();
+                  renderPreBeta();
+                } else if (t === 'room:error') {
+                  pbBusy = false;
+                  pbShowError(data.message || 'Ошибка подключения к pre-beta каналу.');
+                  renderPreBeta();
+                }
+              };
+            });
+          }
+
+          function pbJoinRoom(rawCode, customNick) {
+            var code = pbNormalizeCode(rawCode);
+            if (!code) { pbShowError('Введите корректный код формата GK-XXXX-XXXX.'); return; }
+            pbShowError('');
+            pbBusy = true;
+            renderPreBeta();
+            var effNick = String(customNick != null ? customNick : (pbNickInput ? pbNickInput.value : '')).trim();
+            var getMic = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+              ? navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(function (s) { pbLocalStream = s; pbHasMicAudio = true; return true; }).catch(function () { pbHasMicAudio = false; return false; })
+              : Promise.resolve(false);
+            getMic.then(function (gotMic) {
+              return pbEnsureSocket().then(function (ws) {
+                ws.send(JSON.stringify({ type: 'room:join', code: code, clientId: pbClientId, nick: effNick, hasAudio: gotMic }));
+              });
+            }).catch(function (err) {
+              pbBusy = false;
+              pbShowError((err && err.message) || 'Сервер pre-beta связи недоступен.');
+              renderPreBeta();
+            });
+          }
+
+          function pbIssueAndJoin() {
+            pbShowError('');
+            pbBusy = true;
+            renderPreBeta();
+            fetch('./api/prebeta/issue', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ clientId: pbClientId })
+            })
+              .then(function (r) { return r.json(); })
+              .then(function (payload) {
+                if (!payload || !payload.ok || !payload.code) {
+                  pbBusy = false;
+                  pbShowError((payload && payload.message) || 'Не удалось выдать код доступа.');
+                  pbRefreshQuota();
+                  renderPreBeta();
+                  return;
+                }
+                pbQuota = {
+                  status: 'ACTIVE',
+                  code: payload.code,
+                  expiresAt: payload.expiresAt || null,
+                  remainingMs: payload.remainingMs || 1800000
+                };
+                pbJoinRoom(payload.code, (pbNickInput && pbNickInput.value.trim()) || 'Создатель');
+              })
+              .catch(function () {
+                pbBusy = false;
+                pbShowError('Сервер pre-beta связи недоступен.');
+                renderPreBeta();
+              });
+          }
+
+          function renderPreBeta() {
+            var countdown = pbFormatMs(pbRoom ? pbRemainingMs : pbQuota.remainingMs);
+            if (pbTabDemo) {
+              pbTabDemo.classList.toggle('is-demo-active', !pbActive);
+              pbTabDemo.setAttribute('aria-pressed', !pbActive ? 'true' : 'false');
+            }
+            if (pbTabLive) {
+              pbTabLive.classList.toggle('is-live-active', pbActive);
+              pbTabLive.setAttribute('aria-pressed', pbActive ? 'true' : 'false');
+              pbTabLive.textContent = pbRoom ? '📞 PRE-BETA СВЯЗЬ АКТИВНА · ' + countdown : '📞 PRE-BETA СВЯЗЬ 1-НА-1 · 30 МИН ДО РЕЛИЗА';
+            }
+            if (pbTopBtn) {
+              pbTopBtn.classList.toggle('is-active', pbActive);
+              pbTopBtn.setAttribute('aria-pressed', pbActive ? 'true' : 'false');
+              pbTopBtn.textContent = pbRoom ? '📞 PRE-BETA LIVE (' + countdown + ')' : '📞 PRE-BETA СВЯЗЬ · 30 МИН';
+            }
+            if (pbRailWrap) pbRailWrap.classList.toggle('is-active', pbActive);
+            if (pbRailBtn) pbRailBtn.setAttribute('aria-pressed', pbActive ? 'true' : 'false');
+            if (pbActive) {
+              document.querySelectorAll('[data-gk-srv-wrap]').forEach(function (w) {
+                w.classList.remove('is-active');
+                var b = w.querySelector('[data-gk-server]');
+                if (b) b.setAttribute('aria-pressed', 'false');
+              });
+            }
+            if (pbNetLabel) pbNetLabel.textContent = pbActive ? 'PRE-BETA 1-НА-1 // 30 МИН' : 'P2P СИНХРОНИЗАЦИЯ';
+
+            if (pbPaneEl) pbPaneEl.classList.toggle('is-visible', pbActive);
+            if (pbDemoChannels) pbDemoChannels.style.display = pbActive ? 'none' : 'flex';
+            if (pbDemoChat) pbDemoChat.style.display = pbActive ? 'none' : 'flex';
+            if (cnMembersEl) cnMembersEl.style.display = (!pbActive && cnShowMembers) ? 'block' : 'none';
+
+            if (!pbActive) return;
+
+            if (!pbRoom) {
+              if (pbLobbyView) pbLobbyView.style.display = 'flex';
+              if (pbActiveView) pbActiveView.style.display = 'none';
+              if (pbQuotaTimerEl) pbQuotaTimerEl.textContent = pbFormatMs(pbQuota.remainingMs);
+              if (pbHostActions) {
+                pbHostActions.innerHTML = '';
+                if (pbQuota.status === 'EXHAUSTED') {
+                  var ex = document.createElement('div');
+                  ex.style.cssText = 'border-radius:8px;background:rgba(255,42,133,0.1);border:1px solid rgba(255,42,133,0.4);padding:12px;font-size:12px;color:#ff9ec0;';
+                  ex.textContent = 'Ваш 30-минутный pre-beta лимит до релиза исчерпан. Вы по-прежнему можете подключиться по активному коду друга справа.';
+                  pbHostActions.appendChild(ex);
+                } else if (pbQuota.status === 'ACTIVE' && pbQuota.code) {
+                  var box = document.createElement('div');
+                  box.style.cssText = 'border-radius:8px;background:#04070d;border:1px solid rgba(16,185,129,0.5);padding:10px 12px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;';
+                  var left = document.createElement('div');
+                  var lbl = document.createElement('div');
+                  lbl.style.cssText = 'font-family:"Share Tech Mono",monospace;font-size:9.5px;color:#6ee7b7;';
+                  lbl.textContent = 'ВАШ ЕДИНОРАЗОВЫЙ КОД УЖЕ ВЫДАН';
+                  var cd = document.createElement('div');
+                  cd.setAttribute('data-testid', 'prebeta-issued-code');
+                  cd.style.cssText = 'font-family:"Orbitron",sans-serif;font-weight:900;font-size:15px;color:#fff;margin-top:2px;';
+                  cd.textContent = pbQuota.code;
+                  left.appendChild(lbl);
+                  left.appendChild(cd);
+                  var cpBtn = document.createElement('button');
+                  cpBtn.type = 'button';
+                  cpBtn.style.cssText = 'padding:6px 10px;border-radius:6px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.45);color:#6ee7b7;font-size:11px;font-weight:700;cursor:pointer;';
+                  cpBtn.textContent = 'КОД';
+                  cpBtn.addEventListener('click', function () {
+                    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(pbQuota.code).catch(function () {});
+                    cpBtn.textContent = 'ОК';
+                    setTimeout(function () { cpBtn.textContent = 'КОД'; }, 1500);
+                  });
+                  box.appendChild(left);
+                  box.appendChild(cpBtn);
+                  pbHostActions.appendChild(box);
+                  var resBtn = document.createElement('button');
+                  resBtn.type = 'button';
+                  resBtn.setAttribute('data-testid', 'prebeta-resume-btn');
+                  resBtn.disabled = pbBusy;
+                  resBtn.style.cssText = 'width:100%;padding:10px 14px;border-radius:8px;border:none;background:#00f0ff;color:#031518;font-family:"Orbitron",sans-serif;font-weight:900;font-size:12px;cursor:pointer;';
+                  resBtn.textContent = 'ВОЙТИ В СВОЙ ДИАЛОГ (' + pbFormatMs(pbQuota.remainingMs) + ')';
+                  resBtn.addEventListener('click', function () {
+                    pbJoinRoom(pbQuota.code, (pbNickInput && pbNickInput.value.trim()) || 'Создатель');
+                  });
+                  pbHostActions.appendChild(resBtn);
+                } else {
+                  var issBtn = document.createElement('button');
+                  issBtn.type = 'button';
+                  issBtn.setAttribute('data-testid', 'prebeta-issue-btn');
+                  issBtn.disabled = pbBusy;
+                  issBtn.style.cssText = 'width:100%;padding:12px 16px;border-radius:8px;border:none;background:linear-gradient(90deg,#00f0ff,#38bdf8);color:#031518;font-family:"Orbitron",sans-serif;font-weight:900;font-size:12px;cursor:pointer;';
+                  issBtn.textContent = pbBusy ? 'ЗАПУСК КАНАЛА...' : 'ПОЛУЧИТЬ ЕДИНОРАЗОВЫЙ КОД';
+                  issBtn.addEventListener('click', pbIssueAndJoin);
+                  pbHostActions.appendChild(issBtn);
+                }
+              }
+            } else {
+              if (pbLobbyView) pbLobbyView.style.display = 'none';
+              if (pbActiveView) pbActiveView.style.display = 'flex';
+              var peers = pbRoom.participants || [];
+              if (pbActiveCodeEl) pbActiveCodeEl.textContent = pbRoom.code;
+              if (pbCountdownEl) pbCountdownEl.textContent = countdown;
+              if (pbChatTimerEl) pbChatTimerEl.textContent = '⏱ ' + countdown;
+              if (pbConsoleCodeEl) pbConsoleCodeEl.textContent = 'КОД ' + pbRoom.code;
+              if (pbChatTopicEl) pbChatTopicEl.textContent = 'PRE-BETA ЖИВОЙ ДИАЛОГ // ' + pbRoom.code;
+              if (pbPeerCountEl) pbPeerCountEl.textContent = peers.length + '/' + pbRoom.maxParticipants;
+              if (pbVoiceTitleEl) pbVoiceTitleEl.textContent = '🔊 ЖИВОЙ ДИАЛОГ (' + peers.length + '/2)';
+              if (pbRtcStatusEl) {
+                pbRtcStatusEl.textContent = pbRtcStatus === 'connected' ? 'P2P АУДИО ПОДКЛЮЧЕНО' : pbRtcStatus === 'negotiating' ? 'СОГЛАСОВАНИЕ P2P КАНАЛА...' : pbRtcStatus === 'waiting-peer' ? 'ОЖИДАНИЕ 2-ГО УЧАСТНИКА' : 'ЧАТ + СИГНАЛИНГ АКТИВЕН';
+              }
+              if (pbMicStatusEl) pbMicStatusEl.textContent = pbHasMicAudio ? 'Микрофон активен (WebRTC)' : 'Чат активен (без микрофона)';
+              var mePeer = peers.find(function (p) { return p.peerId === pbMyPeerId; });
+              if (pbSelfNickEl) pbSelfNickEl.textContent = mePeer ? mePeer.nick : 'Вы';
+              if (pbSelfStateEl) pbSelfStateEl.textContent = pbDeafened ? 'Звук выкл' : pbMicMuted ? 'Микрофон выкл' : 'В диалоге 1-на-1';
+              if (pbMicBtn) { pbMicBtn.classList.toggle('is-muted', pbMicMuted); pbMicBtn.setAttribute('aria-pressed', pbMicMuted ? 'true' : 'false'); }
+              if (pbDeafBtn) { pbDeafBtn.classList.toggle('is-muted', pbDeafened); pbDeafBtn.setAttribute('aria-pressed', pbDeafened ? 'true' : 'false'); }
+
+              if (pbPeersSidebarEl) {
+                pbPeersSidebarEl.innerHTML = '';
+                peers.forEach(function (p) {
+                  var row = document.createElement('div');
+                  row.className = 'gk-cn-vpeer' + (!p.micMuted ? ' is-speaking' : '');
+                  row.appendChild(makeHexAvatar(p.nick.slice(0, 2).toUpperCase(), p.isHost ? '#ff2a85' : '#00f0ff', 28, 10));
+                  var nm = document.createElement('span');
+                  nm.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                  nm.textContent = p.nick + (p.peerId === pbMyPeerId ? ' (Вы)' : '');
+                  row.appendChild(nm);
+                  pbPeersSidebarEl.appendChild(row);
+                });
+                if (peers.length < 2) {
+                  var emptySlot = document.createElement('div');
+                  emptySlot.style.cssText = 'padding:6px 8px;border-radius:6px;border:1px dashed rgba(0,240,255,0.25);font-size:11px;color:#63809b;';
+                  emptySlot.textContent = 'Свободный слот (1/2) — передайте код другу';
+                  pbPeersSidebarEl.appendChild(emptySlot);
+                }
+              }
+
+              if (pbMsgsEl) {
+                pbMsgsEl.innerHTML = '';
+                (pbRoom.messages || []).forEach(function (m) {
+                  var box = document.createElement('div');
+                  box.className = 'gk-cn-msg';
+                  if (m.system) box.style.borderColor = 'rgba(255,42,133,0.35)';
+                  box.appendChild(makeHexAvatar(m.system ? 'PB' : m.authorNick.slice(0, 2).toUpperCase(), m.system ? '#ff2a85' : '#00f0ff', 36, 11));
+                  var bd = document.createElement('div');
+                  bd.style.cssText = 'flex:1;min-width:0;';
+                  var hd = document.createElement('div');
+                  hd.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+                  var au = document.createElement('span');
+                  au.style.cssText = 'font-size:13px;font-weight:800;color:' + (m.system ? '#ff7aa8' : '#00f0ff') + ';';
+                  au.textContent = m.authorNick;
+                  var tm = document.createElement('span');
+                  tm.style.cssText = 'font-family:"Share Tech Mono",monospace;font-size:10.5px;color:#63809b;';
+                  tm.textContent = new Date(m.timestamp).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                  hd.appendChild(au);
+                  hd.appendChild(tm);
+                  var tx = document.createElement('p');
+                  tx.style.cssText = 'margin:4px 0 0;font-size:13.5px;color:#e6f7ff;line-height:1.45;';
+                  tx.textContent = m.text;
+                  bd.appendChild(hd);
+                  bd.appendChild(tx);
+                  box.appendChild(bd);
+                  pbMsgsEl.appendChild(box);
+                });
+                pbMsgsEl.scrollTop = pbMsgsEl.scrollHeight;
+              }
+
+              if (pbMembersPanel) {
+                pbMembersPanel.classList.toggle('is-hidden', !cnShowMembers);
+                pbMembersPanel.innerHTML = '';
+                var mt = document.createElement('div');
+                mt.style.cssText = 'font-size:10.5px;font-weight:800;text-transform:uppercase;color:#00f0ff;padding:0 6px 8px;';
+                mt.textContent = 'В ДИАЛОГЕ — ' + peers.length + '/2';
+                pbMembersPanel.appendChild(mt);
+                peers.forEach(function (p) {
+                  var it = document.createElement('div');
+                  it.style.cssText = 'display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:6px;background:rgba(10,19,32,0.8);border:1px solid rgba(0,240,255,0.15);margin-bottom:6px;';
+                  it.appendChild(makeHexAvatar(p.nick.slice(0, 2).toUpperCase(), p.isHost ? '#ff2a85' : '#00f0ff', 32, 10));
+                  var inf = document.createElement('div');
+                  inf.style.cssText = 'min-width:0;flex:1;';
+                  var nm = document.createElement('div');
+                  nm.style.cssText = 'font-size:12px;font-weight:700;color:#fff;';
+                  nm.textContent = p.nick + (p.peerId === pbMyPeerId ? ' (Вы)' : '');
+                  var rl = document.createElement('div');
+                  rl.style.cssText = 'font-size:10px;color:#6ee7b7;';
+                  rl.textContent = p.isHost ? 'Создатель кода' : 'Приглашённый друг';
+                  inf.appendChild(nm);
+                  inf.appendChild(rl);
+                  it.appendChild(inf);
+                  pbMembersPanel.appendChild(it);
+                });
+              }
+            }
+          }
+
+          window.__GEEK_STATIC_OPEN_PREBETA__ = function () {
+            pbActive = true;
+            renderPreBeta();
+          };
+          window.__GEEK_STATIC_CLEANUP__ = function () {
+            clearInterval(pbQuotaTick);
+            pbCleanupRtc();
+            pbStopMedia();
+            if (pbWs) { try { pbWs.close(); } catch (e) {} pbWs = null; }
+          };
+
+          if (pbTabDemo) pbTabDemo.addEventListener('click', function () { pbActive = false; renderPreBeta(); renderCyberNet(); });
+          if (pbTabLive) pbTabLive.addEventListener('click', function () { pbActive = true; renderPreBeta(); });
+          if (pbTopBtn) pbTopBtn.addEventListener('click', function () { pbActive = !pbActive; renderPreBeta(); if (!pbActive) renderCyberNet(); });
+          if (pbRailBtn) pbRailBtn.addEventListener('click', function () { pbActive = true; renderPreBeta(); });
+          document.querySelectorAll('[data-gk-open-prebeta]').forEach(function (el) {
+            el.addEventListener('click', function () {
+              pbActive = true;
+              renderPreBeta();
+              var pv = document.getElementById('preview');
+              if (pv && pv.scrollIntoView) pv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+          });
+          if (pbJoinForm) {
+            pbJoinForm.addEventListener('submit', function (e) {
+              e.preventDefault();
+              pbJoinRoom(pbCodeInput ? pbCodeInput.value : '', pbNickInput ? pbNickInput.value : '');
+            });
+          }
+          if (pbChatForm) {
+            pbChatForm.addEventListener('submit', function (e) {
+              e.preventDefault();
+              var txt = pbChatInput ? pbChatInput.value.trim() : '';
+              if (!txt || !pbRoom) return;
+              pbSendWs({ type: 'chat:send', text: txt });
+              pbChatInput.value = '';
+            });
+          }
+          if (pbLeaveBtn) {
+            pbLeaveBtn.addEventListener('click', function () {
+              pbSendWs({ type: 'room:leave' });
+              pbCleanupRtc();
+              pbStopMedia();
+              pbRoom = null;
+              pbRefreshQuota();
+              renderPreBeta();
+            });
+          }
+          if (pbMicBtn) {
+            pbMicBtn.addEventListener('click', function () {
+              pbMicMuted = !pbMicMuted;
+              if (pbLocalStream) pbLocalStream.getAudioTracks().forEach(function (t) { t.enabled = !pbMicMuted; });
+              pbSendWs({ type: 'peer:update', micMuted: pbMicMuted });
+              renderPreBeta();
+            });
+          }
+          if (pbDeafBtn) {
+            pbDeafBtn.addEventListener('click', function () {
+              pbDeafened = !pbDeafened;
+              if (pbRemoteAudio) pbRemoteAudio.muted = pbDeafened;
+              renderPreBeta();
+            });
+          }
+          if (pbCopyCodeBtn) {
+            pbCopyCodeBtn.addEventListener('click', function () {
+              if (!pbRoom) return;
+              if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(pbRoom.code).catch(function () {});
+              pbCopyCodeBtn.textContent = 'ОК';
+              setTimeout(function () { pbCopyCodeBtn.textContent = 'КОД'; }, 1500);
+            });
+          }
+          if (pbCopyLinkBtn) {
+            pbCopyLinkBtn.addEventListener('click', function () {
+              if (!pbRoom) return;
+              var link = window.location.origin + window.location.pathname + '?prebeta=' + encodeURIComponent(pbRoom.code) + '#preview';
+              if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).catch(function () {});
+              pbCopyLinkBtn.textContent = 'ССЫЛКА СКОПИРОВАНА';
+              setTimeout(function () { pbCopyLinkBtn.textContent = 'ССЫЛКА-ПРИГЛАШЕНИЕ ДРУГУ'; }, 1600);
+            });
+          }
+
+          try {
+            var pbParams = new URLSearchParams(window.location.search);
+            var pbParamCode = pbNormalizeCode(pbParams.get('prebeta') || '');
+            if (pbParamCode && pbCodeInput) pbCodeInput.value = pbParamCode;
+            if (pbParamCode || window.location.hash === '#prebeta' || window.__GEEK_OPEN_PREBETA_ON_MOUNT__) {
+              pbActive = true;
+            }
+          } catch (e) {}
+          pbRefreshQuota();
+
           document.querySelectorAll('[data-gk-server]').forEach(function (btn) {
             btn.addEventListener('click', function () {
+              pbActive = false;
               cnActiveSrvId = btn.getAttribute('data-gk-server') || 'cy-4371';
+              renderPreBeta();
               renderCyberNet();
             });
           });
@@ -3469,10 +4350,12 @@
           if (vcDeafBtn) vcDeafBtn.addEventListener('click', function () { cnDeafened = !cnDeafened; renderCyberNet(); });
           if (cnCamBtn) cnCamBtn.addEventListener('click', function () { cnCam = !cnCam; renderCyberNet(); });
           if (cnScreenBtn) cnScreenBtn.addEventListener('click', function () { cnScreen = !cnScreen; renderCyberNet(); });
-          if (cnToggleMembersBtn) cnToggleMembersBtn.addEventListener('click', function () { cnShowMembers = !cnShowMembers; renderCyberNet(); });
+          if (cnToggleMembersBtn) cnToggleMembersBtn.addEventListener('click', function () { cnShowMembers = !cnShowMembers; if (pbActive) renderPreBeta(); else renderCyberNet(); });
           if (cnInviteBtn) {
             cnInviteBtn.addEventListener('click', function () {
-              var shareUrl = window.location.origin + window.location.pathname + '?room=' + cnActiveSrvId;
+              var shareUrl = (pbActive && pbRoom)
+                ? window.location.origin + window.location.pathname + '?prebeta=' + encodeURIComponent(pbRoom.code) + '#preview'
+                : window.location.origin + window.location.pathname + '?room=' + cnActiveSrvId;
               if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(shareUrl).catch(function () {});
               }
@@ -3481,6 +4364,7 @@
             });
           }
           renderCyberNet();
+          renderPreBeta();
 
           // Feedback form handler (static fallback)
           var fbForm = document.getElementById('gk-fb-form');
@@ -3664,6 +4548,18 @@
             } else if (!isUnlocked && e.key === 'Enter') checkCode();
           });
         };
+
+        document.addEventListener('click', function (e) {
+          var t = e.target && e.target.closest ? e.target.closest('[data-gk-open-prebeta]') : null;
+          if (!t) return;
+          window.__GEEK_OPEN_PREBETA_ON_MOUNT__ = true;
+          try { window.history.replaceState(null, '', '#prebeta'); } catch (err) {}
+          if (typeof window.__GEEK_STATIC_OPEN_PREBETA__ === 'function') {
+            window.__GEEK_STATIC_OPEN_PREBETA__();
+          }
+          var pv = document.getElementById('preview');
+          if (pv && pv.scrollIntoView) pv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
 
         document.addEventListener('DOMContentLoaded', function () {
           setTimeout(function () {
