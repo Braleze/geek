@@ -4,6 +4,7 @@ import { GeekLogo } from './components/GeekLogo';
 import { SecretRoomModal } from './components/SecretRoomModal';
 import { RoadmapSection } from './components/RoadmapSection';
 import { FaqSection } from './components/FaqSection';
+import { FeedbackSection } from './components/FeedbackSection';
 
 const FEATURES = [
   {
@@ -111,6 +112,9 @@ export default function App() {
           </a>
           <a href="#faq" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
             FAQ
+          </a>
+          <a href="#feedback" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
+            ОБРАТНАЯ СВЯЗЬ
           </a>
         </nav>
 
@@ -271,6 +275,9 @@ export default function App() {
 
         {/* FAQ Section */}
         <FaqSection />
+
+        {/* Feedback Section */}
+        <FeedbackSection />
       </main>
 
       {/* Footer */}
@@ -285,6 +292,9 @@ export default function App() {
           </a>
           <a href="#faq" className="hover:text-[#00f0ff] transition-colors">
             FAQ
+          </a>
+          <a href="#feedback" className="hover:text-[#00f0ff] transition-colors">
+            Обратная связь
           </a>
           <a
             href="https://t.me/geek_mes"

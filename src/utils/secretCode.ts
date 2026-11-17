@@ -1,7 +1,7 @@
 export const CODE_LENGTH = 4;
 
 export type KeypadStatus = 'locked' | 'error' | 'unlocked';
-export type SecretReward = 'rickroll' | 'cyberpunk';
+export type SecretReward = 'rickroll' | 'cyberpunk' | 'tribute';
 
 export interface KeypadState {
   digits: string;
@@ -14,6 +14,7 @@ export interface KeypadState {
 const VAULT_DIGESTS: Record<string, SecretReward> = {
   ce926369550a595a: 'rickroll',
   e68654a845d9b010: 'cyberpunk',
+  '5b08d5ffbb480858': 'tribute',
 };
 
 export function hashAccessCode(input: string): string {

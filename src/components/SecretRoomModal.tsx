@@ -13,6 +13,7 @@ import {
 import { playKeypadTone } from '../utils/rickrollAudio';
 import { RickrollStage } from './RickrollStage';
 import { JohnnyStage } from './JohnnyStage';
+import { GorshenevStage } from './GorshenevStage';
 
 interface SecretRoomModalProps {
   isOpen: boolean;
@@ -123,6 +124,8 @@ export function SecretRoomModal({ isOpen, onClose }: SecretRoomModalProps) {
         {keypad.status === 'unlocked' ? (
           keypad.unlockedReward === 'cyberpunk' ? (
             <JohnnyStage onClose={onClose} onResetKeypad={handleResetKeypad} />
+          ) : keypad.unlockedReward === 'tribute' ? (
+            <GorshenevStage onClose={onClose} onResetKeypad={handleResetKeypad} />
           ) : (
             <RickrollStage onClose={onClose} onResetKeypad={handleResetKeypad} />
           )

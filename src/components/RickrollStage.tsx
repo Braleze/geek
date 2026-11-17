@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ExternalLink, RotateCcw, Volume2, VolumeX, X } from 'lucide-react';
-import { RickrollSynthPlayer } from '../utils/rickrollAudio';
+import { TrackAudioPlayer } from '../utils/audioTracks';
 
 interface RickrollStageProps {
   onClose: () => void;
@@ -20,13 +20,13 @@ const LYRICS = [
 
 export function RickrollStage({ onClose, onResetKeypad }: RickrollStageProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const playerRef = useRef<RickrollSynthPlayer | null>(null);
+  const playerRef = useRef<TrackAudioPlayer | null>(null);
   const [muted, setMuted] = useState(false);
   const [lyricIndex, setLyricIndex] = useState(0);
 
-  // Start synthesized Rickroll soundtrack
+  // Start uploaded Rickroll audio track
   useEffect(() => {
-    const player = new RickrollSynthPlayer();
+    const player = new TrackAudioPlayer('rickroll');
     playerRef.current = player;
     player.start();
 

@@ -13,14 +13,17 @@ import {
 
 const codeA = [50, 48, 50, 55].map((c) => String.fromCharCode(c)).join('');
 const codeB = [50, 48, 55, 55].map((c) => String.fromCharCode(c)).join('');
+const codeC = [50, 48, 49, 51].map((c) => String.fromCharCode(c)).join('');
 
 test('resolveSecretCode maps valid hashed codes and rejects invalid codes', () => {
   assert.equal(resolveSecretCode(codeA), 'rickroll');
   assert.equal(resolveSecretCode(` ${codeA} `), 'rickroll');
   assert.equal(resolveSecretCode(codeB), 'cyberpunk');
+  assert.equal(resolveSecretCode(codeC), 'tribute');
   assert.equal(resolveSecretCode('2026'), null);
   assert.equal(verifySecretCode(codeA), true);
   assert.equal(verifySecretCode(codeB), true);
+  assert.equal(verifySecretCode(codeC), true);
   assert.equal(verifySecretCode('0000'), false);
 });
 
@@ -43,6 +46,17 @@ test('entering second code digit-by-digit unlocks cyberpunk Johnny reward', () =
   assert.equal(state.digits, codeB);
   assert.equal(state.status, 'unlocked');
   assert.equal(state.unlockedReward, 'cyberpunk');
+  assert.equal(state.errorMessage, null);
+});
+
+test('entering third code digit-by-digit unlocks memorial tribute reward', () => {
+  let state = createInitialKeypadState();
+  for (const ch of codeC.split('')) {
+    state = appendDigit(state, ch);
+  }
+  assert.equal(state.digits, codeC);
+  assert.equal(state.status, 'unlocked');
+  assert.equal(state.unlockedReward, 'tribute');
   assert.equal(state.errorMessage, null);
 });
 

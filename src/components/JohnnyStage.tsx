@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { RotateCcw, Volume2, VolumeX, X } from 'lucide-react';
-import { CyberpunkSynthPlayer } from '../utils/rickrollAudio';
+import { TrackAudioPlayer } from '../utils/audioTracks';
 
 interface JohnnyStageProps {
   onClose: () => void;
@@ -16,12 +16,12 @@ const JOHNNY_QUOTES = [
 
 export function JohnnyStage({ onClose, onResetKeypad }: JohnnyStageProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const playerRef = useRef<CyberpunkSynthPlayer | null>(null);
+  const playerRef = useRef<TrackAudioPlayer | null>(null);
   const [muted, setMuted] = useState(false);
   const [quoteIndex, setQuoteIndex] = useState(0);
 
   useEffect(() => {
-    const player = new CyberpunkSynthPlayer();
+    const player = new TrackAudioPlayer('cyberpunk');
     playerRef.current = player;
     player.start();
 

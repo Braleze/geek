@@ -4,6 +4,10 @@ DirectoryIndex index.html
   AddType application/javascript .js .mjs
   AddType text/css .css
   AddType image/svg+xml .svg
+  AddType audio/mpeg .mp3
+  AddType audio/ogg .ogg
+  AddType audio/wav .wav
+  AddType audio/mp4 .m4a
 </IfModule>
 
 <IfModule mod_headers.c>
