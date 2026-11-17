@@ -63,9 +63,9 @@ function formatMs(int $ms): string {
     return sprintf('%02d:%02d', $m, $s);
 }
 
-function getRoomRemainingMs(array $room, int $now): int {
-    $base = max(0, (int)($room['remainingMs'] ?? 0));
-    $since = $room['timerRunningSince'] ?? null;
+function getTimerRemainingMs(array $timer, int $now): int {
+    $base = max(0, (int)($timer['remainingMs'] ?? 0));
+    $since = $timer['runningSince'] ?? null;
     if ($since === null) {
         return $base;
     }
@@ -73,47 +73,115 @@ function getRoomRemainingMs(array $room, int $now): int {
     return max(0, $base - $elapsed);
 }
 
-function pauseRoomTimer(array &$room, int $now): bool {
-    $left = getRoomRemainingMs($room, $now);
-    $room['remainingMs'] = $left;
-    $room['expiresAt'] = null;
-    if (($room['timerRunningSince'] ?? null) !== null) {
-        $room['timerRunningSince'] = null;
-        return true;
+function &ensureClientTimer(array &$room, string $clientId): array {
+    if (!isset($room['timersByClientId']) || !is_array($room['timersByClientId'])) {
+        $room['timersByClientId'] = [];
     }
-    return false;
+    if (!isset($room['timersByClientId'][$clientId]) || !is_array($room['timersByClientId'][$clientId])) {
+        $hostId = (string)($room['hostClientId'] ?? '');
+        $initialRemaining = ($clientId === $hostId && isset($room['remainingMs']))
+            ? max(0, (int)$room['remainingMs'])
+            : PRE_BETA_DURATION_MS;
+        $initialSince = ($clientId === $hostId && isset($room['timerRunningSince']))
+            ? $room['timerRunningSince']
+            : null;
+        $room['timersByClientId'][$clientId] = [
+            'remainingMs' => $initialRemaining,
+            'runningSince' => $initialSince,
+        ];
+    }
+    return $room['timersByClientId'][$clientId];
 }
 
-function resumeRoomTimer(array &$room, int $now): bool {
-    $left = getRoomRemainingMs($room, $now);
-    if ($left <= 0) {
-        $room['remainingMs'] = 0;
+function getClientRoomRemainingMs(array $room, string $clientId, int $now): int {
+    if (isset($room['timersByClientId'][$clientId]) && is_array($room['timersByClientId'][$clientId])) {
+        return getTimerRemainingMs($room['timersByClientId'][$clientId], $now);
+    }
+    $hostId = (string)($room['hostClientId'] ?? '');
+    if ($clientId === $hostId) {
+        $base = max(0, (int)($room['remainingMs'] ?? 0));
+        $since = $room['timerRunningSince'] ?? null;
+        if ($since === null) {
+            return $base;
+        }
+        return max(0, $base - max(0, $now - (int)$since));
+    }
+    return PRE_BETA_DURATION_MS;
+}
+
+function isClientTimerPaused(array $room, string $clientId): bool {
+    if (isset($room['timersByClientId'][$clientId]) && is_array($room['timersByClientId'][$clientId])) {
+        return ($room['timersByClientId'][$clientId]['runningSince'] ?? null) === null;
+    }
+    $hostId = (string)($room['hostClientId'] ?? '');
+    if ($clientId === $hostId) {
+        return ($room['timerRunningSince'] ?? null) === null;
+    }
+    return true;
+}
+
+function pauseClientRoomTimer(array &$room, string $clientId, int $now): bool {
+    $timer =& ensureClientTimer($room, $clientId);
+    $left = getTimerRemainingMs($timer, $now);
+    $wasRunning = ($timer['runningSince'] ?? null) !== null;
+    $timer['remainingMs'] = $left;
+    $timer['runningSince'] = null;
+    unset($timer);
+
+    if ($clientId === (string)($room['hostClientId'] ?? '')) {
+        $room['remainingMs'] = $left;
         $room['timerRunningSince'] = null;
         $room['expiresAt'] = null;
+    }
+    return $wasRunning;
+}
+
+function resumeClientRoomTimer(array &$room, string $clientId, int $now): bool {
+    $timer =& ensureClientTimer($room, $clientId);
+    $left = getTimerRemainingMs($timer, $now);
+    if ($left <= 0) {
+        $timer['remainingMs'] = 0;
+        $timer['runningSince'] = null;
+        unset($timer);
+        if ($clientId === (string)($room['hostClientId'] ?? '')) {
+            $room['remainingMs'] = 0;
+            $room['timerRunningSince'] = null;
+            $room['expiresAt'] = null;
+        }
         return false;
     }
-    if (($room['timerRunningSince'] ?? null) === null) {
-        $room['remainingMs'] = $left;
-        $room['timerRunningSince'] = $now;
-        $room['expiresAt'] = $now + $left;
-        return true;
+    $resumed = false;
+    if (($timer['runningSince'] ?? null) === null) {
+        $timer['remainingMs'] = $left;
+        $timer['runningSince'] = $now;
+        $resumed = true;
     }
-    return false;
+    $runningSince = $timer['runningSince'];
+    $rem = $timer['remainingMs'];
+    unset($timer);
+
+    if ($clientId === (string)($room['hostClientId'] ?? '')) {
+        $room['remainingMs'] = $rem;
+        $room['timerRunningSince'] = $runningSince;
+        $room['expiresAt'] = $runningSince + $rem;
+    }
+    return $resumed;
 }
 
 function syncHostQuota(array &$store, array $room, int $now): void {
-    $hostId = $room['hostClientId'] ?? '';
+    $hostId = (string)($room['hostClientId'] ?? '');
     if ($hostId !== '' && isset($store['quotasByClientId'][$hostId])) {
-        $left = getRoomRemainingMs($room, $now);
+        $left = getClientRoomRemainingMs($room, $hostId, $now);
+        $paused = isClientTimerPaused($room, $hostId);
         $store['quotasByClientId'][$hostId]['remainingMs'] = $left;
-        $store['quotasByClientId'][$hostId]['expiresAt'] =
-            ($room['timerRunningSince'] ?? null) !== null && $left > 0 ? $now + $left : null;
+        $store['quotasByClientId'][$hostId]['expiresAt'] = (!$paused && $left > 0) ? $now + $left : null;
     }
 }
 
-function buildSnapshot(array $room, int $now): array {
-    $remaining = getRoomRemainingMs($room, $now);
-    $paused = ($room['timerRunningSince'] ?? null) === null;
+function buildSnapshot(array $room, int $now, string $forClientId = ''): array {
+    $targetClientId = $forClientId !== '' ? $forClientId : (string)($room['hostClientId'] ?? '');
+    $remaining = getClientRoomRemainingMs($room, $targetClientId, $now);
+    $paused = isClientTimerPaused($room, $targetClientId);
     $participants = [];
     foreach (($room['participants'] ?? []) as $p) {
         $participants[] = [
@@ -136,20 +204,59 @@ function buildSnapshot(array $room, int $now): array {
     ];
 }
 
+function enqueuePeerSignal(array &$store, string $toPeerId, array $signal): void {
+    $list = $store['signalsByPeerId'][$toPeerId] ?? [];
+    $list[] = $signal;
+    $limit = 96;
+    if (count($list) > $limit) {
+        $toDrop = count($list) - $limit;
+        $audioDropped = 0;
+        $trimmed = [];
+        foreach ($list as $item) {
+            if (($item['signalType'] ?? '') === 'audio' && $audioDropped < $toDrop) {
+                $audioDropped++;
+            } else {
+                $trimmed[] = $item;
+            }
+        }
+        $list = array_slice($trimmed, -$limit);
+    }
+    $store['signalsByPeerId'][$toPeerId] = $list;
+}
+
 function pruneAndExpireRooms(array &$store, int $now): void {
     foreach ($store['rooms'] as $code => &$room) {
         $kept = [];
-        $removedAny = false;
+        $changed = false;
         foreach (($room['participants'] ?? []) as $p) {
+            $cid = (string)($p['clientId'] ?? '');
             $lastSeen = (int)($p['lastSeenAt'] ?? $now);
-            if ($now - $lastSeen > PRE_BETA_HTTP_IDLE_MS) {
-                $removedAny = true;
+            $peerRemaining = $cid !== '' ? getClientRoomRemainingMs($room, $cid, $now) : 0;
+
+            if ($peerRemaining <= 0) {
+                $changed = true;
+                if ($cid !== '') {
+                    $t =& ensureClientTimer($room, $cid);
+                    $t['remainingMs'] = 0;
+                    $t['runningSince'] = null;
+                    unset($t);
+                }
                 unset($store['signalsByPeerId'][$p['peerId']]);
+                continue;
+            }
+
+            if ($now - $lastSeen > PRE_BETA_HTTP_IDLE_MS) {
+                $changed = true;
+                if ($cid !== '') {
+                    pauseClientRoomTimer($room, $cid, $now);
+                }
+                unset($store['signalsByPeerId'][$p['peerId']]);
+                $leftStr = $cid !== '' ? formatMs(getClientRoomRemainingMs($room, $cid, $now)) : '00:00';
                 $room['messages'][] = [
                     'id' => 'sys-idle-' . $now . '-' . $p['peerId'],
                     'authorPeerId' => 'system',
                     'authorNick' => 'PRE-BETA ЯДРО',
-                    'text' => $p['nick'] . ' отключился (таймаут).',
+                    'text' => $p['nick'] . " отключился (таймаут). Таймер остановлен на {$leftStr}.",
                     'timestamp' => $now,
                     'system' => true,
                 ];
@@ -157,29 +264,9 @@ function pruneAndExpireRooms(array &$store, int $now): void {
                 $kept[] = $p;
             }
         }
-        if ($removedAny) {
+        if ($changed) {
             $room['participants'] = $kept;
-            if (count($kept) === 0) {
-                pauseRoomTimer($room, $now);
-                $leftStr = formatMs(getRoomRemainingMs($room, $now));
-                $room['messages'][] = [
-                    'id' => 'sys-pause-' . $now,
-                    'authorPeerId' => 'system',
-                    'authorNick' => 'PRE-BETA ЯДРО',
-                    'text' => "Участники вышли — время остановлено на {$leftStr} до повторного входа.",
-                    'timestamp' => $now,
-                    'system' => true,
-                ];
-            }
             $room['messages'] = array_slice($room['messages'], -PRE_BETA_MAX_MESSAGES);
-            syncHostQuota($store, $room, $now);
-        }
-
-        if (getRoomRemainingMs($room, $now) <= 0) {
-            $room['remainingMs'] = 0;
-            $room['timerRunningSince'] = null;
-            $room['expiresAt'] = null;
-            $room['participants'] = [];
             syncHostQuota($store, $room, $now);
         }
     }
@@ -240,8 +327,8 @@ if ($action === 'status') {
     $rec = $store['quotasByClientId'][$clientId];
     $code = $rec['issuedCode'];
     $room = $store['rooms'][$code] ?? null;
-    $remaining = $room ? getRoomRemainingMs($room, $now) : max(0, (int)($rec['remainingMs'] ?? 0));
-    $paused = $room ? (($room['timerRunningSince'] ?? null) === null) : true;
+    $remaining = $room ? getClientRoomRemainingMs($room, $clientId, $now) : max(0, (int)($rec['remainingMs'] ?? 0));
+    $paused = $room ? isClientTimerPaused($room, $clientId) : true;
     if ($remaining <= 0) {
         $saveAndRespond(200, [
             'ok' => true,
@@ -276,8 +363,8 @@ if ($action === 'issue') {
         $rec = $store['quotasByClientId'][$clientId];
         $code = $rec['issuedCode'];
         $room = $store['rooms'][$code] ?? null;
-        $remaining = $room ? getRoomRemainingMs($room, $now) : max(0, (int)($rec['remainingMs'] ?? 0));
-        $paused = $room ? (($room['timerRunningSince'] ?? null) === null) : true;
+        $remaining = $room ? getClientRoomRemainingMs($room, $clientId, $now) : max(0, (int)($rec['remainingMs'] ?? 0));
+        $paused = $room ? isClientTimerPaused($room, $clientId) : true;
         if ($remaining <= 0) {
             $saveAndRespond(403, [
                 'ok' => false,
@@ -330,13 +417,19 @@ if ($action === 'issue') {
         'remainingMs' => PRE_BETA_DURATION_MS,
         'timerRunningSince' => null,
         'expiresAt' => null,
+        'timersByClientId' => [
+            $clientId => [
+                'remainingMs' => PRE_BETA_DURATION_MS,
+                'runningSince' => null,
+            ],
+        ],
         'participants' => [],
         'messages' => [
             [
                 'id' => 'sys-create-' . $now,
                 'authorPeerId' => 'system',
                 'authorNick' => 'PRE-BETA ЯДРО',
-                'text' => 'Создан приватный канал 1-на-1. Лимит: 30:00 (время ставится на паузу, когда в комнате никого нет).',
+                'text' => 'Создан приватный канал 1-на-1. Лимит: 30:00 (время каждого участника останавливается при выходе).',
                 'timestamp' => $now,
                 'system' => true,
             ],
@@ -367,8 +460,20 @@ if ($action === 'join') {
         $saveAndRespond(404, ['ok' => false, 'reason' => 'ROOM_NOT_FOUND', 'message' => 'Комната с таким кодом не найдена.']);
     }
     $room =& $store['rooms'][$code];
-    if (getRoomRemainingMs($room, $now) <= 0) {
-        $saveAndRespond(409, ['ok' => false, 'reason' => 'ROOM_EXPIRED', 'message' => 'Время pre-beta сессии (30 минут) истекло до релиза.']);
+
+    $hasOwnTimer = isset($room['timersByClientId'][$clientId]);
+    if (!$hasOwnTimer && getClientRoomRemainingMs($room, (string)$room['hostClientId'], $now) <= 0) {
+        $saveAndRespond(409, ['ok' => false, 'reason' => 'ROOM_EXPIRED', 'message' => 'Время pre-beta сессии (30 минут) для этого диалога истекло.']);
+    }
+
+    $clientRemaining = getClientRoomRemainingMs($room, $clientId, $now);
+    if ($clientRemaining <= 0) {
+        $t =& ensureClientTimer($room, $clientId);
+        $t['remainingMs'] = 0;
+        $t['runningSince'] = null;
+        unset($t);
+        syncHostQuota($store, $room, $now);
+        $saveAndRespond(409, ['ok' => false, 'reason' => 'ROOM_EXPIRED', 'message' => 'Ваше время pre-beta сессии (30 минут) истекло до релиза.']);
     }
 
     $peerId = isset($input['peerId']) && strlen((string)$input['peerId']) >= 8
@@ -404,12 +509,15 @@ if ($action === 'join') {
         $room['participants'][] = $peer;
     }
 
-    $wasPausedWithPrior = (($room['timerRunningSince'] ?? null) === null) && ((int)$room['remainingMs'] < PRE_BETA_DURATION_MS);
-    resumeRoomTimer($room, $now);
+    $timerBefore =& ensureClientTimer($room, $clientId);
+    $wasPausedWithPrior = (($timerBefore['runningSince'] ?? null) === null) && ((int)$timerBefore['remainingMs'] < PRE_BETA_DURATION_MS);
+    unset($timerBefore);
+
+    resumeClientRoomTimer($room, $clientId, $now);
     syncHostQuota($store, $room, $now);
 
     if ($existingIdx === -1) {
-        $leftStr = formatMs(getRoomRemainingMs($room, $now));
+        $leftStr = formatMs(getClientRoomRemainingMs($room, $clientId, $now));
         $suffix = $wasPausedWithPrior ? " Таймер продолжен с {$leftStr}." : '';
         $room['messages'][] = [
             'id' => 'sys-join-' . $now . '-' . $peerId,
@@ -425,15 +533,14 @@ if ($action === 'join') {
     if (count($room['participants']) === 2) {
         $firstPeerId = $room['participants'][0]['peerId'];
         $secondPeerId = $room['participants'][1]['peerId'];
-        $store['signalsByPeerId'][$firstPeerId] = $store['signalsByPeerId'][$firstPeerId] ?? [];
-        $store['signalsByPeerId'][$firstPeerId][] = [
+        enqueuePeerSignal($store, $firstPeerId, [
             'signalType' => 'initiate',
             'fromPeerId' => $secondPeerId,
             'payload' => ['targetPeerId' => $secondPeerId],
-        ];
+        ]);
     }
 
-    $snapshot = buildSnapshot($room, $now);
+    $snapshot = buildSnapshot($room, $now, $clientId);
     $saveAndRespond(200, [
         'ok' => true,
         'peerId' => $peerId,
@@ -448,24 +555,24 @@ if ($action === 'poll') {
         $saveAndRespond(404, ['ok' => false, 'reason' => 'ROOM_NOT_FOUND', 'message' => 'Комната не найдена.']);
     }
     $room =& $store['rooms'][$code];
-    if (getRoomRemainingMs($room, $now) <= 0) {
-        $saveAndRespond(410, ['ok' => false, 'reason' => 'ROOM_EXPIRED', 'message' => '30-минутный pre-beta лимит до релиза истёк. Связь завершена.']);
-    }
-    $found = false;
+    $foundClientId = '';
     foreach ($room['participants'] as &$p) {
         if ($p['peerId'] === $peerId) {
+            $foundClientId = (string)($p['clientId'] ?? '');
+            if ($foundClientId !== '' && getClientRoomRemainingMs($room, $foundClientId, $now) <= 0) {
+                $saveAndRespond(410, ['ok' => false, 'reason' => 'ROOM_EXPIRED', 'message' => '30-минутный pre-beta лимит до релиза истёк. Связь завершена.']);
+            }
             $p['lastSeenAt'] = $now;
-            $found = true;
             break;
         }
     }
     unset($p);
-    if (!$found) {
+    if ($foundClientId === '') {
         $saveAndRespond(409, ['ok' => false, 'reason' => 'NOT_IN_ROOM', 'message' => 'Сессия участника завершена.']);
     }
     $signals = $store['signalsByPeerId'][$peerId] ?? [];
     unset($store['signalsByPeerId'][$peerId]);
-    $snapshot = buildSnapshot($room, $now);
+    $snapshot = buildSnapshot($room, $now, $foundClientId);
     $saveAndRespond(200, [
         'ok' => true,
         'snapshot' => $snapshot,
@@ -482,20 +589,22 @@ if ($action === 'send') {
         $saveAndRespond(404, ['ok' => false, 'reason' => 'ROOM_NOT_FOUND', 'message' => 'Комната не найдена.']);
     }
     $room =& $store['rooms'][$code];
-    if (getRoomRemainingMs($room, $now) <= 0) {
-        $saveAndRespond(410, ['ok' => false, 'reason' => 'ROOM_EXPIRED', 'message' => '30-минутный лимит pre-beta сессии истёк.']);
-    }
     $nick = '';
+    $cid = '';
     foreach ($room['participants'] as &$p) {
         if ($p['peerId'] === $peerId) {
             $p['lastSeenAt'] = $now;
             $nick = (string)$p['nick'];
+            $cid = (string)($p['clientId'] ?? '');
             break;
         }
     }
     unset($p);
-    if ($nick === '') {
+    if ($nick === '' || $cid === '') {
         $saveAndRespond(409, ['ok' => false, 'reason' => 'NOT_IN_ROOM', 'message' => 'Вы не подключены к комнате.']);
+    }
+    if (getClientRoomRemainingMs($room, $cid, $now) <= 0) {
+        $saveAndRespond(410, ['ok' => false, 'reason' => 'ROOM_EXPIRED', 'message' => '30-минутный лимит pre-beta сессии истёк.']);
     }
     if ($text === '') {
         $saveAndRespond(400, ['ok' => false, 'reason' => 'EMPTY', 'message' => 'Пустое сообщение.']);
@@ -528,15 +637,18 @@ if ($action === 'leave') {
             }
         }
         $room['participants'] = $kept;
+        $viewerClientId = (string)($room['hostClientId'] ?? '');
         if ($removed !== null) {
-            if (count($kept) === 0) {
-                pauseRoomTimer($room, $now);
+            $remCid = (string)($removed['clientId'] ?? '');
+            if ($remCid !== '') {
+                pauseClientRoomTimer($room, $remCid, $now);
+                $viewerClientId = $remCid;
             }
             syncHostQuota($store, $room, $now);
-            $leftStr = formatMs(getRoomRemainingMs($room, $now));
-            $pauseText = count($kept) === 0
-                ? " Время остановлено на {$leftStr} до повторного входа."
-                : '';
+            $leftStr = $remCid !== '' ? formatMs(getClientRoomRemainingMs($room, $remCid, $now)) : '00:00';
+            $pauseText = count($kept) > 0
+                ? " Таймер {$removed['nick']} остановлен на {$leftStr}; у собеседника отсчёт продолжается."
+                : " Время остановлено на {$leftStr} до повторного входа.";
             $room['messages'][] = [
                 'id' => 'sys-leave-' . $now . '-' . $peerId,
                 'authorPeerId' => 'system',
@@ -547,7 +659,7 @@ if ($action === 'leave') {
             ];
             $room['messages'] = array_slice($room['messages'], -PRE_BETA_MAX_MESSAGES);
         }
-        $saveAndRespond(200, ['ok' => true, 'snapshot' => buildSnapshot($room, $now)]);
+        $saveAndRespond(200, ['ok' => true, 'snapshot' => buildSnapshot($room, $now, $viewerClientId)]);
     }
     $saveAndRespond(200, ['ok' => true]);
 }
@@ -559,9 +671,11 @@ if ($action === 'peer') {
         $saveAndRespond(404, ['ok' => false]);
     }
     $room =& $store['rooms'][$code];
+    $viewerCid = '';
     foreach ($room['participants'] as &$p) {
         if ($p['peerId'] === $peerId) {
             $p['lastSeenAt'] = $now;
+            $viewerCid = (string)($p['clientId'] ?? '');
             if (array_key_exists('micMuted', $input)) {
                 $p['micMuted'] = (bool)$input['micMuted'];
             }
@@ -572,7 +686,7 @@ if ($action === 'peer') {
         }
     }
     unset($p);
-    $saveAndRespond(200, ['ok' => true, 'snapshot' => buildSnapshot($room, $now)]);
+    $saveAndRespond(200, ['ok' => true, 'snapshot' => buildSnapshot($room, $now, $viewerCid)]);
 }
 
 if ($action === 'signal') {
@@ -583,20 +697,37 @@ if ($action === 'signal') {
         $saveAndRespond(404, ['ok' => false]);
     }
     $room =& $store['rooms'][$code];
-    if (getRoomRemainingMs($room, $now) <= 0) {
+    $senderCid = '';
+    foreach ($room['participants'] as $p) {
+        if ($p['peerId'] === $peerId) {
+            $senderCid = (string)($p['clientId'] ?? '');
+            break;
+        }
+    }
+    if ($senderCid === '' || getClientRoomRemainingMs($room, $senderCid, $now) <= 0) {
         $saveAndRespond(410, ['ok' => false, 'reason' => 'ROOM_EXPIRED']);
     }
-    if ($signalType !== 'offer' && $signalType !== 'answer' && $signalType !== 'ice') {
+    if ($signalType !== 'offer' && $signalType !== 'answer' && $signalType !== 'ice' && $signalType !== 'audio') {
         $saveAndRespond(400, ['ok' => false]);
+    }
+    $payload = $input['payload'] ?? null;
+    if ($signalType === 'audio') {
+        if (!is_array($payload) || !isset($payload['data']) || !is_string($payload['data']) || strlen($payload['data']) > 32768) {
+            $saveAndRespond(400, ['ok' => false]);
+        }
+        $sr = isset($payload['sr']) && is_numeric($payload['sr']) ? (int)$payload['sr'] : 16000;
+        $payload = [
+            'sr' => ($sr >= 8000 && $sr <= 48000) ? $sr : 16000,
+            'data' => $payload['data'],
+        ];
     }
     foreach ($room['participants'] as $p) {
         if ($p['peerId'] !== $peerId) {
-            $store['signalsByPeerId'][$p['peerId']] = $store['signalsByPeerId'][$p['peerId']] ?? [];
-            $store['signalsByPeerId'][$p['peerId']][] = [
+            enqueuePeerSignal($store, (string)$p['peerId'], [
                 'signalType' => $signalType,
                 'fromPeerId' => $peerId,
-                'payload' => $input['payload'] ?? null,
-            ];
+                'payload' => $payload,
+            ]);
         }
     }
     $saveAndRespond(200, ['ok' => true]);

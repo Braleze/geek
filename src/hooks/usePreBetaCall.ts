@@ -16,10 +16,13 @@ import {
 
 const CLIENT_ID_STORAGE_KEY = 'geek_prebeta_client_id_v1';
 const NICK_STORAGE_KEY = 'geek_prebeta_nick_v1';
+const RELAY_SAMPLE_RATE = 16000;
+const RELAY_FALLBACK_DELAY_MS = 2800;
 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun.cloudflare.com:3478' },
 ];
 
 export type PreBetaQuotaState = {
@@ -36,6 +39,8 @@ export type RtcLinkStatus =
   | 'negotiating'
   | 'connected'
   | 'text-only';
+
+export type PreBetaAudioMode = 'idle' | 'webrtc' | 'relay';
 
 function getOrCreateClientId(): string {
   try {
@@ -71,6 +76,61 @@ function buildWsUrl(): string {
   return `${protocol}//${window.location.host}${cleanBase}ws/prebeta`;
 }
 
+function encodeInt16ToBase64(pcm: Int16Array): string {
+  const bytes = new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+function decodeBase64ToFloat32(b64: string): Float32Array<ArrayBuffer> | null {
+  try {
+    const binary = atob(b64);
+    const len = binary.length;
+    if (len < 2) return null;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const sampleCount = Math.floor(len / 2);
+    const view = new DataView(bytes.buffer, 0, sampleCount * 2);
+    const out = new Float32Array(new ArrayBuffer(sampleCount * 4));
+    for (let i = 0; i < sampleCount; i += 1) {
+      out[i] = view.getInt16(i * 2, true) / 32768;
+    }
+    return out;
+  } catch {
+    return null;
+  }
+}
+
+function downsampleToInt16(
+  input: Float32Array,
+  fromRate: number,
+  toRate: number,
+): { pcm: Int16Array; peak: number } {
+  const ratio = fromRate / toRate;
+  const outLength = Math.max(1, Math.floor(input.length / ratio));
+  const pcm = new Int16Array(outLength);
+  let peak = 0;
+  for (let i = 0; i < outLength; i += 1) {
+    const pos = i * ratio;
+    const idx = Math.floor(pos);
+    const frac = pos - idx;
+    const s0 = input[idx] ?? 0;
+    const s1 = input[Math.min(idx + 1, input.length - 1)] ?? s0;
+    const sample = s0 + (s1 - s0) * frac;
+    const abs = Math.abs(sample);
+    if (abs > peak) peak = abs;
+    const clamped = Math.max(-1, Math.min(1, sample));
+    pcm[i] = clamped < 0 ? Math.round(clamped * 32768) : Math.round(clamped * 32767);
+  }
+  return { pcm, peak };
+}
+
 export function usePreBetaCall() {
   const [clientId] = useState<string>(() =>
     typeof window !== 'undefined' ? getOrCreateClientId() : 'gk-ssr-client',
@@ -96,23 +156,58 @@ export function usePreBetaCall() {
   const [deafened, setDeafened] = useState(false);
   const [hasMicAudio, setHasMicAudio] = useState(false);
   const [rtcStatus, setRtcStatus] = useState<RtcLinkStatus>('idle');
+  const [audioMode, setAudioMode] = useState<PreBetaAudioMode>('idle');
+  const [audioUnlockNeeded, setAudioUnlockNeeded] = useState(false);
+  const [remoteSpeaking, setRemoteSpeaking] = useState(false);
 
   const transportRef = useRef<PreBetaTransportKind>('node-ws');
   transportRef.current = transport;
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const remoteStreamRef = useRef<MediaStream | null>(null);
+  const persistentAudioRef = useRef<HTMLAudioElement | null>(null);
   const pendingJoinRef = useRef<{ code: string; nick: string } | null>(null);
   const pollTimerRef = useRef<number | null>(null);
+  const pollIntervalMsRef = useRef<number>(750);
   const roomRef = useRef<PublicRoomSnapshot | null>(null);
   roomRef.current = roomSnapshot;
   const myPeerIdRef = useRef<string | null>(null);
   myPeerIdRef.current = myPeerId;
   const nickRef = useRef(nick);
   nickRef.current = nick;
+  const micMutedRef = useRef(micMuted);
+  micMutedRef.current = micMuted;
   const deafenedRef = useRef(deafened);
   deafenedRef.current = deafened;
+
+  const pendingIceRef = useRef<RTCIceCandidateInit[]>([]);
+  const signalChainRef = useRef<Promise<void>>(Promise.resolve());
+  const webrtcTrackReceivedRef = useRef(false);
+  const relayFallbackTimerRef = useRef<number | null>(null);
+  const relayActiveRef = useRef(false);
+  const captureCtxRef = useRef<AudioContext | null>(null);
+  const captureSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const captureProcRef = useRef<ScriptProcessorNode | null>(null);
+  const captureMuteGainRef = useRef<GainNode | null>(null);
+  const httpAudioQueueRef = useRef<Int16Array[]>([]);
+  const httpAudioLastFlushRef = useRef<number>(0);
+
+  const playCtxRef = useRef<AudioContext | null>(null);
+  const nextPlayTimeRef = useRef<number>(0);
+  const remoteSpeakingTimerRef = useRef<number | null>(null);
+
+  const getOrCreateAudioEl = useCallback((): HTMLAudioElement | null => {
+    if (typeof window === 'undefined' || typeof Audio === 'undefined') return null;
+    if (!persistentAudioRef.current) {
+      const el = new Audio();
+      el.autoplay = true;
+      el.setAttribute('playsinline', 'true');
+      el.volume = 1;
+      persistentAudioRef.current = el;
+    }
+    return persistentAudioRef.current;
+  }, []);
 
   const setNick = useCallback((nextNick: string) => {
     const trimmed = nextNick.slice(0, 22);
@@ -152,7 +247,7 @@ export function usePreBetaCall() {
     void refreshQuotaStatus();
   }, [refreshQuotaStatus]);
 
-  // Keep quota timer ticking locally ONLY when NOT paused (e.g. a peer is actively inside the room)
+  // Keep quota timer ticking locally ONLY when NOT paused
   useEffect(() => {
     if (quota.status !== 'ACTIVE' || quota.paused || !quota.expiresAt) return;
     const interval = window.setInterval(() => {
@@ -173,62 +268,46 @@ export function usePreBetaCall() {
     }
   }, []);
 
-  const cleanupRtc = useCallback(() => {
-    if (pcRef.current) {
-      pcRef.current.onicecandidate = null;
-      pcRef.current.ontrack = null;
-      pcRef.current.onconnectionstatechange = null;
-      pcRef.current.close();
-      pcRef.current = null;
+  const stopRelayCapture = useCallback(() => {
+    relayActiveRef.current = false;
+    httpAudioQueueRef.current = [];
+    if (relayFallbackTimerRef.current !== null) {
+      window.clearTimeout(relayFallbackTimerRef.current);
+      relayFallbackTimerRef.current = null;
     }
-    if (remoteAudioRef.current) {
-      remoteAudioRef.current.srcObject = null;
-    }
-    setRtcStatus('idle');
-  }, []);
-
-  const stopLocalMedia = useCallback(() => {
-    if (localStreamRef.current) {
-      for (const track of localStreamRef.current.getTracks()) {
-        track.stop();
+    if (captureProcRef.current) {
+      captureProcRef.current.onaudioprocess = null;
+      try {
+        captureProcRef.current.disconnect();
+      } catch {
+        // Ignore disconnect errors
       }
-      localStreamRef.current = null;
+      captureProcRef.current = null;
     }
-    setHasMicAudio(false);
-  }, []);
-
-  const acquireMicBestEffort = useCallback(async (): Promise<boolean> => {
-    if (localStreamRef.current) {
-      return true;
+    if (captureSourceRef.current) {
+      try {
+        captureSourceRef.current.disconnect();
+      } catch {
+        // Ignore disconnect errors
+      }
+      captureSourceRef.current = null;
     }
-    if (
-      typeof navigator === 'undefined' ||
-      !navigator.mediaDevices ||
-      typeof navigator.mediaDevices.getUserMedia !== 'function'
-    ) {
-      setHasMicAudio(false);
-      return false;
+    if (captureMuteGainRef.current) {
+      try {
+        captureMuteGainRef.current.disconnect();
+      } catch {
+        // Ignore disconnect errors
+      }
+      captureMuteGainRef.current = null;
     }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        },
-        video: false,
-      });
-      localStreamRef.current = stream;
-      setHasMicAudio(true);
-      return true;
-    } catch {
-      setHasMicAudio(false);
-      return false;
+    if (captureCtxRef.current) {
+      void captureCtxRef.current.close().catch(() => {});
+      captureCtxRef.current = null;
     }
   }, []);
 
   const sendSignalOutbound = useCallback(
-    async (signalType: 'offer' | 'answer' | 'ice', payload: unknown) => {
+    async (signalType: 'offer' | 'answer' | 'ice' | 'audio', payload: unknown) => {
       const mode = transportRef.current;
       const roomCode = roomRef.current?.code;
       const peerId = myPeerIdRef.current;
@@ -236,7 +315,12 @@ export function usePreBetaCall() {
       if (mode === 'node-ws') {
         const ws = wsRef.current;
         if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'rtc:signal', signalType, payload }));
+          if (signalType === 'audio' && payload && typeof payload === 'object') {
+            const p = payload as { sr?: number; data?: string };
+            ws.send(JSON.stringify({ type: 'audio:frame', sr: p.sr ?? RELAY_SAMPLE_RATE, data: p.data ?? '' }));
+          } else {
+            ws.send(JSON.stringify({ type: 'rtc:signal', signalType, payload }));
+          }
         }
         return;
       }
@@ -257,126 +341,538 @@ export function usePreBetaCall() {
     [],
   );
 
-  const ensurePeerConnection = useCallback(() => {
-    if (pcRef.current) return pcRef.current;
-    if (typeof RTCPeerConnection === 'undefined') {
-      setRtcStatus('text-only');
-      return null;
+  const startRelayCapture = useCallback(() => {
+    const stream = localStreamRef.current;
+    if (!stream || captureProcRef.current) return;
+    if (typeof window === 'undefined') return;
+    const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioCtx) return;
+
+    try {
+      const ctx = new AudioCtx();
+      captureCtxRef.current = ctx;
+      if (ctx.state === 'suspended') {
+        void ctx.resume().catch(() => {});
+      }
+      const source = ctx.createMediaStreamSource(stream);
+      const processor = ctx.createScriptProcessor(2048, 1, 1);
+      const muteGain = ctx.createGain();
+      muteGain.gain.value = 0;
+
+      captureSourceRef.current = source;
+      captureProcRef.current = processor;
+      captureMuteGainRef.current = muteGain;
+      httpAudioQueueRef.current = [];
+      httpAudioLastFlushRef.current = performance.now();
+
+      processor.onaudioprocess = (event) => {
+        if (!relayActiveRef.current || micMutedRef.current) return;
+        if ((roomRef.current?.participants.length ?? 0) < 2) return;
+        const input = event.inputBuffer.getChannelData(0);
+        const { pcm, peak } = downsampleToInt16(input, ctx.sampleRate, RELAY_SAMPLE_RATE);
+        if (peak < 0.0003) return;
+
+        const mode = transportRef.current;
+        if (mode === 'node-ws') {
+          const ws = wsRef.current;
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: 'audio:frame',
+                sr: RELAY_SAMPLE_RATE,
+                data: encodeInt16ToBase64(pcm),
+              }),
+            );
+          }
+          return;
+        }
+
+        // Batch frames (~160ms) for HTTP/local transport so we don't flood requests
+        httpAudioQueueRef.current.push(pcm);
+        const now = performance.now();
+        if (now - httpAudioLastFlushRef.current >= 160) {
+          httpAudioLastFlushRef.current = now;
+          const chunks = httpAudioQueueRef.current.splice(0);
+          let totalLen = 0;
+          for (const c of chunks) totalLen += c.length;
+          if (totalLen > 0) {
+            const merged = new Int16Array(totalLen);
+            let offset = 0;
+            for (const c of chunks) {
+              merged.set(c, offset);
+              offset += c.length;
+            }
+            void sendSignalOutbound('audio', {
+              sr: RELAY_SAMPLE_RATE,
+              data: encodeInt16ToBase64(merged),
+            });
+          }
+        }
+      };
+
+      source.connect(processor);
+      processor.connect(muteGain);
+      muteGain.connect(ctx.destination);
+    } catch {
+      // Ignore WebAudio init error
     }
-
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-    pcRef.current = pc;
-
-    if (localStreamRef.current) {
-      for (const track of localStreamRef.current.getTracks()) {
-        pc.addTrack(track, localStreamRef.current);
-      }
-    } else {
-      try {
-        pc.addTransceiver('audio', { direction: 'recvonly' });
-      } catch {
-        // Ignore if browser rejects transceiver setup
-      }
-    }
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        void sendSignalOutbound(
-          'ice',
-          event.candidate.toJSON ? event.candidate.toJSON() : event.candidate,
-        );
-      }
-    };
-
-    pc.ontrack = (event) => {
-      const [remoteStream] = event.streams;
-      if (remoteAudioRef.current && remoteStream) {
-        remoteAudioRef.current.srcObject = remoteStream;
-        remoteAudioRef.current.muted = deafenedRef.current;
-        void remoteAudioRef.current.play().catch(() => {});
-      }
-      setRtcStatus('connected');
-    };
-
-    pc.onconnectionstatechange = () => {
-      const state = pc.connectionState;
-      if (state === 'connected') {
-        setRtcStatus('connected');
-      } else if (state === 'connecting') {
-        setRtcStatus('negotiating');
-      } else if (state === 'failed' || state === 'disconnected' || state === 'closed') {
-        setRtcStatus((prev) => (prev === 'idle' ? 'idle' : 'text-only'));
-      }
-    };
-
-    return pc;
   }, [sendSignalOutbound]);
 
-  const initiateRtcOffer = useCallback(async () => {
-    const pc = ensurePeerConnection();
-    if (!pc) return;
-    try {
-      setRtcStatus(localStreamRef.current ? 'negotiating' : 'text-only');
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      await sendSignalOutbound('offer', offer);
-      window.setTimeout(() => {
-        setRtcStatus((prev) => (prev === 'negotiating' ? 'text-only' : prev));
-      }, 5000);
-    } catch {
-      setRtcStatus('text-only');
+  const activateRelayFallback = useCallback(() => {
+    if (!roomRef.current || roomRef.current.participants.length < 2) return;
+    if (pcRef.current?.connectionState === 'connected' && webrtcTrackReceivedRef.current) {
+      return;
     }
-  }, [ensurePeerConnection, sendSignalOutbound]);
+    relayActiveRef.current = true;
+    setAudioMode((prev) => (prev === 'webrtc' ? 'webrtc' : 'relay'));
+    setRtcStatus('connected');
+    if (localStreamRef.current) {
+      startRelayCapture();
+    }
+  }, [startRelayCapture]);
 
-  const handleRtcSignal = useCallback(
-    async (signalType: string, payload: unknown) => {
-      if (signalType === 'initiate') {
-        await initiateRtcOffer();
+  const scheduleRelayFallback = useCallback(() => {
+    if (relayFallbackTimerRef.current !== null) {
+      window.clearTimeout(relayFallbackTimerRef.current);
+    }
+    relayFallbackTimerRef.current = window.setTimeout(() => {
+      relayFallbackTimerRef.current = null;
+      activateRelayFallback();
+    }, RELAY_FALLBACK_DELAY_MS);
+  }, [activateRelayFallback]);
+
+  const handleIncomingAudioFrame = useCallback(
+    (sr: number, b64Data: string) => {
+      if (deafenedRef.current || !b64Data) return;
+      if (pcRef.current?.connectionState === 'connected' && webrtcTrackReceivedRef.current) {
         return;
       }
-      const pc = ensurePeerConnection();
-      if (!pc) return;
+
+      const samples = decodeBase64ToFloat32(b64Data);
+      if (!samples || samples.length === 0) return;
+
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+
+      if (!playCtxRef.current || playCtxRef.current.state === 'closed') {
+        playCtxRef.current = new AudioCtx();
+        nextPlayTimeRef.current = 0;
+      }
+      const ctx = playCtxRef.current;
+
+      if (ctx.state === 'suspended') {
+        void ctx.resume().catch(() => {
+          setAudioUnlockNeeded(true);
+        });
+      }
+      if (ctx.state === 'suspended') {
+        setAudioUnlockNeeded(true);
+        return;
+      }
+
       try {
-        if (signalType === 'offer' && payload) {
-          setRtcStatus('negotiating');
-          await pc.setRemoteDescription(
-            new RTCSessionDescription(payload as RTCSessionDescriptionInit),
-          );
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          await sendSignalOutbound('answer', answer);
-        } else if (signalType === 'answer' && payload) {
-          await pc.setRemoteDescription(
-            new RTCSessionDescription(payload as RTCSessionDescriptionInit),
-          );
-        } else if (signalType === 'ice' && payload) {
-          await pc.addIceCandidate(new RTCIceCandidate(payload as RTCIceCandidateInit));
+        const buffer = ctx.createBuffer(1, samples.length, sr || RELAY_SAMPLE_RATE);
+        buffer.copyToChannel(samples, 0);
+        const src = ctx.createBufferSource();
+        src.buffer = buffer;
+        src.connect(ctx.destination);
+
+        const now = ctx.currentTime;
+        if (
+          nextPlayTimeRef.current < now ||
+          nextPlayTimeRef.current - now > 0.35
+        ) {
+          nextPlayTimeRef.current = now + 0.025;
         }
+        src.start(nextPlayTimeRef.current);
+        nextPlayTimeRef.current += buffer.duration;
+
+        relayActiveRef.current = true;
+        setAudioMode((prev) => (prev === 'webrtc' ? 'webrtc' : 'relay'));
+        setRtcStatus('connected');
+        setRemoteSpeaking(true);
+        if (remoteSpeakingTimerRef.current !== null) {
+          window.clearTimeout(remoteSpeakingTimerRef.current);
+        }
+        remoteSpeakingTimerRef.current = window.setTimeout(() => {
+          setRemoteSpeaking(false);
+        }, 380);
       } catch {
-        setRtcStatus('text-only');
+        // Ignore transient playback error
       }
     },
-    [ensurePeerConnection, initiateRtcOffer, sendSignalOutbound],
+    [],
   );
+
+  const attachRemoteStream = useCallback(
+    (stream: MediaStream) => {
+      remoteStreamRef.current = stream;
+      const el = getOrCreateAudioEl();
+      if (!el) return;
+      el.srcObject = stream;
+      el.muted = deafenedRef.current;
+      el.volume = 1;
+      const playPromise = el.play();
+      if (playPromise && typeof playPromise.then === 'function') {
+        playPromise
+          .then(() => {
+            setAudioUnlockNeeded(false);
+          })
+          .catch(() => {
+            setAudioUnlockNeeded(true);
+          });
+      }
+    },
+    [getOrCreateAudioEl],
+  );
+
+  const unlockRemoteAudio = useCallback(() => {
+    setAudioUnlockNeeded(false);
+    const el = getOrCreateAudioEl();
+    if (el && remoteStreamRef.current) {
+      el.srcObject = remoteStreamRef.current;
+      el.muted = deafenedRef.current;
+      void el.play().catch(() => {});
+    }
+    if (playCtxRef.current && playCtxRef.current.state === 'suspended') {
+      void playCtxRef.current.resume().catch(() => {});
+    }
+    if (captureCtxRef.current && captureCtxRef.current.state === 'suspended') {
+      void captureCtxRef.current.resume().catch(() => {});
+    }
+  }, [getOrCreateAudioEl]);
+
+  const cleanupRtc = useCallback(() => {
+    stopRelayCapture();
+    pendingIceRef.current = [];
+    webrtcTrackReceivedRef.current = false;
+    remoteStreamRef.current = null;
+    if (remoteSpeakingTimerRef.current !== null) {
+      window.clearTimeout(remoteSpeakingTimerRef.current);
+      remoteSpeakingTimerRef.current = null;
+    }
+    setRemoteSpeaking(false);
+    setAudioUnlockNeeded(false);
+    setAudioMode('idle');
+
+    if (pcRef.current) {
+      pcRef.current.onicecandidate = null;
+      pcRef.current.ontrack = null;
+      pcRef.current.onconnectionstatechange = null;
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    if (persistentAudioRef.current) {
+      persistentAudioRef.current.srcObject = null;
+    }
+    if (playCtxRef.current) {
+      void playCtxRef.current.close().catch(() => {});
+      playCtxRef.current = null;
+      nextPlayTimeRef.current = 0;
+    }
+    setRtcStatus('idle');
+  }, [stopRelayCapture]);
+
+  const stopLocalMedia = useCallback(() => {
+    stopRelayCapture();
+    if (localStreamRef.current) {
+      for (const track of localStreamRef.current.getTracks()) {
+        track.stop();
+      }
+      localStreamRef.current = null;
+    }
+    setHasMicAudio(false);
+  }, [stopRelayCapture]);
+
+  const acquireMicBestEffort = useCallback(async (): Promise<boolean> => {
+    if (localStreamRef.current) {
+      setHasMicAudio(true);
+      return true;
+    }
+    if (
+      typeof navigator === 'undefined' ||
+      !navigator.mediaDevices ||
+      typeof navigator.mediaDevices.getUserMedia !== 'function'
+    ) {
+      setHasMicAudio(false);
+      return false;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: false,
+      });
+      for (const track of stream.getAudioTracks()) {
+        track.enabled = !micMutedRef.current;
+      }
+      localStreamRef.current = stream;
+      setHasMicAudio(true);
+      return true;
+    } catch {
+      setHasMicAudio(false);
+      return false;
+    }
+  }, []);
+
+  const ensurePeerConnection = useCallback(
+    (forceFresh: boolean = false) => {
+      if (forceFresh && pcRef.current) {
+        pcRef.current.onicecandidate = null;
+        pcRef.current.ontrack = null;
+        pcRef.current.onconnectionstatechange = null;
+        pcRef.current.close();
+        pcRef.current = null;
+        pendingIceRef.current = [];
+        webrtcTrackReceivedRef.current = false;
+      }
+      if (pcRef.current && pcRef.current.connectionState !== 'closed' && pcRef.current.connectionState !== 'failed') {
+        return pcRef.current;
+      }
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
+      }
+      if (typeof RTCPeerConnection === 'undefined') {
+        activateRelayFallback();
+        return null;
+      }
+
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      pcRef.current = pc;
+
+      if (localStreamRef.current) {
+        for (const track of localStreamRef.current.getTracks()) {
+          pc.addTrack(track, localStreamRef.current);
+        }
+      } else {
+        try {
+          pc.addTransceiver('audio', { direction: 'recvonly' });
+        } catch {
+          // Ignore if browser rejects transceiver setup
+        }
+      }
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          void sendSignalOutbound(
+            'ice',
+            event.candidate.toJSON ? event.candidate.toJSON() : event.candidate,
+          );
+        }
+      };
+
+      pc.ontrack = (event) => {
+        const remoteStream =
+          (event.streams && event.streams[0]) || new MediaStream([event.track]);
+        webrtcTrackReceivedRef.current = true;
+        attachRemoteStream(remoteStream);
+        stopRelayCapture();
+        setAudioMode('webrtc');
+        setRtcStatus('connected');
+      };
+
+      pc.onconnectionstatechange = () => {
+        const state = pc.connectionState;
+        if (state === 'connected') {
+          if (relayFallbackTimerRef.current !== null) {
+            window.clearTimeout(relayFallbackTimerRef.current);
+            relayFallbackTimerRef.current = null;
+          }
+          if (webrtcTrackReceivedRef.current) {
+            stopRelayCapture();
+            setAudioMode('webrtc');
+          }
+          setRtcStatus('connected');
+        } else if (state === 'connecting' || state === 'new') {
+          if (!relayActiveRef.current) {
+            setRtcStatus('negotiating');
+          }
+        } else if (state === 'failed' || state === 'disconnected') {
+          activateRelayFallback();
+        }
+      };
+
+      return pc;
+    },
+    [activateRelayFallback, attachRemoteStream, sendSignalOutbound, stopRelayCapture],
+  );
+
+  const flushPendingIce = useCallback(async (pc: RTCPeerConnection) => {
+    if (!pc.remoteDescription) return;
+    const list = pendingIceRef.current.splice(0);
+    for (const candidateInit of list) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidateInit));
+      } catch {
+        // Ignore individual stale candidate
+      }
+    }
+  }, []);
+
+  const initiateRtcOffer = useCallback(
+    async (forceFresh: boolean = false) => {
+      const pc = ensurePeerConnection(forceFresh);
+      scheduleRelayFallback();
+      if (!pc) return;
+      try {
+        if (!relayActiveRef.current) {
+          setRtcStatus('negotiating');
+        }
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await sendSignalOutbound('offer', offer);
+      } catch {
+        activateRelayFallback();
+      }
+    },
+    [activateRelayFallback, ensurePeerConnection, scheduleRelayFallback, sendSignalOutbound],
+  );
+
+  const handleRtcSignal = useCallback(
+    (signalType: string, payload: unknown) => {
+      if (signalType === 'audio' && payload && typeof payload === 'object') {
+        const p = payload as { sr?: unknown; data?: unknown };
+        if (typeof p.data === 'string') {
+          handleIncomingAudioFrame(
+            typeof p.sr === 'number' ? p.sr : RELAY_SAMPLE_RATE,
+            p.data,
+          );
+        }
+        return;
+      }
+
+      signalChainRef.current = signalChainRef.current
+        .then(async () => {
+          if (signalType === 'initiate') {
+            await initiateRtcOffer(true);
+            return;
+          }
+          const pc = ensurePeerConnection(false);
+          if (!pc) return;
+
+          if (signalType === 'offer' && payload) {
+            if (!relayActiveRef.current) {
+              setRtcStatus('negotiating');
+            }
+            scheduleRelayFallback();
+            await pc.setRemoteDescription(
+              new RTCSessionDescription(payload as RTCSessionDescriptionInit),
+            );
+            await flushPendingIce(pc);
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            await sendSignalOutbound('answer', answer);
+          } else if (signalType === 'answer' && payload) {
+            await pc.setRemoteDescription(
+              new RTCSessionDescription(payload as RTCSessionDescriptionInit),
+            );
+            await flushPendingIce(pc);
+          } else if (signalType === 'ice' && payload) {
+            const cand = payload as RTCIceCandidateInit;
+            if (!pc.remoteDescription) {
+              pendingIceRef.current.push(cand);
+            } else {
+              await pc.addIceCandidate(new RTCIceCandidate(cand));
+            }
+          }
+        })
+        .catch(() => {
+          activateRelayFallback();
+        });
+    },
+    [
+      activateRelayFallback,
+      ensurePeerConnection,
+      flushPendingIce,
+      handleIncomingAudioFrame,
+      initiateRtcOffer,
+      scheduleRelayFallback,
+      sendSignalOutbound,
+    ],
+  );
+
+  const retryMicPermission = useCallback(async () => {
+    const ok = await acquireMicBestEffort();
+    if (!ok || !localStreamRef.current) {
+      setError('Браузер не дал доступ к микрофону. Разрешите микрофон в адресной строке браузера.');
+      return false;
+    }
+    setError(null);
+
+    const mode = transportRef.current;
+    const activeRoom = roomRef.current;
+    const peerId = myPeerIdRef.current;
+
+    if (mode === 'node-ws') {
+      const ws = wsRef.current;
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'peer:update', hasAudio: true }));
+      }
+    } else if (activeRoom && peerId) {
+      if (mode === 'local') {
+        localPreBetaApi.updatePeer(activeRoom.code, peerId, undefined, true);
+      } else {
+        const urls = httpApiUrls(mode);
+        void fetch(urls.peer, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: activeRoom.code, peerId, hasAudio: true }),
+        }).catch(() => {});
+      }
+    }
+
+    if (activeRoom && activeRoom.participants.length === 2) {
+      if (relayActiveRef.current) {
+        startRelayCapture();
+      }
+      const pc = pcRef.current;
+      if (pc && pc.connectionState !== 'closed') {
+        try {
+          const audioTrack = localStreamRef.current.getAudioTracks()[0];
+          const senders = pc.getSenders();
+          const audioSender = senders.find((s) => s.track === null || s.track?.kind === 'audio');
+          const transceivers = pc.getTransceivers();
+          const audioTrans = transceivers.find(
+            (t) => t.receiver.track?.kind === 'audio' || t.sender === audioSender,
+          );
+          if (audioTrans && audioTrack) {
+            audioTrans.direction = 'sendrecv';
+            await audioTrans.sender.replaceTrack(audioTrack);
+          } else if (audioTrack) {
+            pc.addTrack(audioTrack, localStreamRef.current);
+          }
+          await initiateRtcOffer(false);
+        } catch {
+          activateRelayFallback();
+        }
+      }
+    }
+    return true;
+  }, [acquireMicBestEffort, activateRelayFallback, initiateRtcOffer, startRelayCapture]);
 
   const applyJoinedSnapshot = useCallback(
     (peerId: string, snapshot: PublicRoomSnapshot) => {
       setMyPeerId(peerId);
       setRoomSnapshot(snapshot);
       setRemainingMs(snapshot.remainingMs);
-      const anyAudio = snapshot.participants.some((p) => p.hasAudio);
-      setRtcStatus(
-        snapshot.participants.length < 2
-          ? 'waiting-peer'
-          : anyAudio
-            ? 'negotiating'
-            : 'text-only',
-      );
+      if (snapshot.participants.length < 2) {
+        setRtcStatus('waiting-peer');
+        setAudioMode('idle');
+      } else {
+        setRtcStatus('negotiating');
+        scheduleRelayFallback();
+      }
       setError(null);
       setBusy(false);
       void refreshQuotaStatus();
     },
-    [refreshQuotaStatus],
+    [refreshQuotaStatus, scheduleRelayFallback],
   );
 
   const applyPolledState = useCallback(
@@ -386,14 +882,15 @@ export function usePreBetaCall() {
       if (snapshot.participants.length < 2) {
         cleanupRtc();
         setRtcStatus('waiting-peer');
-      } else if (!snapshot.participants.some((p) => p.hasAudio)) {
-        setRtcStatus((prev) => (prev === 'connected' ? 'connected' : 'text-only'));
+      } else if (rtcStatus === 'waiting-peer' || rtcStatus === 'idle') {
+        setRtcStatus('negotiating');
+        scheduleRelayFallback();
       }
       for (const sig of signals) {
-        void handleRtcSignal(sig.signalType, sig.payload);
+        handleRtcSignal(sig.signalType, sig.payload);
       }
     },
-    [cleanupRtc, handleRtcSignal],
+    [cleanupRtc, handleRtcSignal, rtcStatus, scheduleRelayFallback],
   );
 
   const startHttpPolling = useCallback(
@@ -447,6 +944,14 @@ export function usePreBetaCall() {
             return;
           }
           applyPolledState(data.snapshot, data.signals ?? []);
+
+          // Dynamically speed up polling (260ms) when 2 peers are relaying PCM audio over HTTP
+          const wantFastPoll = data.snapshot.participants.length >= 2 && relayActiveRef.current;
+          const desiredMs = wantFastPoll ? 260 : 750;
+          if (desiredMs !== pollIntervalMsRef.current) {
+            pollIntervalMsRef.current = desiredMs;
+            startHttpPolling(mode, code, peerId);
+          }
         } catch {
           // Transient poll hiccup: keep trying on next tick
         }
@@ -454,7 +959,7 @@ export function usePreBetaCall() {
 
       pollTimerRef.current = window.setInterval(() => {
         void pollOnce();
-      }, 750);
+      }, pollIntervalMsRef.current);
     },
     [applyPolledState, cleanupRtc, clientId, refreshQuotaStatus, stopLocalMedia, stopPolling],
   );
@@ -581,12 +1086,19 @@ export function usePreBetaCall() {
         }
 
         if (type === 'rtc:initiate') {
-          void initiateRtcOffer();
+          handleRtcSignal('initiate', null);
           return;
         }
 
         if (type === 'rtc:signal') {
-          void handleRtcSignal(String(data.signalType ?? ''), data.payload);
+          handleRtcSignal(String(data.signalType ?? ''), data.payload);
+          return;
+        }
+
+        if (type === 'audio:frame') {
+          const sr = typeof data.sr === 'number' ? data.sr : RELAY_SAMPLE_RATE;
+          const b64 = typeof data.data === 'string' ? data.data : '';
+          handleIncomingAudioFrame(sr, b64);
           return;
         }
 
@@ -634,8 +1146,8 @@ export function usePreBetaCall() {
     applyPolledState,
     cleanupRtc,
     clientId,
+    handleIncomingAudioFrame,
     handleRtcSignal,
-    initiateRtcOffer,
     refreshQuotaStatus,
     stopLocalMedia,
   ]);
@@ -647,6 +1159,7 @@ export function usePreBetaCall() {
       effectiveNick: string,
       gotMic: boolean,
     ): Promise<boolean> => {
+      pollIntervalMsRef.current = 400;
       if (mode === 'local') {
         const peerId = `loc-${Math.random().toString(36).slice(2, 12)}`;
         const res = localPreBetaApi.join({
@@ -703,6 +1216,21 @@ export function usePreBetaCall() {
         return false;
       }
 
+      // Warm up AudioContext synchronously inside user click gesture so autoplay never blocks audio!
+      try {
+        const AudioCtx =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (AudioCtx && !playCtxRef.current) {
+          playCtxRef.current = new AudioCtx();
+        }
+        if (playCtxRef.current?.state === 'suspended') {
+          void playCtxRef.current.resume().catch(() => {});
+        }
+      } catch {
+        // Ignore AudioContext warmup error
+      }
+
       setError(null);
       setBusy(true);
       const effectiveNick = (customNick ?? nickRef.current).trim();
@@ -727,7 +1255,6 @@ export function usePreBetaCall() {
           }
           return true;
         } catch {
-          // Proxy blocked WebSocket upgrade — automatically fall back to Node HTTP polling!
           setTransport('node-http');
           try {
             return await joinViaHttp('node-http', normalized, effectiveNick, gotMic);
@@ -936,14 +1463,17 @@ export function usePreBetaCall() {
   const toggleDeafen = useCallback(() => {
     setDeafened((prev) => {
       const next = !prev;
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.muted = next;
+      if (persistentAudioRef.current) {
+        persistentAudioRef.current.muted = next;
+      }
+      if (!next) {
+        unlockRemoteAudio();
       }
       return next;
     });
-  }, []);
+  }, [unlockRemoteAudio]);
 
-  // Ensure leaving / closing browser tab immediately pauses timer on backend
+  // Ensure leaving / closing browser tab immediately pauses this client's timer on backend
   useEffect(() => {
     const handleUnload = () => {
       const activeRoom = roomRef.current;
@@ -1004,12 +1534,16 @@ export function usePreBetaCall() {
     deafened,
     hasMicAudio,
     rtcStatus,
-    remoteAudioRef,
+    audioMode,
+    audioUnlockNeeded,
+    remoteSpeaking,
     issueCodeAndJoin,
     joinRoomByCode,
     leaveRoom,
     sendMessage,
     toggleMicMute,
     toggleDeafen,
+    unlockRemoteAudio,
+    retryMicPermission,
   };
 }

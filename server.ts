@@ -11,13 +11,16 @@ import {
   createEmptyPreBetaStore,
   expireElapsedRooms,
   getClientQuotaStatus,
+  getClientRoomRemainingMs,
   getRoomRemainingMs,
   hydratePreBetaStore,
+  isClientTimerPaused,
   issueOneTimePreBetaCode,
   joinPreBetaRoom,
   leavePreBetaRoom,
   normalizePreBetaCode,
   pruneStaleHttpParticipants,
+  sanitizeClientId,
   serializePreBetaStore,
   updatePreBetaPeerState,
   type PreBetaStoreState,
@@ -54,7 +57,7 @@ interface ActiveSocketMeta {
 }
 
 interface QueuedRtcSignal {
-  signalType: 'initiate' | 'offer' | 'answer' | 'ice';
+  signalType: 'initiate' | 'offer' | 'answer' | 'ice' | 'audio';
   fromPeerId: string;
   payload: unknown;
 }
@@ -71,8 +74,20 @@ function sendJson(ws: WebSocket, payload: Record<string, unknown>): void {
 function enqueueHttpSignal(toPeerId: string, signal: QueuedRtcSignal): void {
   const existing = pendingSignalsByPeerId.get(toPeerId) ?? [];
   existing.push(signal);
-  if (existing.length > 64) {
-    existing.splice(0, existing.length - 64);
+  if (existing.length > 96) {
+    // Keep critical signaling packets (initiate/offer/answer/ice) and trim oldest audio frames first
+    const trimmed: QueuedRtcSignal[] = [];
+    let audioDropped = 0;
+    const toDrop = existing.length - 96;
+    for (const item of existing) {
+      if (item.signalType === 'audio' && audioDropped < toDrop) {
+        audioDropped += 1;
+      } else {
+        trimmed.push(item);
+      }
+    }
+    pendingSignalsByPeerId.set(toPeerId, trimmed.slice(-96));
+    return;
   }
   pendingSignalsByPeerId.set(toPeerId, existing);
 }
@@ -96,7 +111,7 @@ function deliverRtcInitiate(firstPeerId: string, secondPeerId: string): void {
 function deliverRtcSignal(
   roomCode: string,
   fromPeerId: string,
-  signalType: 'offer' | 'answer' | 'ice',
+  signalType: 'offer' | 'answer' | 'ice' | 'audio',
   payload: unknown,
 ): void {
   const room = store.rooms[roomCode];
@@ -105,12 +120,22 @@ function deliverRtcSignal(
     if (participant.peerId === fromPeerId) continue;
     const meta = socketsByPeerId.get(participant.peerId);
     if (meta && meta.ws.readyState === WebSocket.OPEN) {
-      sendJson(meta.ws, {
-        type: 'rtc:signal',
-        fromPeerId,
-        signalType,
-        payload: payload ?? null,
-      });
+      if (signalType === 'audio' && payload && typeof payload === 'object') {
+        const p = payload as { sr?: unknown; data?: unknown };
+        sendJson(meta.ws, {
+          type: 'audio:frame',
+          fromPeerId,
+          sr: typeof p.sr === 'number' ? p.sr : 16000,
+          data: typeof p.data === 'string' ? p.data : '',
+        });
+      } else {
+        sendJson(meta.ws, {
+          type: 'rtc:signal',
+          fromPeerId,
+          signalType,
+          payload: payload ?? null,
+        });
+      }
     } else {
       enqueueHttpSignal(participant.peerId, {
         signalType,
@@ -137,15 +162,35 @@ function broadcastToRoom(
   }
 }
 
+function broadcastRoomState(
+  roomCode: string,
+  excludePeerId?: string,
+  now: number = Date.now(),
+): void {
+  const room = store.rooms[roomCode];
+  if (!room) return;
+  for (const participant of room.participants) {
+    if (excludePeerId && participant.peerId === excludePeerId) continue;
+    const meta = socketsByPeerId.get(participant.peerId);
+    if (meta) {
+      sendJson(meta.ws, {
+        type: 'room:state',
+        snapshot: buildPublicRoomSnapshot(room, now, participant.clientId),
+      });
+    }
+  }
+}
+
 function detachPeerFromCurrentRoom(meta: ActiveSocketMeta): void {
   if (!meta.roomCode) return;
   const code = meta.roomCode;
   meta.roomCode = null;
   pendingSignalsByPeerId.delete(meta.peerId);
-  const { removedPeer, snapshot } = leavePreBetaRoom(store, code, meta.peerId, Date.now());
+  const now = Date.now();
+  const { removedPeer, snapshot } = leavePreBetaRoom(store, code, meta.peerId, now);
   if (removedPeer && snapshot) {
     broadcastToRoom(code, { type: 'peer:left', peerId: meta.peerId, nick: removedPeer.nick });
-    broadcastToRoom(code, { type: 'room:state', snapshot });
+    broadcastRoomState(code, undefined, now);
   }
 }
 
@@ -168,8 +213,8 @@ function parseBodyObj(body: unknown): Record<string, unknown> {
 
 async function startServer(): Promise<void> {
   const app = express();
-  app.use(express.json({ limit: '64kb' }));
-  app.use(express.text({ type: 'text/plain', limit: '64kb' }));
+  app.use(express.json({ limit: '128kb' }));
+  app.use(express.text({ type: 'text/plain', limit: '128kb' }));
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
@@ -207,12 +252,19 @@ async function startServer(): Promise<void> {
       res.status(404).json({ ok: false, message: 'Комната не найдена.' });
       return;
     }
-    const remainingMs = getRoomRemainingMs(room, Date.now());
+    const rawCid = typeof req.query.clientId === 'string' ? sanitizeClientId(req.query.clientId) : '';
+    const now = Date.now();
+    const remainingMs = rawCid
+      ? getClientRoomRemainingMs(room, rawCid, now)
+      : getRoomRemainingMs(room, now);
+    const paused = rawCid
+      ? isClientTimerPaused(room, rawCid)
+      : isClientTimerPaused(room, room.hostClientId);
     res.json({
       ok: true,
       code: room.code,
       remainingMs,
-      paused: room.timerRunningSince === null,
+      paused,
       expired: remainingMs <= 0,
       participantsCount: room.participants.length,
       maxParticipants: PRE_BETA_MAX_PARTICIPANTS,
@@ -252,11 +304,7 @@ async function startServer(): Promise<void> {
     }
 
     saveStore();
-    broadcastToRoom(
-      joinResult.snapshot.code,
-      { type: 'room:state', snapshot: joinResult.snapshot },
-      peerId,
-    );
+    broadcastRoomState(joinResult.snapshot.code, peerId, now);
 
     if (joinResult.snapshot.participants.length === 2) {
       const [firstPeer, secondPeer] = joinResult.snapshot.participants;
@@ -287,7 +335,13 @@ async function startServer(): Promise<void> {
       return;
     }
 
-    const remainingMs = getRoomRemainingMs(room, now);
+    const peer = room.participants.find((p) => p.peerId === peerId);
+    if (!peer) {
+      res.status(409).json({ ok: false, reason: 'NOT_IN_ROOM', message: 'Сессия участника завершена.' });
+      return;
+    }
+
+    const remainingMs = getClientRoomRemainingMs(room, peer.clientId, now);
     if (remainingMs <= 0) {
       expireElapsedRooms(store, now);
       saveStore();
@@ -299,12 +353,6 @@ async function startServer(): Promise<void> {
       return;
     }
 
-    const peer = room.participants.find((p) => p.peerId === peerId);
-    if (!peer) {
-      res.status(409).json({ ok: false, reason: 'NOT_IN_ROOM', message: 'Сессия участника завершена.' });
-      return;
-    }
-
     peer.lastSeenAt = now;
     const signals = pendingSignalsByPeerId.get(peerId) ?? [];
     if (signals.length > 0) {
@@ -313,7 +361,7 @@ async function startServer(): Promise<void> {
 
     res.json({
       ok: true,
-      snapshot: buildPublicRoomSnapshot(room, now),
+      snapshot: buildPublicRoomSnapshot(room, now, peer.clientId),
       signals,
     });
   });
@@ -354,7 +402,7 @@ async function startServer(): Promise<void> {
 
     if (removedPeer && snapshot) {
       broadcastToRoom(code, { type: 'peer:left', peerId, nick: removedPeer.nick });
-      broadcastToRoom(code, { type: 'room:state', snapshot });
+      broadcastRoomState(code, undefined, now);
     }
     res.json({ ok: true, snapshot });
   });
@@ -363,6 +411,7 @@ async function startServer(): Promise<void> {
     const body = parseBodyObj(req.body);
     const code = normalizePreBetaCode(typeof body.code === 'string' ? body.code : '');
     const peerId = typeof body.peerId === 'string' ? body.peerId : '';
+    const now = Date.now();
     const snapshot = updatePreBetaPeerState(
       store,
       {
@@ -371,10 +420,10 @@ async function startServer(): Promise<void> {
         micMuted: typeof body.micMuted === 'boolean' ? body.micMuted : undefined,
         hasAudio: typeof body.hasAudio === 'boolean' ? body.hasAudio : undefined,
       },
-      Date.now(),
+      now,
     );
     if (snapshot) {
-      broadcastToRoom(code, { type: 'room:state', snapshot });
+      broadcastRoomState(code, undefined, now);
     }
     res.json({ ok: Boolean(snapshot), snapshot });
   });
@@ -387,12 +436,26 @@ async function startServer(): Promise<void> {
     const now = Date.now();
 
     const room = store.rooms[code];
-    if (!room || getRoomRemainingMs(room, now) <= 0) {
+    const sender = room?.participants.find((p) => p.peerId === peerId);
+    if (!room || !sender || getClientRoomRemainingMs(room, sender.clientId, now) <= 0) {
       res.status(410).json({ ok: false, reason: 'ROOM_EXPIRED', message: 'Время сессии истекло.' });
       return;
     }
-    if (signalType !== 'offer' && signalType !== 'answer' && signalType !== 'ice') {
+    if (signalType !== 'offer' && signalType !== 'answer' && signalType !== 'ice' && signalType !== 'audio') {
       res.status(400).json({ ok: false, reason: 'BAD_SIGNAL' });
+      return;
+    }
+    if (signalType === 'audio') {
+      const p = body.payload as { sr?: unknown; data?: unknown } | null;
+      if (!p || typeof p.data !== 'string' || p.data.length === 0 || p.data.length > 32768) {
+        res.status(400).json({ ok: false, reason: 'BAD_AUDIO_FRAME' });
+        return;
+      }
+      deliverRtcSignal(code, peerId, 'audio', {
+        sr: typeof p.sr === 'number' && p.sr >= 8000 && p.sr <= 48000 ? p.sr : 16000,
+        data: p.data,
+      });
+      res.json({ ok: true });
       return;
     }
     deliverRtcSignal(code, peerId, signalType, body.payload ?? null);
@@ -458,11 +521,7 @@ async function startServer(): Promise<void> {
           snapshot: joinResult.snapshot,
         });
 
-        broadcastToRoom(
-          meta.roomCode,
-          { type: 'room:state', snapshot: joinResult.snapshot },
-          peerId,
-        );
+        broadcastRoomState(meta.roomCode, peerId, now);
 
         if (joinResult.snapshot.participants.length === 2) {
           const [firstPeer, secondPeer] = joinResult.snapshot.participants;
@@ -491,7 +550,7 @@ async function startServer(): Promise<void> {
           now,
         );
         if (snapshot) {
-          broadcastToRoom(meta.roomCode, { type: 'room:state', snapshot });
+          broadcastRoomState(meta.roomCode, undefined, now);
         }
         return;
       }
@@ -539,7 +598,8 @@ async function startServer(): Promise<void> {
       if (type === 'rtc:signal') {
         if (!meta.roomCode) return;
         const room = store.rooms[meta.roomCode];
-        if (!room || getRoomRemainingMs(room, now) <= 0) {
+        const sender = room?.participants.find((p) => p.peerId === peerId);
+        if (!room || !sender || getClientRoomRemainingMs(room, sender.clientId, now) <= 0) {
           sendJson(ws, {
             type: 'session:expired',
             code: meta.roomCode,
@@ -553,6 +613,20 @@ async function startServer(): Promise<void> {
           return;
         }
         deliverRtcSignal(meta.roomCode, peerId, signalType, msg.payload ?? null);
+        return;
+      }
+
+      if (type === 'audio:frame') {
+        if (!meta.roomCode) return;
+        const room = store.rooms[meta.roomCode];
+        const sender = room?.participants.find((p) => p.peerId === peerId);
+        if (!room || !sender || getClientRoomRemainingMs(room, sender.clientId, now) <= 0) {
+          return;
+        }
+        const data = typeof msg.data === 'string' ? msg.data : '';
+        const sr = typeof msg.sr === 'number' && msg.sr >= 8000 && msg.sr <= 48000 ? msg.sr : 16000;
+        if (!data || data.length > 32768) return;
+        deliverRtcSignal(meta.roomCode, peerId, 'audio', { sr, data });
       }
     });
 
@@ -574,12 +648,11 @@ async function startServer(): Promise<void> {
       for (const item of pruned) {
         const room = store.rooms[item.code];
         if (room) {
-          const snap = buildPublicRoomSnapshot(room, now);
           for (const removedId of item.removedPeerIds) {
             pendingSignalsByPeerId.delete(removedId);
             broadcastToRoom(item.code, { type: 'peer:left', peerId: removedId });
           }
-          broadcastToRoom(item.code, { type: 'room:state', snapshot: snap });
+          broadcastRoomState(item.code, undefined, now);
         }
       }
     }
@@ -608,12 +681,17 @@ async function startServer(): Promise<void> {
     }
 
     for (const room of Object.values(store.rooms)) {
-      if (room.participants.length === 0 || room.timerRunningSince === null) continue;
-      const remainingMs = getRoomRemainingMs(room, now);
-      broadcastToRoom(room.code, {
-        type: 'room:tick',
-        remainingMs,
-      });
+      if (room.participants.length === 0) continue;
+      for (const participant of room.participants) {
+        if (isClientTimerPaused(room, participant.clientId)) continue;
+        const meta = socketsByPeerId.get(participant.peerId);
+        if (meta && meta.ws.readyState === WebSocket.OPEN) {
+          sendJson(meta.ws, {
+            type: 'room:tick',
+            remainingMs: getClientRoomRemainingMs(room, participant.clientId, now),
+          });
+        }
+      }
     }
   }, 1000);
 

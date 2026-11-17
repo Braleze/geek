@@ -16,6 +16,11 @@ export interface PreBetaParticipant {
   lastSeenAt?: number;
 }
 
+export interface ClientTimerState {
+  remainingMs: number;
+  runningSince: number | null;
+}
+
 export interface PreBetaChatMessage {
   id: string;
   authorPeerId: string;
@@ -32,6 +37,7 @@ export interface PreBetaRoom {
   remainingMs: number;
   timerRunningSince: number | null;
   expiresAt: number | null;
+  timersByClientId: Record<string, ClientTimerState>;
   participants: PreBetaParticipant[];
   messages: PreBetaChatMessage[];
 }
@@ -149,7 +155,59 @@ export function getRemainingMs(expiresAt: number | null, now: number): number {
   return Math.max(0, expiresAt - now);
 }
 
+function getTimerRemainingMs(timer: ClientTimerState, now: number): number {
+  if (timer.runningSince === null) {
+    return Math.max(0, timer.remainingMs);
+  }
+  const elapsed = Math.max(0, now - timer.runningSince);
+  return Math.max(0, timer.remainingMs - elapsed);
+}
+
+function ensureClientTimer(room: PreBetaRoom, clientId: string): ClientTimerState {
+  if (!room.timersByClientId) {
+    room.timersByClientId = {};
+  }
+  if (!room.timersByClientId[clientId]) {
+    const initialRemaining =
+      clientId === room.hostClientId && typeof room.remainingMs === 'number'
+        ? room.remainingMs
+        : PRE_BETA_DURATION_MS;
+    room.timersByClientId[clientId] = {
+      remainingMs: initialRemaining,
+      runningSince: null,
+    };
+  }
+  return room.timersByClientId[clientId];
+}
+
+export function getClientRoomRemainingMs(
+  room: PreBetaRoom,
+  clientId: string,
+  now: number,
+): number {
+  const timer = room.timersByClientId?.[clientId];
+  if (!timer) {
+    if (clientId === room.hostClientId) {
+      return getRoomRemainingMs(room, now);
+    }
+    return PRE_BETA_DURATION_MS;
+  }
+  return getTimerRemainingMs(timer, now);
+}
+
+export function isClientTimerPaused(room: PreBetaRoom, clientId: string): boolean {
+  const timer = room.timersByClientId?.[clientId];
+  if (!timer) {
+    return clientId === room.hostClientId ? room.timerRunningSince === null : true;
+  }
+  return timer.runningSince === null;
+}
+
 export function getRoomRemainingMs(room: PreBetaRoom, now: number): number {
+  const hostTimer = room.timersByClientId?.[room.hostClientId];
+  if (hostTimer) {
+    return getTimerRemainingMs(hostTimer, now);
+  }
   if (room.timerRunningSince === null) {
     return Math.max(0, room.remainingMs);
   }
@@ -157,33 +215,55 @@ export function getRoomRemainingMs(room: PreBetaRoom, now: number): number {
   return Math.max(0, room.remainingMs - elapsed);
 }
 
-export function pauseRoomTimer(room: PreBetaRoom, now: number): boolean {
-  const left = getRoomRemainingMs(room, now);
-  room.remainingMs = left;
-  room.expiresAt = null;
-  if (room.timerRunningSince !== null) {
+export function pauseClientRoomTimer(room: PreBetaRoom, clientId: string, now: number): boolean {
+  const timer = ensureClientTimer(room, clientId);
+  const left = getTimerRemainingMs(timer, now);
+  timer.remainingMs = left;
+  const wasRunning = timer.runningSince !== null;
+  timer.runningSince = null;
+
+  if (clientId === room.hostClientId) {
+    room.remainingMs = left;
     room.timerRunningSince = null;
-    return true;
+    room.expiresAt = null;
   }
-  return false;
+  return wasRunning;
+}
+
+export function resumeClientRoomTimer(room: PreBetaRoom, clientId: string, now: number): boolean {
+  const timer = ensureClientTimer(room, clientId);
+  const left = getTimerRemainingMs(timer, now);
+  if (left <= 0) {
+    timer.remainingMs = 0;
+    timer.runningSince = null;
+    if (clientId === room.hostClientId) {
+      room.remainingMs = 0;
+      room.timerRunningSince = null;
+      room.expiresAt = null;
+    }
+    return false;
+  }
+
+  let resumed = false;
+  if (timer.runningSince === null) {
+    timer.remainingMs = left;
+    timer.runningSince = now;
+    resumed = true;
+  }
+  if (clientId === room.hostClientId) {
+    room.remainingMs = timer.remainingMs;
+    room.timerRunningSince = timer.runningSince;
+    room.expiresAt = timer.runningSince + timer.remainingMs;
+  }
+  return resumed;
+}
+
+export function pauseRoomTimer(room: PreBetaRoom, now: number): boolean {
+  return pauseClientRoomTimer(room, room.hostClientId, now);
 }
 
 export function resumeRoomTimer(room: PreBetaRoom, now: number): boolean {
-  const left = getRoomRemainingMs(room, now);
-  if (left <= 0) {
-    room.remainingMs = 0;
-    room.timerRunningSince = null;
-    room.expiresAt = null;
-    return false;
-  }
-  if (room.timerRunningSince === null) {
-    room.remainingMs = left;
-    room.timerRunningSince = now;
-    room.expiresAt = now + left;
-    return true;
-  }
-  room.expiresAt = room.timerRunningSince + room.remainingMs;
-  return false;
+  return resumeClientRoomTimer(room, room.hostClientId, now);
 }
 
 export function formatCountdownMs(remainingMs: number): string {
@@ -196,9 +276,10 @@ export function formatCountdownMs(remainingMs: number): string {
 function syncHostQuotaRecord(store: PreBetaStoreState, room: PreBetaRoom, now: number): void {
   const rec = store.quotasByClientId[room.hostClientId];
   if (rec) {
-    const left = getRoomRemainingMs(room, now);
+    const left = getClientRoomRemainingMs(room, room.hostClientId, now);
+    const paused = isClientTimerPaused(room, room.hostClientId);
     rec.remainingMs = left;
-    rec.expiresAt = room.timerRunningSince !== null && left > 0 ? now + left : null;
+    rec.expiresAt = !paused && left > 0 ? now + left : null;
   }
 }
 
@@ -237,9 +318,9 @@ export function getClientQuotaStatus(
 
   const room = store.rooms[record.issuedCode];
   const remainingMs = room
-    ? getRoomRemainingMs(room, now)
+    ? getClientRoomRemainingMs(room, clientId, now)
     : Math.max(0, record.remainingMs);
-  const paused = room ? room.timerRunningSince === null : true;
+  const paused = room ? isClientTimerPaused(room, clientId) : true;
 
   if (remainingMs <= 0) {
     return {
@@ -280,9 +361,9 @@ export function issueOneTimePreBetaCode(
   if (existing) {
     const room = store.rooms[existing.issuedCode];
     const remainingMs = room
-      ? getRoomRemainingMs(room, now)
+      ? getClientRoomRemainingMs(room, clientId, now)
       : Math.max(0, existing.remainingMs);
-    const paused = room ? room.timerRunningSince === null : true;
+    const paused = room ? isClientTimerPaused(room, clientId) : true;
 
     if (remainingMs <= 0) {
       return {
@@ -321,13 +402,19 @@ export function issueOneTimePreBetaCode(
     remainingMs: PRE_BETA_DURATION_MS,
     timerRunningSince: null,
     expiresAt: null,
+    timersByClientId: {
+      [clientId]: {
+        remainingMs: PRE_BETA_DURATION_MS,
+        runningSince: null,
+      },
+    },
     participants: [],
     messages: [
       {
         id: `sys-create-${now}`,
         authorPeerId: 'system',
         authorNick: 'PRE-BETA ЯДРО',
-        text: 'Создан приватный канал 1-на-1. Лимит: 30:00 (время ставится на паузу, когда в комнате никого нет).',
+        text: 'Создан приватный канал 1-на-1. Лимит: 30:00 (время каждого участника останавливается при выходе).',
         timestamp: now,
         system: true,
       },
@@ -348,9 +435,11 @@ export function issueOneTimePreBetaCode(
 export function buildPublicRoomSnapshot(
   room: PreBetaRoom,
   now: number = Date.now(),
+  forClientId?: string,
 ): PublicRoomSnapshot {
-  const remainingMs = getRoomRemainingMs(room, now);
-  const paused = room.timerRunningSince === null;
+  const targetClientId = forClientId && sanitizeClientId(forClientId) ? forClientId : room.hostClientId;
+  const remainingMs = getClientRoomRemainingMs(room, targetClientId, now);
+  const paused = isClientTimerPaused(room, targetClientId);
   return {
     code: room.code,
     createdAt: room.createdAt,
@@ -408,16 +497,24 @@ export function joinPreBetaRoom(
     };
   }
 
-  if (getRoomRemainingMs(room, now) <= 0) {
-    room.remainingMs = 0;
-    room.timerRunningSince = null;
-    room.expiresAt = null;
-    room.participants = [];
+  const existingTimer = room.timersByClientId?.[clientId];
+  if (!existingTimer && getClientRoomRemainingMs(room, room.hostClientId, now) <= 0) {
+    return {
+      ok: false,
+      reason: 'ROOM_EXPIRED',
+      message: 'Время pre-beta сессии (30 минут) для этого диалога истекло.',
+    };
+  }
+
+  const timerBefore = ensureClientTimer(room, clientId);
+  if (getTimerRemainingMs(timerBefore, now) <= 0) {
+    timerBefore.remainingMs = 0;
+    timerBefore.runningSince = null;
     syncHostQuotaRecord(store, room, now);
     return {
       ok: false,
       reason: 'ROOM_EXPIRED',
-      message: 'Время pre-beta сессии (30 минут) истекло до релиза.',
+      message: 'Ваше время pre-beta сессии (30 минут) для этого диалога истекло.',
     };
   }
 
@@ -453,12 +550,12 @@ export function joinPreBetaRoom(
   }
 
   const wasPausedWithPriorUsage =
-    room.timerRunningSince === null && room.remainingMs < PRE_BETA_DURATION_MS;
-  const resumed = resumeRoomTimer(room, now);
+    timerBefore.runningSince === null && timerBefore.remainingMs < PRE_BETA_DURATION_MS;
+  const resumed = resumeClientRoomTimer(room, clientId, now);
   syncHostQuotaRecord(store, room, now);
 
   if (existingIndex === -1) {
-    const leftText = formatCountdownMs(getRoomRemainingMs(room, now));
+    const leftText = formatCountdownMs(getClientRoomRemainingMs(room, clientId, now));
     const resumeSuffix = wasPausedWithPriorUsage
       ? ` Таймер продолжен с ${leftText}.`
       : '';
@@ -478,7 +575,7 @@ export function joinPreBetaRoom(
   return {
     ok: true,
     peer,
-    snapshot: buildPublicRoomSnapshot(room, now),
+    snapshot: buildPublicRoomSnapshot(room, now, clientId),
     resumed,
   };
 }
@@ -504,17 +601,15 @@ export function leavePreBetaRoom(
   }
 
   const [removedPeer] = room.participants.splice(index, 1);
-  let pausedNow = false;
-  if (room.participants.length === 0) {
-    pausedNow = pauseRoomTimer(room, now);
-  }
+  // Pause THIS participant's timer independently, even while the other participant stays in the room
+  const pausedNow = pauseClientRoomTimer(room, removedPeer.clientId, now);
   syncHostQuotaRecord(store, room, now);
 
-  const leftText = formatCountdownMs(getRoomRemainingMs(room, now));
+  const leftText = formatCountdownMs(getClientRoomRemainingMs(room, removedPeer.clientId, now));
   const pauseText =
-    room.participants.length === 0
-      ? ` Время остановлено на ${leftText} до повторного входа.`
-      : '';
+    room.participants.length > 0
+      ? ` Таймер ${removedPeer.nick} остановлен на ${leftText}; у собеседника отсчёт продолжается.`
+      : ` Время остановлено на ${leftText} до повторного входа.`;
 
   room.messages = [
     ...room.messages,
@@ -528,9 +623,10 @@ export function leavePreBetaRoom(
     },
   ].slice(-PRE_BETA_MAX_MESSAGES);
 
+  const remainingViewerClientId = room.participants[0]?.clientId ?? room.hostClientId;
   return {
     removedPeer,
-    snapshot: buildPublicRoomSnapshot(room, now),
+    snapshot: buildPublicRoomSnapshot(room, now, remainingViewerClientId),
     pausedNow,
   };
 }
@@ -574,21 +670,19 @@ export function appendPreBetaMessage(
   if (!room) {
     return { ok: false, reason: 'ROOM_NOT_FOUND', message: 'Комната не найдена.' };
   }
-  if (getRoomRemainingMs(room, now) <= 0) {
-    room.remainingMs = 0;
-    room.timerRunningSince = null;
-    room.expiresAt = null;
-    room.participants = [];
+  const peer = room.participants.find((p) => p.peerId === params.peerId);
+  if (!peer) {
+    return { ok: false, reason: 'NOT_IN_ROOM', message: 'Вы не подключены к комнате.' };
+  }
+  if (getClientRoomRemainingMs(room, peer.clientId, now) <= 0) {
+    pauseClientRoomTimer(room, peer.clientId, now);
+    room.participants = room.participants.filter((p) => p.peerId !== peer.peerId);
     syncHostQuotaRecord(store, room, now);
     return {
       ok: false,
       reason: 'ROOM_EXPIRED',
       message: '30-минутный лимит pre-beta сессии истёк.',
     };
-  }
-  const peer = room.participants.find((p) => p.peerId === params.peerId);
-  if (!peer) {
-    return { ok: false, reason: 'NOT_IN_ROOM', message: 'Вы не подключены к комнате.' };
   }
 
   peer.lastSeenAt = now;
@@ -620,11 +714,11 @@ export function updatePreBetaPeerState(
   now: number = Date.now(),
 ): PublicRoomSnapshot | null {
   const room = store.rooms[params.code];
-  if (!room || getRoomRemainingMs(room, now) <= 0) {
+  if (!room) {
     return null;
   }
   const peer = room.participants.find((p) => p.peerId === params.peerId);
-  if (!peer) {
+  if (!peer || getClientRoomRemainingMs(room, peer.clientId, now) <= 0) {
     return null;
   }
   peer.lastSeenAt = now;
@@ -634,7 +728,7 @@ export function updatePreBetaPeerState(
   if (typeof params.hasAudio === 'boolean') {
     peer.hasAudio = params.hasAudio;
   }
-  return buildPublicRoomSnapshot(room, now);
+  return buildPublicRoomSnapshot(room, now, peer.clientId);
 }
 
 export function expireElapsedRooms(
@@ -643,16 +737,27 @@ export function expireElapsedRooms(
 ): Array<{ code: string; kickedPeerIds: string[] }> {
   const expired: Array<{ code: string; kickedPeerIds: string[] }> = [];
   for (const room of Object.values(store.rooms)) {
-    if (getRoomRemainingMs(room, now) <= 0 && (room.participants.length > 0 || room.timerRunningSince !== null)) {
-      const kickedPeerIds = room.participants.map((p) => p.peerId);
-      room.remainingMs = 0;
-      room.timerRunningSince = null;
-      room.expiresAt = null;
-      room.participants = [];
-      syncHostQuotaRecord(store, room, now);
-      if (kickedPeerIds.length > 0) {
-        expired.push({ code: room.code, kickedPeerIds });
+    const kickedPeerIds: string[] = [];
+    const remainingPeers: PreBetaParticipant[] = [];
+    for (const p of room.participants) {
+      if (getClientRoomRemainingMs(room, p.clientId, now) <= 0) {
+        const t = ensureClientTimer(room, p.clientId);
+        t.remainingMs = 0;
+        t.runningSince = null;
+        if (p.clientId === room.hostClientId) {
+          room.remainingMs = 0;
+          room.timerRunningSince = null;
+          room.expiresAt = null;
+        }
+        kickedPeerIds.push(p.peerId);
+      } else {
+        remainingPeers.push(p);
       }
+    }
+    if (kickedPeerIds.length > 0) {
+      room.participants = remainingPeers;
+      syncHostQuotaRecord(store, room, now);
+      expired.push({ code: room.code, kickedPeerIds });
     }
   }
   return expired;
@@ -663,13 +768,21 @@ export function serializePreBetaStore(store: PreBetaStoreState, now: number = Da
   const sanitizedQuotas: Record<string, ClientQuotaRecord> = {};
 
   for (const [code, room] of Object.entries(store.rooms)) {
-    const left = getRoomRemainingMs(room, now);
+    const timers: Record<string, ClientTimerState> = {};
+    for (const [cid, t] of Object.entries(room.timersByClientId ?? {})) {
+      timers[cid] = {
+        remainingMs: getTimerRemainingMs(t, now),
+        runningSince: null,
+      };
+    }
+    const hostLeft = getClientRoomRemainingMs(room, room.hostClientId, now);
     sanitizedRooms[code] = {
       ...room,
-      remainingMs: left,
-      // Active WebSocket participants are transient across server restarts; pause clock safely
+      remainingMs: hostLeft,
       timerRunningSince: null,
       expiresAt: null,
+      timersByClientId: timers,
+      // Active WebSocket participants are transient across server restarts; pause all clocks safely
       participants: [],
     };
   }
@@ -678,7 +791,9 @@ export function serializePreBetaStore(store: PreBetaStoreState, now: number = Da
     const room = sanitizedRooms[rec.issuedCode];
     sanitizedQuotas[clientId] = {
       ...rec,
-      remainingMs: room ? room.remainingMs : Math.max(0, rec.remainingMs),
+      remainingMs: room
+        ? (room.timersByClientId[clientId]?.remainingMs ?? room.remainingMs)
+        : Math.max(0, rec.remainingMs),
       expiresAt: null,
     };
   }
@@ -712,13 +827,29 @@ export function hydratePreBetaStore(rawJson: string, now: number = Date.now()): 
             remainingMs = Math.max(0, room.expiresAt - now);
           }
 
+          const timersByClientId: Record<string, ClientTimerState> = {};
+          if (room.timersByClientId && typeof room.timersByClientId === 'object') {
+            for (const [cid, t] of Object.entries(room.timersByClientId)) {
+              if (t && typeof t.remainingMs === 'number') {
+                timersByClientId[cid] = {
+                  remainingMs: Math.max(0, Math.min(PRE_BETA_DURATION_MS, t.remainingMs)),
+                  runningSince: null,
+                };
+              }
+            }
+          }
+          if (!timersByClientId[room.hostClientId]) {
+            timersByClientId[room.hostClientId] = { remainingMs, runningSince: null };
+          }
+
           rooms[code] = {
             code: room.code,
             hostClientId: room.hostClientId,
             createdAt: room.createdAt,
-            remainingMs,
+            remainingMs: timersByClientId[room.hostClientId].remainingMs,
             timerRunningSince: null,
             expiresAt: null,
+            timersByClientId,
             participants: [],
             messages: Array.isArray(room.messages) ? room.messages.slice(-PRE_BETA_MAX_MESSAGES) : [],
           };
@@ -737,7 +868,7 @@ export function hydratePreBetaStore(rawJson: string, now: number = Date.now()): 
         ) {
           const linkedRoom = rooms[rec.issuedCode];
           const remainingMs = linkedRoom
-            ? linkedRoom.remainingMs
+            ? getClientRoomRemainingMs(linkedRoom, clientId, now)
             : typeof rec.remainingMs === 'number'
               ? Math.max(0, rec.remainingMs)
               : typeof rec.expiresAt === 'number'

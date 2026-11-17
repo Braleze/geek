@@ -5,6 +5,7 @@ import {
   createEmptyPreBetaStore,
   expireElapsedRooms,
   getClientQuotaStatus,
+  getClientRoomRemainingMs,
   hydratePreBetaStore,
   issueOneTimePreBetaCode,
   joinPreBetaRoom,
@@ -29,7 +30,7 @@ export interface QuotaResponse {
 }
 
 export interface QueuedSignal {
-  signalType: 'initiate' | 'offer' | 'answer' | 'ice';
+  signalType: 'initiate' | 'offer' | 'answer' | 'ice' | 'audio';
   fromPeerId: string;
   payload: unknown;
 }
@@ -121,7 +122,7 @@ function readLocalStore(): PreBetaStoreState {
     if (!raw) return createEmptyPreBetaStore();
     const parsed = JSON.parse(raw) as Partial<PreBetaStoreState>;
     const hydrated = hydratePreBetaStore(raw);
-    // Preserve live timerRunningSince & active participants across same-browser tabs
+    // Preserve live timerRunningSince, timersByClientId & active participants across same-browser tabs
     if (parsed.rooms) {
       for (const [code, room] of Object.entries(parsed.rooms)) {
         if (hydrated.rooms[code] && room) {
@@ -131,6 +132,16 @@ function readLocalStore(): PreBetaStoreState {
             typeof room.remainingMs === 'number'
               ? room.remainingMs
               : hydrated.rooms[code].remainingMs;
+          if (room.timersByClientId && typeof room.timersByClientId === 'object') {
+            for (const [cid, t] of Object.entries(room.timersByClientId)) {
+              if (t && typeof t.remainingMs === 'number') {
+                hydrated.rooms[code].timersByClientId[cid] = {
+                  remainingMs: Math.max(0, Math.min(PRE_BETA_DURATION_MS, t.remainingMs)),
+                  runningSince: typeof t.runningSince === 'number' ? t.runningSince : null,
+                };
+              }
+            }
+          }
           hydrated.rooms[code].participants = Array.isArray(room.participants)
             ? room.participants
             : [];
@@ -204,7 +215,21 @@ function enqueueLocalSignal(toPeerId: string, signal: QueuedSignal): void {
   const map = readLocalSignalsMap();
   const list = map[toPeerId] ?? [];
   list.push(signal);
-  map[toPeerId] = list.slice(-32);
+  if (list.length > 64) {
+    const toDrop = list.length - 64;
+    let audioDropped = 0;
+    const trimmed: QueuedSignal[] = [];
+    for (const item of list) {
+      if (item.signalType === 'audio' && audioDropped < toDrop) {
+        audioDropped += 1;
+      } else {
+        trimmed.push(item);
+      }
+    }
+    map[toPeerId] = trimmed.slice(-64);
+  } else {
+    map[toPeerId] = list;
+  }
   try {
     window.localStorage.setItem(LOCAL_SIGNALS_KEY, JSON.stringify(map));
   } catch {
@@ -259,18 +284,27 @@ export const localPreBetaApi = {
     }
     const expired = expireElapsedRooms(store, now);
     const peer = room.participants.find((p) => p.peerId === peerId);
-    if (expired.some((e) => e.code === normalized)) {
+    if (!peer) {
+      const wasKicked = expired.some((e) => e.code === normalized && e.kickedPeerIds.includes(peerId));
+      writeLocalStore(store);
+      return {
+        ok: false,
+        signals: [],
+        reason: wasKicked ? 'ROOM_EXPIRED' : 'NOT_IN_ROOM',
+        message: wasKicked
+          ? '30-минутный pre-beta лимит до релиза истёк.'
+          : 'Сессия участника завершена.',
+      };
+    }
+    if (getClientRoomRemainingMs(room, peer.clientId, now) <= 0) {
       writeLocalStore(store);
       return { ok: false, signals: [], reason: 'ROOM_EXPIRED', message: '30-минутный pre-beta лимит до релиза истёк.' };
-    }
-    if (!peer) {
-      return { ok: false, signals: [], reason: 'NOT_IN_ROOM', message: 'Сессия участника завершена.' };
     }
     peer.lastSeenAt = now;
     writeLocalStore(store);
     return {
       ok: true,
-      snapshot: buildPublicRoomSnapshot(room, now),
+      snapshot: buildPublicRoomSnapshot(room, now, peer.clientId),
       signals: popLocalSignals(peerId),
     };
   },
@@ -295,7 +329,12 @@ export const localPreBetaApi = {
     broadcastLocalPing('room:update', code);
     return snap;
   },
-  signal(code: string, peerId: string, signalType: 'offer' | 'answer' | 'ice', payload: unknown) {
+  signal(
+    code: string,
+    peerId: string,
+    signalType: 'offer' | 'answer' | 'ice' | 'audio',
+    payload: unknown,
+  ) {
     const store = readLocalStore();
     const room = store.rooms[normalizePreBetaCode(code)];
     if (!room) return;

@@ -57,23 +57,27 @@ export function PreBetaWorkspace({
     deafened,
     hasMicAudio,
     rtcStatus,
-    remoteAudioRef,
+    audioMode,
+    audioUnlockNeeded,
+    remoteSpeaking,
     issueCodeAndJoin,
     joinRoomByCode,
     leaveRoom,
     sendMessage,
     toggleMicMute,
     toggleDeafen,
+    unlockRemoteAudio,
+    retryMicPermission,
   } = controller;
 
   const transportLabel =
     transport === 'node-ws'
-      ? 'WEBSOCKET СИГНАЛИНГ + WEBRTC P2P AUDIO'
+      ? 'WEBSOCKET + WEBRTC P2P / PCM АУДИО'
       : transport === 'node-http'
-        ? 'HTTP-РЕТРАНСЛЯТОР + WEBRTC P2P AUDIO'
+        ? 'HTTP-РЕТРАНСЛЯТОР + WEBRTC P2P / PCM АУДИО'
         : transport === 'php-http'
-          ? 'PHP-СЕРВЕР СИГНАЛИНГ + WEBRTC P2P AUDIO'
-          : 'ЛОКАЛЬНЫЙ КАНАЛ ВКЛАДОК + WEBRTC P2P AUDIO';
+          ? 'PHP-СЕРВЕР + WEBRTC P2P / PCM АУДИО'
+          : 'ЛОКАЛЬНЫЙ КАНАЛ + WEBRTC P2P / PCM АУДИО';
 
   const [friendCodeInput, setFriendCodeInput] = useState(initialJoinCode);
   const [chatDraft, setChatDraft] = useState('');
@@ -125,13 +129,17 @@ export function PreBetaWorkspace({
   };
 
   const rtcLabel =
-    rtcStatus === 'connected'
-      ? 'P2P АУДИО ПОДКЛЮЧЕНО'
-      : rtcStatus === 'negotiating'
-        ? 'СОГЛАСОВАНИЕ P2P КАНАЛА...'
-        : rtcStatus === 'waiting-peer'
-          ? 'ОЖИДАНИЕ 2-ГО УЧАСТНИКА'
-          : 'ЧАТ + СИГНАЛИНГ АКТИВЕН';
+    audioMode === 'webrtc'
+      ? 'P2P ГОЛОС ПОДКЛЮЧЁН'
+      : audioMode === 'relay'
+        ? 'ГОЛОС ПОДКЛЮЧЁН (СЕРВЕРНЫЙ КАНАЛ)'
+        : rtcStatus === 'connected'
+          ? 'АУДИО ПОДКЛЮЧЕНО'
+          : rtcStatus === 'negotiating'
+            ? 'ПОДКЛЮЧЕНИЕ ГОЛОСА...'
+            : rtcStatus === 'waiting-peer'
+              ? 'ОЖИДАНИЕ 2-ГО УЧАСТНИКА'
+              : 'КАНАЛ АУДИО И ЧАТА ГОТОВ';
 
   if (!roomSnapshot) {
     const quotaTimeLabel = formatCountdownMs(quota.remainingMs);
@@ -140,7 +148,6 @@ export function PreBetaWorkspace({
 
     return (
       <div className="flex-1 flex flex-col justify-between bg-[#08101c]/95 p-4 sm:p-6 min-w-0">
-        <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
 
         <div className="space-y-5">
           {/* Header Banner */}
@@ -355,7 +362,6 @@ export function PreBetaWorkspace({
     <>
       {/* Left Pre-Beta Room Sidebar */}
       <aside className="lg:w-[272px] bg-[#060b14]/92 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 flex flex-col justify-between shrink-0">
-        <audio ref={remoteAudioRef} autoPlay playsInline className="hidden" />
 
         <div>
           <div className="px-3.5 py-2.5 border-b border-[#ff2a85]/25 flex items-center justify-between gap-2">
@@ -430,11 +436,12 @@ export function PreBetaWorkspace({
             <div className="space-y-1 pl-1">
               {peers.map((peer) => {
                 const isMe = peer.peerId === myPeerId;
+                const isRemoteActive = !isMe && remoteSpeaking;
                 return (
                   <div
                     key={peer.peerId}
                     className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs border ${
-                      !peer.micMuted
+                      isRemoteActive || (!peer.micMuted && peer.hasAudio)
                         ? 'bg-[#10b981]/12 border-[#10b981]/45 text-white'
                         : 'border-transparent text-[#b4cde0]'
                     }`}
@@ -453,7 +460,7 @@ export function PreBetaWorkspace({
                     {peer.micMuted ? (
                       <MicOff className="w-3 h-3 text-[#ff2a85] shrink-0" />
                     ) : (
-                      <Mic className="w-3 h-3 text-[#10b981] shrink-0" />
+                      <Mic className={`w-3 h-3 shrink-0 ${peer.hasAudio ? 'text-[#10b981]' : 'text-[#63809b]'}`} />
                     )}
                   </div>
                 );
@@ -473,11 +480,18 @@ export function PreBetaWorkspace({
           <div className="bg-[#06101a]/95 border-t border-[#00f0ff]/35 px-2.5 py-2 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
-                <div className="text-[10px] font-extrabold uppercase text-[#10b981] truncate">
+                <div
+                  data-testid="prebeta-audio-mode"
+                  className="text-[10px] font-extrabold uppercase text-[#10b981] truncate"
+                >
                   {rtcLabel}
                 </div>
                 <div className="text-[11px] font-semibold text-slate-300 truncate">
-                  {hasMicAudio ? 'Микрофон активен (WebRTC)' : 'Чат активен (без микрофона)'}
+                  {hasMicAudio
+                    ? audioMode === 'relay'
+                      ? 'Микрофон активен (PCM Relay)'
+                      : 'Микрофон активен (WebRTC)'
+                    : 'Режим прослушивания + чат'}
                 </div>
               </div>
               <button
@@ -490,6 +504,30 @@ export function PreBetaWorkspace({
                 <span>ВЫЙТИ</span>
               </button>
             </div>
+
+            {audioUnlockNeeded && (
+              <button
+                type="button"
+                onClick={unlockRemoteAudio}
+                data-testid="prebeta-unlock-audio-btn"
+                className="w-full py-1.5 px-2.5 rounded bg-[#fcee0a] text-[#0b0714] text-[10.5px] font-black uppercase tracking-wide flex items-center justify-center gap-1.5 cursor-pointer hover:brightness-110 transition-all"
+              >
+                <Volume2 className="w-3.5 h-3.5" />
+                <span>ВКЛЮЧИТЬ ЗВУК СОБЕСЕДНИКА</span>
+              </button>
+            )}
+
+            {!hasMicAudio && (
+              <button
+                type="button"
+                onClick={() => void retryMicPermission()}
+                data-testid="prebeta-retry-mic-btn"
+                className="w-full py-1.5 px-2.5 rounded bg-[#00f0ff]/15 border border-[#00f0ff]/45 text-[#00f0ff] text-[10.5px] font-bold uppercase flex items-center justify-center gap-1.5 cursor-pointer hover:bg-[#00f0ff] hover:text-[#031518] transition-colors"
+              >
+                <Mic className="w-3.5 h-3.5" />
+                <span>ПОДКЛЮЧИТЬ МИКРОФОН</span>
+              </button>
+            )}
           </div>
 
           <div className="h-[54px] px-2.5 bg-[#040810] border-t border-[#00f0ff]/15 flex items-center justify-between gap-1.5">
