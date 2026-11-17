@@ -1,7 +1,17 @@
+export type FeedbackTopic = 'Закрытая бета' | 'Идея / Фича' | 'Сотрудничество' | 'Общий вопрос';
+
+export const FEEDBACK_TOPICS: FeedbackTopic[] = [
+  'Закрытая бета',
+  'Идея / Фича',
+  'Сотрудничество',
+  'Общий вопрос',
+];
+
 export interface FeedbackInput {
   name: string;
   email: string;
   message: string;
+  topic?: FeedbackTopic;
 }
 
 export interface FeedbackErrors {
@@ -17,6 +27,7 @@ export interface FeedbackEntry {
   name: string;
   email: string;
   message: string;
+  topic: FeedbackTopic;
   createdAt: string;
   deliveryStatus?: FeedbackDeliveryStatus;
 }
@@ -24,7 +35,7 @@ export interface FeedbackEntry {
 export interface FeedbackValidationResult {
   valid: boolean;
   errors: FeedbackErrors;
-  normalized: FeedbackInput;
+  normalized: Required<FeedbackInput>;
 }
 
 export interface FeedbackSubmitOutcome {
@@ -39,10 +50,18 @@ export const FEEDBACK_ENDPOINT = './api/feedback.php';
 const STORAGE_KEY = 'geek_feedback_entries_v1';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
+export function normalizeFeedbackTopic(raw?: string): FeedbackTopic {
+  if (raw && (FEEDBACK_TOPICS as string[]).includes(raw)) {
+    return raw as FeedbackTopic;
+  }
+  return 'Общий вопрос';
+}
+
 export function validateFeedbackInput(input: FeedbackInput): FeedbackValidationResult {
   const name = input.name.trim();
   const email = input.email.trim();
   const message = input.message.trim();
+  const topic = normalizeFeedbackTopic(input.topic);
   const errors: FeedbackErrors = {};
 
   if (name.length < 2) {
@@ -62,7 +81,7 @@ export function validateFeedbackInput(input: FeedbackInput): FeedbackValidationR
   return {
     valid: Object.keys(errors).length === 0,
     errors,
-    normalized: { name, email, message },
+    normalized: { name, email, message, topic },
   };
 }
 
@@ -76,16 +95,19 @@ export function createFeedbackEntry(
     name: input.name.trim(),
     email: input.email.trim(),
     message: input.message.trim(),
+    topic: normalizeFeedbackTopic(input.topic),
     createdAt: now.toISOString(),
   };
 }
 
 export function buildFeedbackMailtoUrl(
-  entry: Pick<FeedbackEntry, 'id' | 'name' | 'email' | 'message'>,
+  entry: Pick<FeedbackEntry, 'id' | 'name' | 'email' | 'message' | 'topic'>,
 ): string {
-  const subject = `[Geek] Обращение ${entry.id} от ${entry.name}`;
+  const topic = normalizeFeedbackTopic(entry.topic);
+  const subject = `[Geek · ${topic}] Обращение ${entry.id} от ${entry.name}`;
   const body = [
     `Номер обращения: ${entry.id}`,
+    `Тема: ${topic}`,
     `Имя: ${entry.name}`,
     `Email для ответа: ${entry.email}`,
     '',
@@ -112,6 +134,7 @@ export async function submitFeedbackRequest(
         id: entry.id,
         name: entry.name,
         email: entry.email,
+        topic: entry.topic,
         message: entry.message,
         _gotcha: honeypot,
       }),

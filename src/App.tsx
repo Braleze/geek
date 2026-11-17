@@ -1,7 +1,8 @@
 import { useEffect, useState, type CSSProperties, type PointerEvent } from 'react';
-import { Bolt, Hash, KeyRound, Lock, Mic, Send, ShieldCheck } from 'lucide-react';
+import { ArrowUp, Bolt, Check, Hash, KeyRound, Lock, Mic, Send, Share2, ShieldCheck } from 'lucide-react';
 import { GeekLogo } from './components/GeekLogo';
 import { SecretRoomModal } from './components/SecretRoomModal';
+import { PlatformPreview } from './components/PlatformPreview';
 import { RoadmapSection } from './components/RoadmapSection';
 import { FaqSection } from './components/FaqSection';
 import { FeedbackSection } from './components/FeedbackSection';
@@ -43,6 +44,8 @@ const FEATURES = [
 
 export default function App() {
   const [isSecretRoomOpen, setIsSecretRoomOpen] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   // Global keyboard shortcut Shift+G opens the Secret Room
   useEffect(() => {
@@ -55,6 +58,28 @@ export default function App() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
+
+  // Track scroll position for floating Back-to-Top button
+  useEffect(() => {
+    const onScroll = () => {
+      setShowScrollTop(window.scrollY > 420);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  const handleShareSite = async () => {
+    const shareUrl = window.location.origin + window.location.pathname;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      }
+    } catch {
+      // Fallback gracefully when clipboard API is restricted
+    }
+    setLinkCopied(true);
+    window.setTimeout(() => setLinkCopied(false), 2200);
+  };
 
   return (
     <div className="min-h-screen flex flex-col justify-between relative bg-[#0b0714] text-slate-200 overflow-x-hidden">
@@ -88,35 +113,39 @@ export default function App() {
       />
 
       {/* Header */}
-      <header className="relative z-20 w-full max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-6 flex justify-between items-center gap-4">
-        <a href="#top" className="flex items-center space-x-3 shrink-0 group">
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#150f24] border border-[#00f0ff]/50 flex items-center justify-center shadow-neon-cyan overflow-hidden p-0.5">
-            <GeekLogo size={40} className="w-full h-full" />
-          </div>
-          <div>
-            <span className="font-cyber font-black text-xl sm:text-2xl tracking-wider text-white block leading-none">
-              GEEK
-            </span>
-            <span className="block text-[10px] font-mono-tech text-[#00f0ff] tracking-widest uppercase mt-1">
-              VOICE &amp; CHAT
-            </span>
-          </div>
-        </a>
+      <header className="sticky top-0 z-30 w-full backdrop-blur-md bg-[#0b0714]/75 border-b border-white/5">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center gap-4">
+          <a href="#top" className="flex items-center space-x-3 shrink-0 group">
+            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#150f24] border border-[#00f0ff]/50 flex items-center justify-center shadow-neon-cyan overflow-hidden p-0.5">
+              <GeekLogo size={40} className="w-full h-full" />
+            </div>
+            <div>
+              <span className="font-cyber font-black text-xl sm:text-2xl tracking-wider text-white block leading-none">
+                GEEK
+              </span>
+              <span className="block text-[10px] font-mono-tech text-[#00f0ff] tracking-widest uppercase mt-1">
+                VOICE &amp; CHAT
+              </span>
+            </div>
+          </a>
 
-        <nav className="hidden lg:flex items-center gap-7 text-xs font-cyber font-bold tracking-wider text-slate-300">
-          <a href="#features" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
-            ВОЗМОЖНОСТИ
-          </a>
-          <a href="#roadmap" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
-            ДОРОЖНАЯ КАРТА
-          </a>
-          <a href="#faq" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
-            FAQ
-          </a>
-          <a href="#feedback" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
-            ОБРАТНАЯ СВЯЗЬ
-          </a>
-        </nav>
+          <nav className="hidden lg:flex items-center gap-6 text-xs font-cyber font-bold tracking-wider text-slate-300">
+            <a href="#features" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
+              ВОЗМОЖНОСТИ
+            </a>
+            <a href="#preview" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
+              ПРЕВЬЮ
+            </a>
+            <a href="#roadmap" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
+              ДОРОЖНАЯ КАРТА
+            </a>
+            <a href="#faq" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
+              FAQ
+            </a>
+            <a href="#feedback" className="hover:text-[#00f0ff] transition-colors whitespace-nowrap">
+              ОБРАТНАЯ СВЯЗЬ
+            </a>
+          </nav>
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
@@ -141,6 +170,7 @@ export default function App() {
             <span>TELEGRAM</span>
             <span className="hidden md:inline">КАНАЛ</span>
           </a>
+        </div>
         </div>
       </header>
 
@@ -200,15 +230,27 @@ export default function App() {
               Первыми узнай о дате закрытого бета-тестирования, получи эксклюзивный доступ и
               ранние привилегии на сервере.
             </p>
-            <a
-              href="https://t.me/geek_mes"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="cyber-btn w-full sm:w-auto px-8 py-4 rounded-xl bg-gradient-to-r from-[#00f0ff] via-[#ff007f] to-[#fcee0a] text-[#0b0714] font-cyber font-black text-sm tracking-wider hover:opacity-95 transform hover:scale-[1.02] transition-all duration-200 shadow-pink-button-glow flex items-center justify-center gap-3 whitespace-nowrap"
-            >
-              <Send className="w-4 h-4" />
-              <span>ПРИСОЕДИНИТЬСЯ К ТГ КАНАЛУ</span>
-            </a>
+            <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
+              <a
+                href="https://t.me/geek_mes"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="cyber-btn w-full sm:w-auto px-7 py-4 rounded-xl bg-gradient-to-r from-[#00f0ff] via-[#ff007f] to-[#fcee0a] text-[#0b0714] font-cyber font-black text-sm tracking-wider hover:opacity-95 transform hover:scale-[1.02] transition-all duration-200 shadow-pink-button-glow flex items-center justify-center gap-3 whitespace-nowrap"
+              >
+                <Send className="w-4 h-4" />
+                <span>ПРИСОЕДИНИТЬСЯ К ТГ КАНАЛУ</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={handleShareSite}
+                aria-label="Скопировать ссылку на сайт Geek"
+                className="cyber-btn w-full sm:w-auto px-5 py-4 rounded-xl bg-[#150f24] border border-[#00f0ff]/55 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#0b0714] font-cyber font-bold text-xs tracking-wider flex items-center justify-center gap-2 transition-colors whitespace-nowrap cursor-pointer"
+              >
+                {linkCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+                <span>{linkCopied ? 'ССЫЛКА СКОПИРОВАНА' : 'ПОДЕЛИТЬСЯ'}</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -270,6 +312,9 @@ export default function App() {
           })}
         </section>
 
+        {/* Interactive Platform Workspace Preview */}
+        <PlatformPreview />
+
         {/* Roadmap Section */}
         <RoadmapSection />
 
@@ -287,6 +332,9 @@ export default function App() {
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-6">
+          <a href="#preview" className="hover:text-[#00f0ff] transition-colors">
+            Превью
+          </a>
           <a href="#roadmap" className="hover:text-[#00f0ff] transition-colors">
             Дорожная карта
           </a>
@@ -316,6 +364,17 @@ export default function App() {
           </button>
         </div>
       </footer>
+
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          aria-label="Вернуться наверх"
+          className="fixed bottom-6 right-6 z-30 w-11 h-11 rounded-xl bg-[#150f24]/95 border border-[#00f0ff]/60 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#0b0714] shadow-neon-cyan flex items-center justify-center transition-all cursor-pointer"
+        >
+          <ArrowUp className="w-5 h-5" />
+        </button>
+      )}
 
       {/* Secret Room & Code Password Panel */}
       <SecretRoomModal

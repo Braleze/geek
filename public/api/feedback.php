@@ -37,10 +37,15 @@ if ($honeypot !== '') {
 $name = trim((string)($data['name'] ?? ''));
 $email = trim((string)($data['email'] ?? ''));
 $message = trim((string)($data['message'] ?? ''));
+$topic = trim((string)($data['topic'] ?? 'Общий вопрос'));
 $ticketId = trim((string)($data['id'] ?? ''));
 
 $safeName = preg_replace('/[\r\n]+/', ' ', $name) ?? '';
 $safeEmail = preg_replace('/[\r\n]+/', '', $email) ?? '';
+$safeTopic = preg_replace('/[\r\n]+/', ' ', $topic) ?? 'Общий вопрос';
+if ($safeTopic === '') {
+    $safeTopic = 'Общий вопрос';
+}
 $safeTicketId = preg_replace('/[^A-Za-z0-9\-]/', '', $ticketId) ?? '';
 if ($safeTicketId === '') {
     $safeTicketId = 'GK-' . (string)random_int(1000, 9999);
@@ -77,7 +82,7 @@ if ($msgLen < 5 || $msgLen > 5000) {
 }
 
 $recipient = 'admin@geek-voice.ru';
-$subjectText = "[Geek] Обращение {$safeTicketId} от {$safeName}";
+$subjectText = "[Geek · {$safeTopic}] Обращение {$safeTicketId} от {$safeName}";
 $encodedSubject = '=?UTF-8?B?' . base64_encode($subjectText) . '?=';
 $encodedFromName = '=?UTF-8?B?' . base64_encode('Geek Feedback') . '?=';
 $encodedReplyName = '=?UTF-8?B?' . base64_encode($safeName) . '?=';
@@ -88,6 +93,7 @@ $submittedAt = gmdate('Y-m-d H:i:s') . ' UTC';
 $body = "Новое обращение с сайта geek-voice.ru\n"
     . "====================================\n"
     . "Номер обращения: {$safeTicketId}\n"
+    . "Тема: {$safeTopic}\n"
     . "Имя: {$safeName}\n"
     . "Email для ответа: {$safeEmail}\n"
     . "Время (UTC): {$submittedAt}\n"

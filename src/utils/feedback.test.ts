@@ -27,11 +27,12 @@ test('validateFeedbackInput rejects empty and malformed fields', () => {
   assert.equal(badEmailResult.errors.message, undefined);
 });
 
-test('validateFeedbackInput accepts valid feedback and trims values', () => {
+test('validateFeedbackInput accepts valid feedback and normalizes topic', () => {
   const result = validateFeedbackInput({
     name: '  Артём  ',
     email: ' artem@geek-voice.ru ',
     message: '  Как перенести роли с сервера? ',
+    topic: 'Закрытая бета',
   });
   assert.equal(result.valid, true);
   assert.deepEqual(result.errors, {});
@@ -39,16 +40,18 @@ test('validateFeedbackInput accepts valid feedback and trims values', () => {
     name: 'Артём',
     email: 'artem@geek-voice.ru',
     message: 'Как перенести роли с сервера?',
+    topic: 'Закрытая бета',
   });
 });
 
-test('createFeedbackEntry formats ticket ID and timestamp', () => {
+test('createFeedbackEntry formats ticket ID, topic, and timestamp', () => {
   const fixedDate = new Date('2026-11-16T12:00:00.000Z');
   const entry = createFeedbackEntry(
     {
       name: 'Мария',
       email: 'maria@example.com',
       message: 'Будет ли поддержка Linux?',
+      topic: 'Идея / Фича',
     },
     fixedDate,
     4242,
@@ -56,11 +59,12 @@ test('createFeedbackEntry formats ticket ID and timestamp', () => {
   assert.equal(entry.id, 'GK-4242');
   assert.equal(entry.name, 'Мария');
   assert.equal(entry.email, 'maria@example.com');
+  assert.equal(entry.topic, 'Идея / Фича');
   assert.equal(entry.message, 'Будет ли поддержка Linux?');
   assert.equal(entry.createdAt, '2026-11-16T12:00:00.000Z');
 });
 
-test('buildFeedbackMailtoUrl targets admin@geek-voice.ru with encoded body', () => {
+test('buildFeedbackMailtoUrl targets admin@geek-voice.ru with encoded body and topic', () => {
   assert.equal(FEEDBACK_TARGET_EMAIL, 'admin@geek-voice.ru');
   assert.equal(FEEDBACK_ENDPOINT, './api/feedback.php');
 
@@ -68,10 +72,12 @@ test('buildFeedbackMailtoUrl targets admin@geek-voice.ru with encoded body', () 
     id: 'GK-1111',
     name: 'Иван',
     email: 'ivan@example.com',
+    topic: 'Сотрудничество',
     message: 'Вопрос по бета-тесту',
   });
   assert.ok(url.startsWith('mailto:admin@geek-voice.ru?subject='));
   assert.ok(url.includes(encodeURIComponent('GK-1111')));
+  assert.ok(url.includes(encodeURIComponent('Сотрудничество')));
   assert.ok(url.includes(encodeURIComponent('ivan@example.com')));
 });
 
@@ -81,6 +87,7 @@ test('submitFeedbackRequest handles live PHP JSON success, error JSON, and non-P
       name: 'Дмитрий',
       email: 'dmitry@example.com',
       message: 'Подскажите дату запуска',
+      topic: 'Закрытая бета',
     },
     new Date('2026-11-16T12:00:00.000Z'),
     5151,

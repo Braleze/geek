@@ -126,12 +126,19 @@
         animation: gkShake 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
       }
       .gk-header {
-        position: relative;
-        z-index: 20;
+        position: sticky;
+        top: 0;
+        z-index: 30;
+        width: 100%;
+        backdrop-filter: blur(12px);
+        background: rgba(11, 7, 20, 0.78);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      }
+      .gk-header-inner {
         width: 100%;
         max-width: 1280px;
         margin: 0 auto;
-        padding: 20px 24px;
+        padding: 16px 24px;
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -333,6 +340,13 @@
         color: #94a3b8;
         margin: 0 0 20px;
       }
+      .gk-cta-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+      }
       .gk-cta-primary {
         background: linear-gradient(90deg, #00f0ff, #ff007f, #fcee0a);
         color: #0b0714;
@@ -345,6 +359,144 @@
       .gk-cta-primary:hover {
         transform: scale(1.02);
         opacity: 0.95;
+      }
+      .gk-preview-card {
+        border-radius: 24px;
+        background: rgba(21, 15, 36, 0.92);
+        border: 1px solid rgba(0, 240, 255, 0.4);
+        box-shadow: 0 0 25px rgba(0, 240, 255, 0.35);
+        overflow: hidden;
+      }
+      .gk-preview-grid {
+        display: grid;
+        grid-template-columns: 320px 1fr;
+        min-height: 400px;
+      }
+      .gk-preview-aside {
+        background: #0e091b;
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 20px;
+      }
+      .gk-preview-tabs {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-bottom: 20px;
+      }
+      .gk-preview-tab {
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: #94a3b8;
+        font-family: "Share Tech Mono", monospace;
+        font-size: 12px;
+        text-align: left;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .gk-preview-tab:hover {
+        color: #fff;
+        background: rgba(255, 255, 255, 0.05);
+      }
+      .gk-preview-tab.is-active {
+        background: rgba(0, 240, 255, 0.14);
+        border-color: rgba(0, 240, 255, 0.6);
+        color: #fff;
+        box-shadow: 0 0 16px rgba(0, 240, 255, 0.2);
+      }
+      .gk-preview-voice-box {
+        border-radius: 12px;
+        background: #150f24;
+        border: 1px solid rgba(255, 0, 127, 0.35);
+        padding: 12px;
+        font-size: 12px;
+      }
+      .gk-vc-controls {
+        display: flex;
+        gap: 8px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .gk-vc-btn {
+        flex: 1;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: #150f24;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: #e2e8f0;
+        font-family: "Share Tech Mono", monospace;
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .gk-vc-btn:hover { border-color: rgba(0, 240, 255, 0.6); }
+      .gk-vc-btn.is-muted {
+        background: rgba(255, 0, 127, 0.15);
+        border-color: rgba(255, 0, 127, 0.6);
+        color: #ff007f;
+      }
+      .gk-vc-btn.is-yellow {
+        background: rgba(252, 238, 10, 0.15);
+        border-color: rgba(252, 238, 10, 0.6);
+        color: #fcee0a;
+      }
+      .gk-preview-main {
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        background: rgba(21, 15, 36, 0.7);
+      }
+      .gk-preview-messages {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 250px;
+        overflow-y: auto;
+        margin-bottom: 18px;
+        padding-right: 4px;
+      }
+      .gk-preview-msg {
+        border-radius: 12px;
+        background: rgba(11, 7, 20, 0.78);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 12px 14px;
+      }
+      .gk-preview-form {
+        display: flex;
+        gap: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .gk-scroll-top {
+        position: fixed;
+        right: 24px;
+        bottom: 24px;
+        z-index: 30;
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: rgba(21, 15, 36, 0.95);
+        border: 1px solid rgba(0, 240, 255, 0.6);
+        color: #00f0ff;
+        box-shadow: 0 0 22px rgba(0, 240, 255, 0.35);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 18px;
+        transition: all 0.2s ease;
+      }
+      .gk-scroll-top.is-visible { display: flex; }
+      .gk-scroll-top:hover {
+        background: #00f0ff;
+        color: #0b0714;
       }
       .gk-features {
         display: grid;
@@ -890,6 +1042,8 @@
       .gk-faq-item.is-open .gk-faq-answer { display: block; }
       @media (max-width: 1024px) {
         .gk-nav { display: none; }
+        .gk-preview-grid { grid-template-columns: 1fr; }
+        .gk-preview-aside { border-right: none; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
       }
       @media (max-width: 640px) {
         .gk-hide-sm { display: none; }
@@ -912,6 +1066,7 @@
         </div>
 
         <header class="gk-header">
+          <div class="gk-header-inner">
           <a href="#top" class="gk-brand">
             <div class="gk-brand-box">
               <svg width="40" height="40" viewBox="0 0 120 120" fill="none" aria-hidden="true">
@@ -941,6 +1096,7 @@
 
           <nav class="gk-nav">
             <a href="#features">ВОЗМОЖНОСТИ</a>
+            <a href="#preview">ПРЕВЬЮ</a>
             <a href="#roadmap">ДОРОЖНАЯ КАРТА</a>
             <a href="#faq">FAQ</a>
             <a href="#feedback">ОБРАТНАЯ СВЯЗЬ</a>
@@ -957,6 +1113,7 @@
               <span>TELEGRAM</span>
               <span class="gk-hide-sm">КАНАЛ</span>
             </a>
+          </div>
           </div>
         </header>
 
@@ -1005,9 +1162,14 @@
             <p>
               Первыми узнай о дате закрытого бета-тестирования, получи эксклюзивный доступ и ранние привилегии на сервере.
             </p>
-            <a href="https://t.me/geek_mes" target="_blank" rel="noopener noreferrer" class="gk-cyber-btn gk-cta-primary">
-              ПРИСОЕДИНИТЬСЯ К ТГ КАНАЛУ
-            </a>
+            <div class="gk-cta-actions">
+              <a href="https://t.me/geek_mes" target="_blank" rel="noopener noreferrer" class="gk-cyber-btn gk-cta-primary">
+                ПРИСОЕДИНИТЬСЯ К ТГ КАНАЛУ
+              </a>
+              <button type="button" id="gk-share-btn" class="gk-cyber-btn gk-btn-cyan" aria-label="Скопировать ссылку на сайт Geek" style="padding:15px 20px;border-radius:12px;">
+                ПОДЕЛИТЬСЯ
+              </button>
+            </div>
           </div>
 
           <section id="features" class="gk-features">
@@ -1038,6 +1200,73 @@
               </div>
               <h3>Скорость</h3>
               <p>Легковесный клиент, открытое API для ботов и мгновенный отклик на любых устройствах.</p>
+            </div>
+          </section>
+
+          <section id="preview" class="gk-section" aria-labelledby="gk-preview-title">
+            <div class="gk-section-head">
+              <div>
+                <p class="gk-kicker">ИНТЕРАКТИВНЫЙ ПРОТОТИП</p>
+                <h2 id="gk-preview-title" class="gk-h2">Как выглядит Geek внутри</h2>
+              </div>
+              <p style="font-size:14px;color:#94a3b8;max-width:440px;margin:0;">
+                Переключайте текстовые каналы, напишите пробное сообщение или проверьте панель управления голосовой комнатой.
+              </p>
+            </div>
+            <div class="gk-preview-card">
+              <div class="gk-preview-grid">
+                <aside class="gk-preview-aside">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.1);">
+                      <span style="font-family:'Orbitron',sans-serif;font-weight:700;font-size:13px;color:#fff;letter-spacing:0.06em;">GEEK · КОМЬЮНИТИ</span>
+                      <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#00f0ff;">ПРЕВЬЮ</span>
+                    </div>
+                    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Текстовые каналы</div>
+                    <div class="gk-preview-tabs" role="tablist" aria-label="Демо текстовых каналов">
+                      <button type="button" class="gk-preview-tab is-active" role="tab" aria-selected="true" data-gk-channel="general"># общий-чат</button>
+                      <button type="button" class="gk-preview-tab" role="tab" aria-selected="false" data-gk-channel="ideas"># идеи-комьюнити</button>
+                      <button type="button" class="gk-preview-tab" role="tab" aria-selected="false" data-gk-channel="beta"># новости-беты</button>
+                    </div>
+                    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Голосовая комната</div>
+                    <div class="gk-preview-voice-box">
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <span style="color:#fff;font-weight:600;">Лаунж #1</span>
+                        <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;">3 участника</span>
+                      </div>
+                      <div style="display:flex;justify-content:space-between;color:#e2e8f0;margin-bottom:6px;">
+                        <span>Вы (Гость)</span>
+                        <span id="gk-vc-guest-status" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#00f0ff;">В эфире</span>
+                      </div>
+                      <div style="display:flex;justify-content:space-between;color:#94a3b8;margin-bottom:6px;">
+                        <span>Niko</span>
+                        <span style="font-family:'Share Tech Mono',monospace;font-size:10px;">В эфире</span>
+                      </div>
+                      <div style="display:flex;justify-content:space-between;color:#94a3b8;">
+                        <span>Vex</span>
+                        <span style="font-family:'Share Tech Mono',monospace;font-size:10px;">Слушает</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="gk-vc-controls">
+                    <button type="button" id="gk-vc-mic" class="gk-vc-btn" aria-pressed="false">Микрофон</button>
+                    <button type="button" id="gk-vc-deaf" class="gk-vc-btn" aria-pressed="false">Звук вкл</button>
+                    <button type="button" id="gk-vc-noise" class="gk-vc-btn is-yellow" aria-pressed="true">Шум</button>
+                  </div>
+                </aside>
+                <div class="gk-preview-main">
+                  <div>
+                    <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding-bottom:14px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.1);">
+                      <span id="gk-preview-ch-name" style="font-family:'Orbitron',sans-serif;font-weight:700;font-size:15px;color:#fff;"># общий-чат</span>
+                      <span id="gk-preview-ch-topic" style="font-size:12px;color:#94a3b8;">Живое общение комьюнити и тесты голосовых комнат</span>
+                    </div>
+                    <div class="gk-preview-messages" id="gk-preview-messages" data-testid="preview-messages"></div>
+                  </div>
+                  <form id="gk-preview-form" class="gk-preview-form">
+                    <input type="text" id="gk-preview-input" class="gk-fb-input" placeholder="Написать в #общий-чат..." aria-label="Сообщение в демо канал" />
+                    <button type="submit" class="gk-cyber-btn" style="background:#00f0ff;color:#0b0714;border:none;font-weight:900;">ОТПРАВИТЬ</button>
+                  </form>
+                </div>
+              </div>
             </div>
           </section>
 
@@ -1146,6 +1375,15 @@
                     <p class="gk-fb-err" id="gk-fb-err-email" role="alert"></p>
                   </div>
                 </div>
+                <div style="margin-bottom:20px;">
+                  <label class="gk-fb-label" for="gk-fb-topic">Тема обращения</label>
+                  <select class="gk-fb-input" id="gk-fb-topic" name="topic">
+                    <option value="Закрытая бета">Закрытая бета</option>
+                    <option value="Идея / Фича">Идея / Фича</option>
+                    <option value="Сотрудничество">Сотрудничество</option>
+                    <option value="Общий вопрос">Общий вопрос</option>
+                  </select>
+                </div>
                 <div>
                   <label class="gk-fb-label" for="gk-fb-message">Ваш вопрос или сообщение</label>
                   <textarea class="gk-fb-textarea" id="gk-fb-message" rows="4" placeholder="Напишите вопрос по функционалу, закрытой бете или сотрудничеству..."></textarea>
@@ -1178,6 +1416,7 @@
         <footer class="gk-footer">
           <div>&copy; 2026 GEEK PLATFORM. ВСЕ ПРАВА ЗАЩИЩЕНЫ.</div>
           <div class="gk-footer-links">
+            <a href="#preview">Превью</a>
             <a href="#roadmap">Дорожная карта</a>
             <a href="#faq">FAQ</a>
             <a href="#feedback">Обратная связь</a>
@@ -1185,6 +1424,8 @@
             <button type="button" data-gk-open-secret>Войти в секретную комнату</button>
           </div>
         </footer>
+
+        <button type="button" id="gk-scroll-top" class="gk-scroll-top" aria-label="Вернуться наверх">&uarr;</button>
 
         <div class="gk-modal-backdrop" id="gk-secret-modal" role="dialog" aria-modal="true" aria-labelledby="gk-secret-title">
           <div class="gk-modal">
@@ -2129,12 +2370,182 @@
           muteJohnnyBtn.addEventListener('click', toggleMute);
           muteTributeBtn.addEventListener('click', toggleMute);
 
+          // Share button & Scroll-to-Top (static fallback)
+          var shareBtn = document.getElementById('gk-share-btn');
+          if (shareBtn) {
+            shareBtn.addEventListener('click', function () {
+              var shareUrl = window.location.origin + window.location.pathname;
+              try {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                  navigator.clipboard.writeText(shareUrl).catch(function () {});
+                }
+              } catch (e) {}
+              shareBtn.textContent = 'ССЫЛКА СКОПИРОВАНА';
+              setTimeout(function () {
+                shareBtn.textContent = 'ПОДЕЛИТЬСЯ';
+              }, 2200);
+            });
+          }
+
+          var scrollTopBtn = document.getElementById('gk-scroll-top');
+          if (scrollTopBtn) {
+            window.addEventListener('scroll', function () {
+              if (window.scrollY > 420) scrollTopBtn.classList.add('is-visible');
+              else scrollTopBtn.classList.remove('is-visible');
+            }, { passive: true });
+            scrollTopBtn.addEventListener('click', function () {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            });
+          }
+
+          // Interactive Platform Preview (static fallback)
+          var previewChannels = {
+            general: {
+              name: 'общий-чат',
+              topic: 'Живое общение комьюнити и тесты голосовых комнат',
+              messages: [
+                { author: 'Niko', color: '#00f0ff', time: '20:14', text: 'Кто сегодня залетит в голосовой канал тестировать шумоподавление?' },
+                { author: 'Vex', color: '#ff007f', time: '20:15', text: 'Я уже в комнате! Звук чистый, без эха даже с механикой.' },
+                { author: 'Kira', color: '#fcee0a', time: '20:16', text: 'Интерфейс ощущается очень лёгким, ничего лишнего на экране.' }
+              ]
+            },
+            ideas: {
+              name: 'идеи-комьюнити',
+              topic: 'Предложения по новым функциям и темам оформления Geek',
+              messages: [
+                { author: 'Artyom', color: '#fcee0a', time: '19:40', text: 'Было бы круто иметь горячие клавиши для быстрого переключения комнат.' },
+                { author: 'DevTeam', color: '#00f0ff', time: '19:44', text: 'Записали в бэклог! Также готовим кастомные цветовые пресеты для серверов.' }
+              ]
+            },
+            beta: {
+              name: 'новости-беты',
+              topic: 'Объявления от разработчиков и наборы на закрытый тест',
+              messages: [
+                { author: 'GeekCore', color: '#ff007f', time: '18:00', text: 'Собираем первые отзывы через форму ниже — всё читаем лично на admin@geek-voice.ru.' },
+                { author: 'Alex', color: '#00f0ff', time: '18:12', text: 'Ждём инвайты в @geek_mes!' }
+              ]
+            }
+          };
+          var previewCustom = { general: [], ideas: [], beta: [] };
+          var activePreviewChannel = 'general';
+          var previewMsgsEl = document.getElementById('gk-preview-messages');
+          var previewChNameEl = document.getElementById('gk-preview-ch-name');
+          var previewChTopicEl = document.getElementById('gk-preview-ch-topic');
+          var previewFormEl = document.getElementById('gk-preview-form');
+          var previewInputEl = document.getElementById('gk-preview-input');
+
+          function renderPreviewChannel() {
+            var ch = previewChannels[activePreviewChannel] || previewChannels.general;
+            if (previewChNameEl) previewChNameEl.textContent = '# ' + ch.name;
+            if (previewChTopicEl) previewChTopicEl.textContent = ch.topic;
+            if (previewInputEl) previewInputEl.placeholder = 'Написать в #' + ch.name + '...';
+            document.querySelectorAll('[data-gk-channel]').forEach(function (tab) {
+              var id = tab.getAttribute('data-gk-channel');
+              var isAct = id === activePreviewChannel;
+              tab.classList.toggle('is-active', isAct);
+              tab.setAttribute('aria-selected', isAct ? 'true' : 'false');
+            });
+            if (!previewMsgsEl) return;
+            previewMsgsEl.innerHTML = '';
+            var all = ch.messages.concat(previewCustom[activePreviewChannel] || []);
+            all.forEach(function (m) {
+              var box = document.createElement('div');
+              box.className = 'gk-preview-msg';
+              var head = document.createElement('div');
+              head.style.display = 'flex';
+              head.style.justifyContent = 'space-between';
+              head.style.marginBottom = '4px';
+              var author = document.createElement('span');
+              author.style.fontFamily = "'Orbitron', sans-serif";
+              author.style.fontWeight = '700';
+              author.style.fontSize = '12px';
+              author.style.color = m.color || '#00f0ff';
+              author.textContent = m.author;
+              var tm = document.createElement('span');
+              tm.style.fontFamily = "'Share Tech Mono', monospace";
+              tm.style.fontSize = '11px';
+              tm.style.color = '#64748b';
+              tm.textContent = m.time;
+              var txt = document.createElement('p');
+              txt.style.margin = '0';
+              txt.style.fontSize = '13px';
+              txt.style.color = '#e2e8f0';
+              txt.style.lineHeight = '1.5';
+              txt.textContent = m.text;
+              head.appendChild(author);
+              head.appendChild(tm);
+              box.appendChild(head);
+              box.appendChild(txt);
+              previewMsgsEl.appendChild(box);
+            });
+          }
+
+          document.querySelectorAll('[data-gk-channel]').forEach(function (tab) {
+            tab.addEventListener('click', function () {
+              activePreviewChannel = tab.getAttribute('data-gk-channel') || 'general';
+              renderPreviewChannel();
+            });
+          });
+          if (previewFormEl && previewInputEl) {
+            previewFormEl.addEventListener('submit', function (e) {
+              e.preventDefault();
+              var val = previewInputEl.value.trim();
+              if (!val) return;
+              var now = new Date();
+              var hh = String(now.getHours()).padStart(2, '0');
+              var mm = String(now.getMinutes()).padStart(2, '0');
+              var arr = previewCustom[activePreviewChannel] || [];
+              arr.push({
+                author: 'Вы (Гость)',
+                color: '#00f0ff',
+                time: hh + ':' + mm,
+                text: val.slice(0, 220)
+              });
+              previewCustom[activePreviewChannel] = arr.slice(-6);
+              previewInputEl.value = '';
+              renderPreviewChannel();
+            });
+          }
+          renderPreviewChannel();
+
+          var vcMicBtn = document.getElementById('gk-vc-mic');
+          var vcDeafBtn = document.getElementById('gk-vc-deaf');
+          var vcNoiseBtn = document.getElementById('gk-vc-noise');
+          var vcGuestStatus = document.getElementById('gk-vc-guest-status');
+          var vcMicMuted = false;
+          var vcDeafened = false;
+          var vcNoise = true;
+          function updateVcUi() {
+            if (vcMicBtn) {
+              vcMicBtn.classList.toggle('is-muted', vcMicMuted);
+              vcMicBtn.setAttribute('aria-pressed', vcMicMuted ? 'true' : 'false');
+              vcMicBtn.textContent = vcMicMuted ? 'Микр. выкл' : 'Микрофон';
+            }
+            if (vcDeafBtn) {
+              vcDeafBtn.classList.toggle('is-muted', vcDeafened);
+              vcDeafBtn.setAttribute('aria-pressed', vcDeafened ? 'true' : 'false');
+              vcDeafBtn.textContent = vcDeafened ? 'Без звука' : 'Звук вкл';
+            }
+            if (vcNoiseBtn) {
+              vcNoiseBtn.classList.toggle('is-yellow', vcNoise);
+              vcNoiseBtn.setAttribute('aria-pressed', vcNoise ? 'true' : 'false');
+            }
+            if (vcGuestStatus) {
+              vcGuestStatus.textContent = vcDeafened ? 'Звук выкл' : vcMicMuted ? 'Микрофон выкл' : 'В эфире';
+              vcGuestStatus.style.color = vcDeafened || vcMicMuted ? '#94a3b8' : '#00f0ff';
+            }
+          }
+          if (vcMicBtn) vcMicBtn.addEventListener('click', function () { vcMicMuted = !vcMicMuted; updateVcUi(); });
+          if (vcDeafBtn) vcDeafBtn.addEventListener('click', function () { vcDeafened = !vcDeafened; updateVcUi(); });
+          if (vcNoiseBtn) vcNoiseBtn.addEventListener('click', function () { vcNoise = !vcNoise; updateVcUi(); });
+
           // Feedback form handler (static fallback)
           var fbForm = document.getElementById('gk-fb-form');
           var fbSuccess = document.getElementById('gk-fb-success');
           var fbHistory = document.getElementById('gk-fb-history');
           var fbName = document.getElementById('gk-fb-name');
           var fbEmail = document.getElementById('gk-fb-email');
+          var fbTopic = document.getElementById('gk-fb-topic');
           var fbMessage = document.getElementById('gk-fb-message');
           var fbErrName = document.getElementById('gk-fb-err-name');
           var fbErrEmail = document.getElementById('gk-fb-err-email');
@@ -2157,7 +2568,7 @@
               var row = document.createElement('div');
               row.className = 'gk-fb-history-item';
               var title = document.createElement('div');
-              title.textContent = item.id + ' · ' + item.name + ' (' + item.email + ')';
+              title.textContent = item.id + ' · ' + item.name + ' (' + item.email + ')' + (item.topic ? ' · ' + item.topic : '');
               var body = document.createElement('div');
               body.style.color = '#94a3b8';
               body.style.marginTop = '4px';
@@ -2175,8 +2586,9 @@
           var fbGotcha = document.getElementById('gk-fb-gotcha');
 
           function buildStaticMailto(entry) {
-            var subj = '[Geek] Обращение ' + entry.id + ' от ' + entry.name;
-            var body = 'Номер обращения: ' + entry.id + '\nИмя: ' + entry.name + '\nEmail для ответа: ' + entry.email + '\n\nСообщение:\n' + entry.message;
+            var topic = entry.topic || 'Общий вопрос';
+            var subj = '[Geek · ' + topic + '] Обращение ' + entry.id + ' от ' + entry.name;
+            var body = 'Номер обращения: ' + entry.id + '\nТема: ' + topic + '\nИмя: ' + entry.name + '\nEmail для ответа: ' + entry.email + '\n\nСообщение:\n' + entry.message;
             return 'mailto:admin@geek-voice.ru?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body);
           }
 
@@ -2185,6 +2597,7 @@
             if (fbSending) return;
             var nameVal = fbName.value.trim();
             var emailVal = fbEmail.value.trim();
+            var topicVal = fbTopic ? fbTopic.value : 'Общий вопрос';
             var msgVal = fbMessage.value.trim();
             var ok = true;
             fbErrName.textContent = '';
@@ -2215,6 +2628,7 @@
               id: 'GK-' + Math.floor(1000 + Math.random() * 9000),
               name: nameVal,
               email: emailVal,
+              topic: topicVal,
               message: msgVal,
               createdAt: new Date().toISOString(),
               deliveryStatus: 'fallback'
@@ -2233,6 +2647,7 @@
                 id: entry.id,
                 name: entry.name,
                 email: entry.email,
+                topic: entry.topic,
                 message: entry.message,
                 _gotcha: fbGotcha ? fbGotcha.value : ''
               })
@@ -2264,12 +2679,12 @@
 
                 if (outcome.delivery === 'sent') {
                   document.getElementById('gk-fb-ticket').textContent = 'ОБРАЩЕНИЕ ' + entry.id + ' ОТПРАВЛЕНО НА ADMIN@GEEK-VOICE.RU';
-                  document.getElementById('gk-fb-summary').textContent = 'Письмо доставлено команде на admin@geek-voice.ru. Ответ придёт на адрес ' + entry.email + '.';
+                  document.getElementById('gk-fb-summary').textContent = 'Письмо («' + entry.topic + '») доставлено команде на admin@geek-voice.ru. Ответ придёт на адрес ' + entry.email + '.';
                   if (fbMailtoBtn) fbMailtoBtn.style.display = 'none';
                 } else {
                   document.getElementById('gk-fb-ticket').textContent = 'ОБРАЩЕНИЕ ' + entry.id + ' ПРИНЯТО';
                   var warn = outcome.warning ? outcome.warning + ' ' : '';
-                  document.getElementById('gk-fb-summary').textContent = warn + 'Обращение сохранено. Вы также можете отправить его прямо на admin@geek-voice.ru. Ответ придёт на ' + entry.email + '.';
+                  document.getElementById('gk-fb-summary').textContent = warn + 'Обращение сохранено («' + entry.topic + '»). Вы также можете отправить его прямо на admin@geek-voice.ru. Ответ придёт на ' + entry.email + '.';
                   if (fbMailtoBtn) {
                     fbMailtoBtn.href = buildStaticMailto(entry);
                     fbMailtoBtn.style.display = 'inline-flex';

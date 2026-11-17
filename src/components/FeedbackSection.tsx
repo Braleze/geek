@@ -1,7 +1,8 @@
 import { useEffect, useState, type CSSProperties, type FormEvent, type PointerEvent } from 'react';
-import { CheckCircle2, Loader2, Mail, MessageSquare, Send, User } from 'lucide-react';
+import { CheckCircle2, Loader2, Mail, MessageSquare, Send, Tag, User } from 'lucide-react';
 import {
   FEEDBACK_TARGET_EMAIL,
+  FEEDBACK_TOPICS,
   buildFeedbackMailtoUrl,
   createFeedbackEntry,
   loadFeedbackEntries,
@@ -10,11 +11,13 @@ import {
   validateFeedbackInput,
   type FeedbackEntry,
   type FeedbackErrors,
+  type FeedbackTopic,
 } from '../utils/feedback';
 
 export function FeedbackSection() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [topic, setTopic] = useState<FeedbackTopic>('Закрытая бета');
   const [message, setMessage] = useState('');
   const [honeypot, setHoneypot] = useState('');
   const [errors, setErrors] = useState<FeedbackErrors>({});
@@ -37,7 +40,7 @@ export function FeedbackSection() {
     event.preventDefault();
     if (isSubmitting) return;
 
-    const result = validateFeedbackInput({ name, email, message });
+    const result = validateFeedbackInput({ name, email, message, topic });
 
     if (!result.valid) {
       setErrors(result.errors);
@@ -127,14 +130,14 @@ export function FeedbackSection() {
               <p className="text-sm text-slate-300 max-w-md mb-5">
                 {submittedEntry.deliveryStatus === 'sent' ? (
                   <>
-                    Письмо доставлено команде на{' '}
+                    Письмо («{submittedEntry.topic}») доставлено команде на{' '}
                     <span className="text-[#00f0ff] font-mono-tech">{FEEDBACK_TARGET_EMAIL}</span>. Ответ придёт на адрес{' '}
                     <span className="text-[#00f0ff] font-mono-tech">{submittedEntry.email}</span>.
                   </>
                 ) : (
                   <>
                     {submitWarning ? `${submitWarning} ` : ''}
-                    Обращение сохранено. Вы также можете продублировать его на{' '}
+                    Обращение сохранено («{submittedEntry.topic}»). Вы также можете продублировать его на{' '}
                     <a
                       href={buildFeedbackMailtoUrl(submittedEntry)}
                       className="text-[#00f0ff] hover:underline font-mono-tech"
@@ -147,7 +150,9 @@ export function FeedbackSection() {
               </p>
 
               <div className="w-full max-w-lg rounded-2xl bg-[#0b0714] border border-white/10 p-4 text-left text-xs text-slate-300 mb-6">
-                <p className="text-slate-400 font-mono-tech mb-1">Текст обращения:</p>
+                <p className="text-slate-400 font-mono-tech mb-1">
+                  Тема: <span className="text-[#fcee0a]">{submittedEntry.topic}</span>
+                </p>
                 <p className="leading-relaxed">{submittedEntry.message}</p>
               </div>
 
@@ -265,6 +270,31 @@ export function FeedbackSection() {
 
               <div>
                 <label
+                  htmlFor="feedback-topic"
+                  className="block text-xs font-mono-tech text-slate-300 uppercase tracking-wider mb-2"
+                >
+                  Тема обращения
+                </label>
+                <div className="relative">
+                  <Tag className="w-4 h-4 text-[#fcee0a]/75 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <select
+                    id="feedback-topic"
+                    name="topic"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value as FeedbackTopic)}
+                    className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-[#0b0714] border border-white/15 focus:border-[#00f0ff] focus:outline-none text-sm text-white transition-colors"
+                  >
+                    {FEEDBACK_TOPICS.map((item) => (
+                      <option key={item} value={item} className="bg-[#150f24] text-white">
+                        {item}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label
                   htmlFor="feedback-message"
                   className="block text-xs font-mono-tech text-slate-300 uppercase tracking-wider mb-2"
                 >
@@ -352,7 +382,10 @@ export function FeedbackSection() {
                     <div className="min-w-0">
                       <span className="text-[#00f0ff] font-mono-tech mr-2">{item.id}</span>
                       <span className="text-white font-semibold mr-2">{item.name}</span>
-                      <span className="text-slate-400 font-mono-tech">({item.email})</span>
+                      <span className="text-slate-400 font-mono-tech mr-2">({item.email})</span>
+                      {item.topic && (
+                        <span className="text-[#ff007f] font-mono-tech">· {item.topic}</span>
+                      )}
                       <p className="text-slate-300 truncate mt-1">{item.message}</p>
                     </div>
                     <span className="text-[11px] font-mono-tech text-[#fcee0a] shrink-0">
