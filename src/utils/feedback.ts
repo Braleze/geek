@@ -10,12 +10,15 @@ export interface FeedbackErrors {
   message?: string;
 }
 
+export type FeedbackDeliveryStatus = 'sent' | 'fallback';
+
 export interface FeedbackEntry {
   id: string;
   name: string;
   email: string;
   message: string;
   createdAt: string;
+  deliveryStatus?: FeedbackDeliveryStatus;
 }
 
 export interface FeedbackValidationResult {
@@ -23,6 +26,15 @@ export interface FeedbackValidationResult {
   errors: FeedbackErrors;
   normalized: FeedbackInput;
 }
+
+export interface FeedbackSubmitOutcome {
+  ok: boolean;
+  delivery: FeedbackDeliveryStatus;
+  errorMessage?: string;
+}
+
+export const FEEDBACK_TARGET_EMAIL = 'admin@geek-voice.ru';
+export const FEEDBACK_ENDPOINT = './api/feedback.php';
 
 const STORAGE_KEY = 'geek_feedback_entries_v1';
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -66,6 +78,67 @@ export function createFeedbackEntry(
     message: input.message.trim(),
     createdAt: now.toISOString(),
   };
+}
+
+export function buildFeedbackMailtoUrl(
+  entry: Pick<FeedbackEntry, 'id' | 'name' | 'email' | 'message'>,
+): string {
+  const subject = `[Geek] Обращение ${entry.id} от ${entry.name}`;
+  const body = [
+    `Номер обращения: ${entry.id}`,
+    `Имя: ${entry.name}`,
+    `Email для ответа: ${entry.email}`,
+    '',
+    'Сообщение:',
+    entry.message,
+  ].join('\n');
+
+  return `mailto:${FEEDBACK_TARGET_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+export async function submitFeedbackRequest(
+  entry: FeedbackEntry,
+  honeypot = '',
+  fetchFn: typeof fetch = fetch,
+): Promise<FeedbackSubmitOutcome> {
+  try {
+    const response = await fetchFn(FEEDBACK_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        id: entry.id,
+        name: entry.name,
+        email: entry.email,
+        message: entry.message,
+        _gotcha: honeypot,
+      }),
+    });
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.toLowerCase().includes('application/json')) {
+      return { ok: true, delivery: 'fallback' };
+    }
+
+    const payload = (await response.json()) as { ok?: boolean; error?: string };
+    if (response.ok && payload?.ok === true) {
+      return { ok: true, delivery: 'sent' };
+    }
+
+    return {
+      ok: false,
+      delivery: 'fallback',
+      errorMessage: payload?.error || 'Не удалось отправить сообщение на сервер.',
+    };
+  } catch {
+    return {
+      ok: false,
+      delivery: 'fallback',
+      errorMessage: 'Не удалось связаться с почтовым обработчиком сервера.',
+    };
+  }
 }
 
 export function loadFeedbackEntries(): FeedbackEntry[] {

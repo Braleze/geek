@@ -1,9 +1,12 @@
 import { useEffect, useState, type CSSProperties, type FormEvent, type PointerEvent } from 'react';
-import { CheckCircle2, Mail, MessageSquare, Send, User } from 'lucide-react';
+import { CheckCircle2, Loader2, Mail, MessageSquare, Send, User } from 'lucide-react';
 import {
+  FEEDBACK_TARGET_EMAIL,
+  buildFeedbackMailtoUrl,
   createFeedbackEntry,
   loadFeedbackEntries,
   saveFeedbackEntry,
+  submitFeedbackRequest,
   validateFeedbackInput,
   type FeedbackEntry,
   type FeedbackErrors,
@@ -13,7 +16,10 @@ export function FeedbackSection() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
+  const [honeypot, setHoneypot] = useState('');
   const [errors, setErrors] = useState<FeedbackErrors>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitWarning, setSubmitWarning] = useState<string | null>(null);
   const [submittedEntry, setSubmittedEntry] = useState<FeedbackEntry | null>(null);
   const [history, setHistory] = useState<FeedbackEntry[]>([]);
 
@@ -27,8 +33,10 @@ export function FeedbackSection() {
     event.currentTarget.style.setProperty('--my', `${event.clientY - rect.top}px`);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSubmitting) return;
+
     const result = validateFeedbackInput({ name, email, message });
 
     if (!result.valid) {
@@ -36,19 +44,32 @@ export function FeedbackSection() {
       return;
     }
 
-    const entry = createFeedbackEntry(result.normalized);
-    const updatedHistory = saveFeedbackEntry(entry);
-
     setErrors({});
-    setSubmittedEntry(entry);
+    setSubmitWarning(null);
+    setIsSubmitting(true);
+
+    const baseEntry = createFeedbackEntry(result.normalized);
+    const outcome = await submitFeedbackRequest(baseEntry, honeypot);
+
+    const savedEntry: FeedbackEntry = {
+      ...baseEntry,
+      deliveryStatus: outcome.delivery,
+    };
+    const updatedHistory = saveFeedbackEntry(savedEntry);
+
+    setIsSubmitting(false);
+    setSubmitWarning(outcome.errorMessage ?? null);
+    setSubmittedEntry(savedEntry);
     setHistory(updatedHistory);
     setName('');
     setEmail('');
     setMessage('');
+    setHoneypot('');
   };
 
   const handleSendAnother = () => {
     setSubmittedEntry(null);
+    setSubmitWarning(null);
     setErrors({});
   };
 
@@ -69,7 +90,14 @@ export function FeedbackSection() {
           Обратная связь
         </h2>
         <p className="text-sm text-slate-400 max-w-xl mx-auto">
-          Оставьте имя, ваш email для ответа и задайте любой вопрос о платформе Geek, бета-тесте или партнёрстве.
+          Оставьте имя, ваш email для ответа и задайте любой вопрос о платформе Geek. Все обращения направляются на{' '}
+          <a
+            href={`mailto:${FEEDBACK_TARGET_EMAIL}`}
+            className="text-[#00f0ff] hover:underline font-mono-tech"
+          >
+            {FEEDBACK_TARGET_EMAIL}
+          </a>
+          .
         </p>
       </div>
 
@@ -89,14 +117,33 @@ export function FeedbackSection() {
                 <CheckCircle2 className="w-7 h-7" />
               </div>
               <p className="text-xs font-mono-tech text-[#00f0ff] tracking-widest uppercase mb-1">
-                ОБРАЩЕНИЕ {submittedEntry.id} ПРИНЯТО
+                {submittedEntry.deliveryStatus === 'sent'
+                  ? `ОБРАЩЕНИЕ ${submittedEntry.id} ОТПРАВЛЕНО НА ${FEEDBACK_TARGET_EMAIL.toUpperCase()}`
+                  : `ОБРАЩЕНИЕ ${submittedEntry.id} ПРИНЯТО`}
               </p>
               <h3 className="font-cyber font-bold text-xl text-white mb-2">
                 Спасибо, {submittedEntry.name}!
               </h3>
               <p className="text-sm text-slate-300 max-w-md mb-5">
-                Ваш вопрос сохранён. Ответ будет направлен на адрес{' '}
-                <span className="text-[#00f0ff] font-mono-tech">{submittedEntry.email}</span>.
+                {submittedEntry.deliveryStatus === 'sent' ? (
+                  <>
+                    Письмо доставлено команде на{' '}
+                    <span className="text-[#00f0ff] font-mono-tech">{FEEDBACK_TARGET_EMAIL}</span>. Ответ придёт на адрес{' '}
+                    <span className="text-[#00f0ff] font-mono-tech">{submittedEntry.email}</span>.
+                  </>
+                ) : (
+                  <>
+                    {submitWarning ? `${submitWarning} ` : ''}
+                    Обращение сохранено. Вы также можете продублировать его на{' '}
+                    <a
+                      href={buildFeedbackMailtoUrl(submittedEntry)}
+                      className="text-[#00f0ff] hover:underline font-mono-tech"
+                    >
+                      {FEEDBACK_TARGET_EMAIL}
+                    </a>{' '}
+                    — ответ придёт на <span className="text-[#00f0ff] font-mono-tech">{submittedEntry.email}</span>.
+                  </>
+                )}
               </p>
 
               <div className="w-full max-w-lg rounded-2xl bg-[#0b0714] border border-white/10 p-4 text-left text-xs text-slate-300 mb-6">
@@ -112,6 +159,15 @@ export function FeedbackSection() {
                 >
                   ОТПРАВИТЬ ЕЩЁ ОДИН ВОПРОС
                 </button>
+                {submittedEntry.deliveryStatus !== 'sent' && (
+                  <a
+                    href={buildFeedbackMailtoUrl(submittedEntry)}
+                    className="cyber-btn px-6 py-3 text-xs font-cyber font-bold bg-[#1c1432] border border-[#fcee0a]/70 text-[#fcee0a] hover:bg-[#fcee0a] hover:text-[#0b0714] flex items-center gap-2"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>ОТКРЫТЬ ПОЧТУ ({FEEDBACK_TARGET_EMAIL})</span>
+                  </a>
+                )}
                 <a
                   href="https://t.me/geek_mes"
                   target="_blank"
@@ -125,6 +181,18 @@ export function FeedbackSection() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} noValidate className="space-y-5">
+              {/* Spam honeypot */}
+              <input
+                type="text"
+                name="_gotcha"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                className="hidden"
+              />
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label
@@ -231,7 +299,14 @@ export function FeedbackSection() {
 
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
                 <p className="text-xs text-slate-400 font-mono-tech">
-                  Быстрый чат также открыт в{' '}
+                  Почта:{' '}
+                  <a
+                    href={`mailto:${FEEDBACK_TARGET_EMAIL}`}
+                    className="text-[#00f0ff] hover:underline"
+                  >
+                    {FEEDBACK_TARGET_EMAIL}
+                  </a>{' '}
+                  · Чат:{' '}
                   <a
                     href="https://t.me/geek_mes"
                     target="_blank"
@@ -244,10 +319,20 @@ export function FeedbackSection() {
 
                 <button
                   type="submit"
-                  className="cyber-btn px-7 py-3.5 bg-gradient-to-r from-[#00f0ff] via-[#ff007f] to-[#fcee0a] text-[#0b0714] font-cyber font-black text-xs sm:text-sm tracking-wider flex items-center justify-center gap-2 hover:opacity-95 shadow-pink-button-glow cursor-pointer"
+                  disabled={isSubmitting}
+                  className="cyber-btn px-7 py-3.5 bg-gradient-to-r from-[#00f0ff] via-[#ff007f] to-[#fcee0a] text-[#0b0714] font-cyber font-black text-xs sm:text-sm tracking-wider flex items-center justify-center gap-2 hover:opacity-95 disabled:opacity-70 shadow-pink-button-glow cursor-pointer"
                 >
-                  <Send className="w-4 h-4" />
-                  <span>ОТПРАВИТЬ ВОПРОС</span>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>ОТПРАВКА...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4" />
+                      <span>ОТПРАВИТЬ ВОПРОС</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -271,7 +356,7 @@ export function FeedbackSection() {
                       <p className="text-slate-300 truncate mt-1">{item.message}</p>
                     </div>
                     <span className="text-[11px] font-mono-tech text-[#fcee0a] shrink-0">
-                      Отправлено
+                      {item.deliveryStatus === 'sent' ? 'На admin@geek-voice.ru' : 'Сохранено'}
                     </span>
                   </div>
                 ))}
