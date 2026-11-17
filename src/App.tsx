@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
-import { ArrowUp, Bolt, Check, Hash, Mic, Send, Share2, ShieldCheck } from 'lucide-react';
+import { ArrowUp, Bolt, Check, Hash, Mic, PhoneCall, Send, Share2, ShieldCheck } from 'lucide-react';
 import { GeekLogo } from './components/GeekLogo';
 import { SecretRoomModal } from './components/SecretRoomModal';
 import { PlatformPreview } from './components/PlatformPreview';
@@ -48,7 +48,13 @@ export default function App() {
   const [isSecretRoomOpen, setIsSecretRoomOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [preBetaOpenSignal, setPreBetaOpenSignal] = useState(0);
   const voiceTapRef = useRef<VoicePanelTapState>({ count: 0, lastTapMs: 0 });
+
+  const handleOpenPreBeta = () => {
+    setPreBetaOpenSignal((prev) => prev + 1);
+    document.getElementById('preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   // Global keyboard shortcut Shift+G opens the Secret Room
   useEffect(() => {
@@ -150,16 +156,27 @@ export default function App() {
             </a>
           </nav>
 
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <button
+            type="button"
+            onClick={handleOpenPreBeta}
+            data-testid="header-prebeta-btn"
+            className="cyber-btn px-2.5 sm:px-4 py-2 sm:py-2.5 text-[10.5px] sm:text-xs font-cyber font-bold tracking-wider bg-[#150f24] border border-[#00f0ff]/70 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#0b0714] shadow-neon-cyan flex items-center gap-1.5 sm:gap-2 whitespace-nowrap cursor-pointer"
+          >
+            <PhoneCall className="w-3.5 h-3.5 shrink-0" />
+            <span className="sm:hidden">СВЯЗЬ</span>
+            <span className="hidden sm:inline">PRE-BETA СВЯЗЬ</span>
+          </button>
           <a
             href="https://t.me/geek_mes"
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Telegram канал Geek"
-            className="cyber-btn px-3 sm:px-5 py-2.5 text-[11px] sm:text-xs font-cyber font-bold tracking-wider bg-[#150f24] border border-[#ff007f]/60 text-[#ff007f] hover:bg-[#ff007f] hover:text-white shadow-neon-pink flex items-center gap-1.5 sm:gap-2 whitespace-nowrap"
+            className="cyber-btn px-2.5 sm:px-5 py-2 sm:py-2.5 text-[10.5px] sm:text-xs font-cyber font-bold tracking-wider bg-[#150f24] border border-[#ff007f]/60 text-[#ff007f] hover:bg-[#ff007f] hover:text-white shadow-neon-pink flex items-center gap-1.5 sm:gap-2 whitespace-nowrap"
           >
             <Send className="w-3.5 h-3.5 shrink-0" />
-            <span>TELEGRAM</span>
+            <span className="sm:hidden">TG</span>
+            <span className="hidden sm:inline">TELEGRAM</span>
             <span className="hidden md:inline">КАНАЛ</span>
           </a>
         </div>
@@ -216,7 +233,17 @@ export default function App() {
               Первыми узнай о дате закрытого бета-тестирования, получи эксклюзивный доступ и
               ранние привилегии на сервере.
             </p>
-            <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-3 pt-1">
+            <div className="w-full flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleOpenPreBeta}
+                data-testid="hero-prebeta-btn"
+                className="cyber-btn w-full sm:w-auto px-6 py-4 rounded-xl bg-[#00f0ff] text-[#0b0714] font-cyber font-black text-xs sm:text-sm tracking-wider hover:brightness-110 transform hover:scale-[1.02] transition-all duration-200 shadow-neon-cyan flex items-center justify-center gap-2.5 whitespace-nowrap cursor-pointer"
+              >
+                <PhoneCall className="w-4 h-4 shrink-0" />
+                <span>PRE-BETA СВЯЗЬ · 30 МИН</span>
+              </button>
+
               <a
                 href="https://t.me/geek_mes"
                 target="_blank"
@@ -311,7 +338,7 @@ export default function App() {
         </section>
 
         {/* Interactive Platform Workspace Preview */}
-        <PlatformPreview />
+        <PlatformPreview openPreBetaSignal={preBetaOpenSignal} />
 
         {/* Roadmap Section */}
         <RoadmapSection />

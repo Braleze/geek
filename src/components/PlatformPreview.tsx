@@ -61,7 +61,7 @@ function CyberBadge({ setKey }: { setKey: PreviewBadgeSet }) {
   );
 }
 
-export function PlatformPreview() {
+export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?: number }) {
   const [activeServerId, setActiveServerId] = useState<PreviewServerId>('cy-4371');
   const [preBetaMode, setPreBetaMode] = useState<boolean>(false);
   const [initialPreBetaCode, setInitialPreBetaCode] = useState<string>('');
@@ -97,6 +97,12 @@ export function PlatformPreview() {
       // Ignore malformed URL params
     }
   }, []);
+
+  useEffect(() => {
+    if (openPreBetaSignal > 0) {
+      setPreBetaMode(true);
+    }
+  }, [openPreBetaSignal]);
 
   const activeServer =
     PREVIEW_SERVERS.find((srv) => srv.id === activeServerId) ?? PREVIEW_SERVERS[0];
@@ -195,8 +201,47 @@ export function PlatformPreview() {
           </h2>
         </div>
         <p className="text-sm text-slate-400 max-w-md">
-          Переключайте серверы и текстовые каналы, напишите сообщение в консоль или проверьте управление голосовым эфиром.
+          Переключайте серверы, тестируйте чат или запустите живую Pre-Beta связь 1-на-1 по уникальному коду.
         </p>
+      </div>
+
+      {/* Prominent Mode Switcher Bar */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#0b1220]/90 border border-[#00f0ff]/25 p-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setPreBetaMode(false)}
+            aria-pressed={!preBetaMode}
+            className={`px-4 py-2.5 rounded-xl font-cyber font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer ${
+              !preBetaMode
+                ? 'bg-[#00f0ff]/20 border border-[#00f0ff] text-white'
+                : 'bg-[#060b14] border border-white/10 text-slate-300 hover:text-white'
+            }`}
+          >
+            Обзор клиента (Демо-серверы)
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreBetaMode(true)}
+            aria-pressed={preBetaMode}
+            data-testid="prebeta-banner-btn"
+            className={`px-4 py-2.5 rounded-xl font-cyber font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-colors cursor-pointer ${
+              preBetaMode
+                ? 'bg-[#ff2a85] border border-[#ff2a85] text-white shadow-[0_0_20px_rgba(255,42,133,0.45)]'
+                : 'bg-gradient-to-r from-[#ff2a85]/25 to-[#00f0ff]/20 border border-[#ff2a85]/70 text-[#ff9ec7] hover:text-white hover:border-[#ff2a85]'
+            }`}
+          >
+            <PhoneCall className="w-4 h-4 shrink-0" />
+            <span>
+              {preBeta.roomSnapshot
+                ? `PRE-BETA СВЯЗЬ АКТИВНА · ${formatCountdownMs(preBeta.remainingMs)}`
+                : 'PRE-BETA СВЯЗЬ 1-НА-1 · 30 МИН ДО РЕЛИЗА'}
+            </span>
+          </button>
+        </div>
+        <span className="text-[11px] font-mono-tech text-[#fcee0a] px-2">
+          1 одноразовый код · макс. 2 участника · лимит 30:00
+        </span>
       </div>
 
       {/* Authentic GEEK // CYBER.NET Application Window */}
