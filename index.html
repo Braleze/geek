@@ -3782,15 +3782,19 @@
           var pbSignalChain = Promise.resolve();
           var pbWebrtcTrackOk = false;
           var pbRelayTimer = null;
+          var pbDisconnectTimer = null;
           var pbRelayActive = false;
           var pbCapCtx = null;
           var pbCapProc = null;
           var pbCapSrc = null;
           var pbCapGain = null;
+          var pbResamplePhase = 0;
+          var pbResamplePrev = 0;
           var pbHttpPcmBuf = [];
           var pbHttpPcmTs = 0;
           var pbPlayCtx = null;
           var pbPlayNextTs = 0;
+          var pbActiveSources = [];
           var pbPollTimer = null;
           var pbPollMs = 750;
           var pbLocalCh = null;
@@ -3836,10 +3840,22 @@
             if (pbPollTimer) { clearInterval(pbPollTimer); pbPollTimer = null; }
           }
 
+          function pbStopRelayPlayback() {
+            pbActiveSources.forEach(function (src) {
+              src.onended = null;
+              try { src.stop(); src.disconnect(); } catch (e) {}
+            });
+            pbActiveSources = [];
+            pbPlayNextTs = 0;
+          }
+
           function pbStopRelayCapture() {
             pbRelayActive = false;
             pbHttpPcmBuf = [];
+            pbResamplePhase = 0;
+            pbResamplePrev = 0;
             if (pbRelayTimer) { clearTimeout(pbRelayTimer); pbRelayTimer = null; }
+            if (pbDisconnectTimer) { clearTimeout(pbDisconnectTimer); pbDisconnectTimer = null; }
             if (pbCapProc) { pbCapProc.onaudioprocess = null; try { pbCapProc.disconnect(); } catch (e) {} pbCapProc = null; }
             if (pbCapSrc) { try { pbCapSrc.disconnect(); } catch (e) {} pbCapSrc = null; }
             if (pbCapGain) { try { pbCapGain.disconnect(); } catch (e) {} pbCapGain = null; }
@@ -3857,6 +3873,7 @@
 
           function pbCleanupRtc() {
             pbStopRelayCapture();
+            pbStopRelayPlayback();
             pbPendingIce = [];
             pbWebrtcTrackOk = false;
             pbRemoteStream = null;
@@ -3866,6 +3883,7 @@
               pbPc.onicecandidate = null;
               pbPc.ontrack = null;
               pbPc.onconnectionstatechange = null;
+              pbPc.oniceconnectionstatechange = null;
               pbPc.close();
               pbPc = null;
             }
@@ -4112,19 +4130,33 @@
               var gain = ctx.createGain();
               gain.gain.value = 0;
               pbCapSrc = src; pbCapProc = proc; pbCapGain = gain;
+              pbResamplePhase = 0; pbResamplePrev = 0;
               pbHttpPcmBuf = []; pbHttpPcmTs = performance.now();
               proc.onaudioprocess = function (ev) {
-                if (!pbRelayActive || pbMicMuted || !pbRoom || (pbRoom.participants || []).length < 2) return;
-                var inp = ev.inputBuffer.getChannelData(0), ratio = ctx.sampleRate / 16000, outLen = Math.max(1, Math.floor(inp.length / ratio));
-                var pcm = new Int16Array(outLen), peak = 0;
-                for (var i = 0; i < outLen; i++) {
-                  var pos = i * ratio, ix = Math.floor(pos), fr = pos - ix, s0 = inp[ix] || 0, s1 = inp[Math.min(ix + 1, inp.length - 1)] || s0;
-                  var v = s0 + (s1 - s0) * fr; if (Math.abs(v) > peak) peak = Math.abs(v);
-                  var c = Math.max(-1, Math.min(1, v)); pcm[i] = c < 0 ? Math.round(c * 32768) : Math.round(c * 32767);
+                if (!pbRelayActive || pbAudioMode === 'webrtc' || pbMicMuted || !pbRoom || (pbRoom.participants || []).length < 2) return;
+                var inp = ev.inputBuffer.getChannelData(0), ratio = ctx.sampleRate / 16000;
+                var maxOut = Math.ceil((inp.length + 1) / ratio) + 1;
+                var tmp = new Int16Array(maxOut), outCount = 0, peak = 0, pos = pbResamplePhase;
+                while (pos < inp.length) {
+                  var v;
+                  if (pos < 0) {
+                    var fr0 = pos + 1, b0 = pbResamplePrev, b1 = inp[0] != null ? inp[0] : b0;
+                    v = b0 + (b1 - b0) * fr0;
+                  } else {
+                    var ix = Math.floor(pos), fr = pos - ix, s0 = inp[ix] != null ? inp[ix] : pbResamplePrev, s1 = inp[Math.min(ix + 1, inp.length - 1)] != null ? inp[Math.min(ix + 1, inp.length - 1)] : s0;
+                    v = s0 + (s1 - s0) * fr;
+                  }
+                  if (Math.abs(v) > peak) peak = Math.abs(v);
+                  var c = Math.max(-1, Math.min(1, v));
+                  tmp[outCount++] = c < 0 ? Math.round(c * 32768) : Math.round(c * 32767);
+                  pos += ratio;
                 }
-                if (peak < 0.0003) return;
+                pbResamplePhase = pos - inp.length;
+                pbResamplePrev = inp[inp.length - 1] || 0;
+                if (peak < 0.0003 || outCount === 0) return;
+                var pcm = tmp.subarray(0, outCount);
                 if (pbTransport === 'node-ws') { pbSendSignal('audio', { sr: 16000, data: pbEncodeInt16B64(pcm) }); return; }
-                pbHttpPcmBuf.push(pcm);
+                pbHttpPcmBuf.push(pcm.slice());
                 var now = performance.now();
                 if (now - pbHttpPcmTs >= 160) {
                   pbHttpPcmTs = now;
@@ -4141,24 +4173,43 @@
             } catch (e) {}
           }
 
+          function pbIsWebRtcLive(pc) {
+            if (!pc || !pbWebrtcTrackOk) return false;
+            return pc.connectionState === 'connected' || pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed';
+          }
+
+          function pbSwitchToWebRtc() {
+            pbStopRelayCapture();
+            pbStopRelayPlayback();
+            pbAudioMode = 'webrtc';
+            pbRtcStatus = 'connected';
+            if (pbRemoteAudio) {
+              pbRemoteAudio.muted = pbDeafened;
+              if (pbRemoteStream && pbRemoteAudio.paused) pbRemoteAudio.play().catch(function () { pbAudioUnlockNeeded = true; renderPreBeta(); });
+            }
+            renderPreBeta();
+          }
+
           function pbActivateRelay() {
             if (!pbRoom || (pbRoom.participants || []).length < 2) return;
-            if (pbPc && pbPc.connectionState === 'connected' && pbWebrtcTrackOk) return;
+            if (pbIsWebRtcLive(pbPc)) { pbSwitchToWebRtc(); return; }
             pbRelayActive = true;
-            if (pbAudioMode !== 'webrtc') pbAudioMode = 'relay';
+            pbAudioMode = 'relay';
             pbRtcStatus = 'connected';
+            if (pbRemoteAudio) pbRemoteAudio.muted = true;
             if (pbLocalStream) pbStartRelayCapture();
             renderPreBeta();
           }
 
           function pbScheduleRelay() {
+            if (pbAudioMode === 'webrtc' || pbIsWebRtcLive(pbPc)) return;
             if (pbRelayTimer) clearTimeout(pbRelayTimer);
-            pbRelayTimer = setTimeout(function () { pbRelayTimer = null; pbActivateRelay(); }, 2800);
+            pbRelayTimer = setTimeout(function () { pbRelayTimer = null; pbActivateRelay(); }, 4200);
           }
 
           function pbHandleIncomingAudio(sr, b64) {
             if (pbDeafened || !b64) return;
-            if (pbPc && pbPc.connectionState === 'connected' && pbWebrtcTrackOk) return;
+            if (pbAudioMode === 'webrtc' || pbIsWebRtcLive(pbPc)) return;
             var samples = pbDecodeB64Float(b64);
             if (!samples) return;
             var AC = window.AudioContext || window.webkitAudioContext;
@@ -4171,18 +4222,38 @@
             try {
               var buf = pbPlayCtx.createBuffer(1, samples.length, sr || 16000);
               buf.copyToChannel(samples, 0);
-              var s = pbPlayCtx.createBufferSource(); s.buffer = buf; s.connect(pbPlayCtx.destination);
-              var now = pbPlayCtx.currentTime;
-              if (pbPlayNextTs < now || pbPlayNextTs - now > 0.35) pbPlayNextTs = now + 0.025;
-              s.start(pbPlayNextTs); pbPlayNextTs += buf.duration;
-              pbRelayActive = true; if (pbAudioMode !== 'webrtc') pbAudioMode = 'relay'; pbRtcStatus = 'connected';
+              var now = pbPlayCtx.currentTime, startAt;
+              if (pbPlayNextTs <= now) {
+                startAt = now + 0.03;
+              } else if (pbPlayNextTs - now > 0.7) {
+                pbStopRelayPlayback();
+                startAt = now + 0.03;
+              } else if (pbPlayNextTs - now > 0.42) {
+                return;
+              } else {
+                startAt = pbPlayNextTs;
+              }
+              var s = pbPlayCtx.createBufferSource();
+              s.buffer = buf;
+              s.connect(pbPlayCtx.destination);
+              pbActiveSources.push(s);
+              s.onended = function () {
+                var idx = pbActiveSources.indexOf(s);
+                if (idx !== -1) pbActiveSources.splice(idx, 1);
+              };
+              s.start(startAt);
+              pbPlayNextTs = startAt + buf.duration;
+              pbRelayActive = true;
+              if (pbRemoteAudio) pbRemoteAudio.muted = true;
+              pbAudioMode = 'relay';
+              pbRtcStatus = 'connected';
               renderPreBeta();
             } catch (e) {}
           }
 
           function pbEnsurePc(forceFresh) {
             if (forceFresh && pbPc) {
-              pbPc.onicecandidate = null; pbPc.ontrack = null; pbPc.onconnectionstatechange = null; pbPc.close(); pbPc = null;
+              pbPc.onicecandidate = null; pbPc.ontrack = null; pbPc.onconnectionstatechange = null; pbPc.oniceconnectionstatechange = null; pbPc.close(); pbPc = null;
               pbPendingIce = []; pbWebrtcTrackOk = false;
             }
             if (pbPc && pbPc.connectionState !== 'closed' && pbPc.connectionState !== 'failed') return pbPc;
@@ -4197,32 +4268,52 @@
             pc.onicecandidate = function (ev) {
               if (ev.candidate) pbSendSignal('ice', ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate);
             };
+            function evalRtc() {
+              if (pbIsWebRtcLive(pc)) {
+                if (pbDisconnectTimer) { clearTimeout(pbDisconnectTimer); pbDisconnectTimer = null; }
+                pbSwitchToWebRtc();
+                return;
+              }
+              if (pc.connectionState === 'connected') {
+                if (pbDisconnectTimer) { clearTimeout(pbDisconnectTimer); pbDisconnectTimer = null; }
+                if (pbRelayTimer) { clearTimeout(pbRelayTimer); pbRelayTimer = null; }
+                pbRtcStatus = 'connected';
+                renderPreBeta();
+                return;
+              }
+              if (pc.connectionState === 'failed' || pc.iceConnectionState === 'failed') {
+                pbActivateRelay();
+                return;
+              }
+              if (pc.connectionState === 'disconnected' || pc.iceConnectionState === 'disconnected') {
+                if (!pbDisconnectTimer && pbAudioMode !== 'relay') {
+                  pbDisconnectTimer = setTimeout(function () {
+                    pbDisconnectTimer = null;
+                    if (pbPc === pc && !pbIsWebRtcLive(pc)) pbActivateRelay();
+                  }, 2000);
+                }
+                return;
+              }
+              if (pc.connectionState === 'connecting' || pc.connectionState === 'new') {
+                if (!pbRelayActive && pbAudioMode !== 'webrtc') { pbRtcStatus = 'negotiating'; renderPreBeta(); }
+              }
+            }
             pc.ontrack = function (ev) {
               var stream = (ev.streams && ev.streams[0]) || new MediaStream([ev.track]);
               pbRemoteStream = stream; pbWebrtcTrackOk = true;
               if (pbRemoteAudio) {
-                pbRemoteAudio.srcObject = stream;
-                pbRemoteAudio.muted = pbDeafened;
-                var pr = pbRemoteAudio.play();
-                if (pr && pr.then) pr.then(function () { pbAudioUnlockNeeded = false; renderPreBeta(); }).catch(function () { pbAudioUnlockNeeded = true; renderPreBeta(); });
+                var same = pbRemoteAudio.srcObject === stream;
+                if (!same) pbRemoteAudio.srcObject = stream;
+                pbRemoteAudio.muted = pbAudioMode === 'relay' ? true : pbDeafened;
+                if (!same || pbRemoteAudio.paused) {
+                  var pr = pbRemoteAudio.play();
+                  if (pr && pr.then) pr.then(function () { pbAudioUnlockNeeded = false; renderPreBeta(); }).catch(function () { pbAudioUnlockNeeded = true; renderPreBeta(); });
+                }
               }
-              pbStopRelayCapture();
-              pbAudioMode = 'webrtc';
-              pbRtcStatus = 'connected';
-              renderPreBeta();
+              evalRtc();
             };
-            pc.onconnectionstatechange = function () {
-              if (pc.connectionState === 'connected') {
-                if (pbRelayTimer) { clearTimeout(pbRelayTimer); pbRelayTimer = null; }
-                if (pbWebrtcTrackOk) { pbStopRelayCapture(); pbAudioMode = 'webrtc'; }
-                pbRtcStatus = 'connected';
-              } else if (pc.connectionState === 'connecting' || pc.connectionState === 'new') {
-                if (!pbRelayActive) pbRtcStatus = 'negotiating';
-              } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected') {
-                pbActivateRelay();
-              }
-              renderPreBeta();
-            };
+            pc.onconnectionstatechange = evalRtc;
+            pc.oniceconnectionstatechange = evalRtc;
             return pc;
           }
 
@@ -4241,7 +4332,7 @@
                 var pc = pbEnsurePc(true);
                 pbScheduleRelay();
                 if (!pc) return;
-                if (!pbRelayActive) pbRtcStatus = 'negotiating';
+                if (!pbRelayActive && pbAudioMode !== 'webrtc') pbRtcStatus = 'negotiating';
                 return pc.createOffer().then(function (offer) {
                   return pc.setLocalDescription(offer).then(function () { pbSendSignal('offer', offer); });
                 });
@@ -4249,13 +4340,15 @@
               var pc2 = pbEnsurePc(false);
               if (!pc2) return;
               if (signalType === 'offer' && payload) {
-                if (!pbRelayActive) pbRtcStatus = 'negotiating';
+                if (!pbRelayActive && pbAudioMode !== 'webrtc') pbRtcStatus = 'negotiating';
                 pbScheduleRelay();
-                return pc2.setRemoteDescription(new RTCSessionDescription(payload))
+                var prep = pc2.signalingState !== 'stable' ? pc2.setLocalDescription({ type: 'rollback' }).catch(function () {}) : Promise.resolve();
+                return prep.then(function () { return pc2.setRemoteDescription(new RTCSessionDescription(payload)); })
                   .then(function () { return pbFlushIce(pc2); })
                   .then(function () { return pc2.createAnswer(); })
                   .then(function (ans) { return pc2.setLocalDescription(ans).then(function () { pbSendSignal('answer', ans); }); });
               } else if (signalType === 'answer' && payload) {
+                if (pc2.signalingState !== 'have-local-offer') return;
                 return pc2.setRemoteDescription(new RTCSessionDescription(payload))
                   .then(function () { return pbFlushIce(pc2); });
               } else if (signalType === 'ice' && payload) {
@@ -4424,6 +4517,7 @@
               if (AC && !pbPlayCtx) pbPlayCtx = new AC();
               if (pbPlayCtx && pbPlayCtx.state === 'suspended') pbPlayCtx.resume().catch(function () {});
             } catch (e) {}
+            pbCleanupRtc();
             pbShowError(''); pbBusy = true; renderPreBeta();
             var effNick = String(customNick != null ? customNick : (pbNickInput ? pbNickInput.value : '')).trim();
             var getMic = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
@@ -4763,10 +4857,12 @@
           if (pbDeafBtn) {
             pbDeafBtn.addEventListener('click', function () {
               pbDeafened = !pbDeafened;
-              if (pbRemoteAudio) pbRemoteAudio.muted = pbDeafened;
-              if (!pbDeafened) {
+              if (pbRemoteAudio) pbRemoteAudio.muted = pbAudioMode === 'relay' ? true : pbDeafened;
+              if (pbDeafened) {
+                pbStopRelayPlayback();
+              } else {
                 pbAudioUnlockNeeded = false;
-                if (pbRemoteAudio && pbRemoteStream) { pbRemoteAudio.srcObject = pbRemoteStream; pbRemoteAudio.play().catch(function () {}); }
+                if (pbRemoteAudio && pbRemoteStream && pbAudioMode !== 'relay') { pbRemoteAudio.srcObject = pbRemoteStream; pbRemoteAudio.play().catch(function () {}); }
                 if (pbPlayCtx && pbPlayCtx.state === 'suspended') pbPlayCtx.resume().catch(function () {});
               }
               renderPreBeta();
@@ -4775,7 +4871,11 @@
           if (pbUnlockAudioBtn) {
             pbUnlockAudioBtn.addEventListener('click', function () {
               pbAudioUnlockNeeded = false;
-              if (pbRemoteAudio && pbRemoteStream) { pbRemoteAudio.srcObject = pbRemoteStream; pbRemoteAudio.muted = pbDeafened; pbRemoteAudio.play().catch(function () {}); }
+              if (pbRemoteAudio && pbRemoteStream) {
+                pbRemoteAudio.srcObject = pbRemoteStream;
+                pbRemoteAudio.muted = pbAudioMode === 'relay' ? true : pbDeafened;
+                pbRemoteAudio.play().catch(function () {});
+              }
               if (pbPlayCtx && pbPlayCtx.state === 'suspended') pbPlayCtx.resume().catch(function () {});
               if (pbCapCtx && pbCapCtx.state === 'suspended') pbCapCtx.resume().catch(function () {});
               renderPreBeta();
@@ -4791,10 +4891,23 @@
                   pbShowError('');
                   if (pbTransport === 'node-ws' && pbWs && pbWs.readyState === 1) pbWs.send(JSON.stringify({ type: 'peer:update', hasAudio: true }));
                   else if (pbRoom && pbMyPeerId && pbTransport !== 'local') fetch(pbGetUrls(pbTransport).peer, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: pbRoom.code, peerId: pbMyPeerId, hasAudio: true }) }).catch(function () {});
-                  if (pbRelayActive) pbStartRelayCapture();
+                  if (pbRelayActive && pbAudioMode !== 'webrtc') pbStartRelayCapture();
                   if (pbPc && pbPc.connectionState !== 'closed') {
-                    s.getAudioTracks().forEach(function (t) { pbPc.addTrack(t, s); });
-                    pbHandleRtcSignal('initiate', null);
+                    var audioTrack = s.getAudioTracks()[0];
+                    var trans = (pbPc.getTransceivers ? pbPc.getTransceivers() : []).find(function (t) {
+                      return (t.receiver && t.receiver.track && t.receiver.track.kind === 'audio') || (t.sender && t.sender.track && t.sender.track.kind === 'audio');
+                    });
+                    if (trans && audioTrack) {
+                      trans.direction = 'sendrecv';
+                      trans.sender.replaceTrack(audioTrack).then(function () {
+                        return pbPc.createOffer();
+                      }).then(function (offer) {
+                        return pbPc.setLocalDescription(offer).then(function () { pbSendSignal('offer', offer); });
+                      }).catch(function () {});
+                    } else if (audioTrack) {
+                      pbPc.addTrack(audioTrack, s);
+                      pbHandleRtcSignal('initiate', null);
+                    }
                   }
                   renderPreBeta();
                 })
