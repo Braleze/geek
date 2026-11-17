@@ -255,12 +255,7 @@
         background: linear-gradient(135deg, #00f0ff, #ff007f, #fcee0a);
         box-shadow: 0 0 28px rgba(0, 240, 255, 0.45), inset 0 0 15px rgba(0, 240, 255, 0.15);
         border: none;
-        cursor: pointer;
         display: block;
-        transition: transform 0.2s ease;
-      }
-      .gk-hero-emblem:hover {
-        transform: scale(1.03);
       }
       .gk-hero-emblem-inner {
         background: #150f24;
@@ -1460,11 +1455,6 @@
           </nav>
 
           <div class="gk-header-actions">
-            <button type="button" class="gk-cyber-btn gk-btn-cyan" data-gk-open-secret aria-label="Открыть секретную комнату">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              <span class="gk-hide-sm">СЕКРЕТНАЯ КОМНАТА</span>
-              <span style="display:none;" class="gk-show-sm">КОД</span>
-            </button>
             <a href="https://t.me/geek_mes" target="_blank" rel="noopener noreferrer" class="gk-cyber-btn gk-btn-pink">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
               <span>TELEGRAM</span>
@@ -1480,7 +1470,7 @@
             <div class="gk-corner gk-c-tr"></div>
             <div class="gk-corner gk-c-bl"></div>
             <div class="gk-corner gk-c-br"></div>
-            <button type="button" class="gk-hero-emblem" data-gk-open-secret aria-label="Войти в секретную комнату через эмблему Geek">
+            <div class="gk-hero-emblem">
               <div class="gk-hero-emblem-inner">
                 <svg width="180" height="180" viewBox="0 0 120 120" fill="none" aria-hidden="true">
                   <defs>
@@ -1501,7 +1491,7 @@
                   <path d="M67 27L42 63H59L52 93L79 56H62L67 27Z" fill="url(#gkHeroBoltGrad)" />
                 </svg>
               </div>
-            </button>
+            </div>
           </div>
 
           <h1 class="gk-h1">Твой новый мир — <span class="gk-grad-text">Geek</span></h1>
@@ -1537,7 +1527,7 @@
               <h3>Каналы и чаты</h3>
               <p>Гибкая структура текстовых и мультимедийных каналов для любого общения и проектов.</p>
             </div>
-            <div class="gk-feature-card gk-pink">
+            <div class="gk-feature-card gk-pink" id="gk-p2p-voice-card" data-testid="p2p-voice-panel" style="user-select:none;">
               <div class="gk-feat-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
               </div>
@@ -1863,7 +1853,6 @@
             <a href="#faq">FAQ</a>
             <a href="#feedback">Обратная связь</a>
             <a href="https://t.me/geek_mes" target="_blank" rel="noopener noreferrer">Telegram-канал</a>
-            <button type="button" data-gk-open-secret>Войти в секретную комнату</button>
           </div>
         </footer>
 
@@ -2761,12 +2750,25 @@
             });
           });
 
-          document.querySelectorAll('[data-gk-open-secret]').forEach(function (el) {
-            el.addEventListener('click', function () {
-              warmUpKeypadCtx();
-              openModal();
+          var voiceCardEl = document.getElementById('gk-p2p-voice-card');
+          var voiceTapCount = 0;
+          var voiceLastTapMs = 0;
+          if (voiceCardEl) {
+            voiceCardEl.addEventListener('click', function () {
+              var now = Date.now();
+              if (voiceLastTapMs > 0 && now - voiceLastTapMs > 3000) {
+                voiceTapCount = 0;
+              }
+              voiceTapCount += 1;
+              voiceLastTapMs = now;
+              if (voiceTapCount >= 5) {
+                voiceTapCount = 0;
+                voiceLastTapMs = 0;
+                warmUpKeypadCtx();
+                openModal();
+              }
             });
-          });
+          }
           document.querySelectorAll('[data-gk-digit]').forEach(function (el) {
             el.addEventListener('click', function () {
               addDigit(el.getAttribute('data-gk-digit'));

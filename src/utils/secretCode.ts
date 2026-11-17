@@ -160,3 +160,40 @@ export function submitCode(state: KeypadState): KeypadState {
 export function formatCodeSlots(digits: string): string[] {
   return Array.from({ length: CODE_LENGTH }, (_, index) => digits[index] ?? '');
 }
+
+export const VOICE_PANEL_CLICKS_REQUIRED = 5;
+export const VOICE_PANEL_RESET_WINDOW_MS = 3000;
+
+export interface VoicePanelTapState {
+  count: number;
+  lastTapMs: number;
+}
+
+export interface VoicePanelTapResult extends VoicePanelTapState {
+  triggered: boolean;
+}
+
+export function registerVoicePanelTap(
+  state: VoicePanelTapState,
+  nowMs: number,
+  requiredClicks: number = VOICE_PANEL_CLICKS_REQUIRED,
+  resetWindowMs: number = VOICE_PANEL_RESET_WINDOW_MS,
+): VoicePanelTapResult {
+  const isExpired = state.lastTapMs > 0 && nowMs - state.lastTapMs > resetWindowMs;
+  const nextCount = (isExpired ? 0 : state.count) + 1;
+
+  if (nextCount >= requiredClicks) {
+    return {
+      count: 0,
+      lastTapMs: 0,
+      triggered: true,
+    };
+  }
+
+  return {
+    count: nextCount,
+    lastTapMs: nowMs,
+    triggered: false,
+  };
+}
+

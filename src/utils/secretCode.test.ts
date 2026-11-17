@@ -5,10 +5,12 @@ import {
   clearDigits,
   createInitialKeypadState,
   formatCodeSlots,
+  registerVoicePanelTap,
   removeDigit,
   resolveSecretCode,
   submitCode,
   verifySecretCode,
+  VOICE_PANEL_CLICKS_REQUIRED,
 } from './secretCode';
 
 const codeA = [50, 48, 50, 55].map((c) => String.fromCharCode(c)).join('');
@@ -99,4 +101,24 @@ test('formatCodeSlots always returns 4 slot strings', () => {
   assert.deepEqual(formatCodeSlots(''), ['', '', '', '']);
   assert.deepEqual(formatCodeSlots('20'), ['2', '0', '', '']);
   assert.deepEqual(formatCodeSlots('9999'), ['9', '9', '9', '9']);
+});
+
+test('registerVoicePanelTap triggers only on 5 consecutive clicks within window', () => {
+  let state = { count: 0, lastTapMs: 0 };
+  for (let i = 1; i < VOICE_PANEL_CLICKS_REQUIRED; i++) {
+    const res = registerVoicePanelTap(state, 1000 + i * 200);
+    assert.equal(res.triggered, false);
+    assert.equal(res.count, i);
+    state = { count: res.count, lastTapMs: res.lastTapMs };
+  }
+
+  const triggerRes = registerVoicePanelTap(state, 2000);
+  assert.equal(triggerRes.triggered, true);
+  assert.equal(triggerRes.count, 0);
+
+  // Stale gap (> 3000ms) resets the sequence cleanly
+  let timedState = { count: 3, lastTapMs: 1000 };
+  const afterGap = registerVoicePanelTap(timedState, 5000);
+  assert.equal(afterGap.triggered, false);
+  assert.equal(afterGap.count, 1);
 });

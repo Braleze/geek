@@ -1,11 +1,13 @@
-import { useEffect, useState, type CSSProperties, type PointerEvent } from 'react';
-import { ArrowUp, Bolt, Check, Hash, KeyRound, Lock, Mic, Send, Share2, ShieldCheck } from 'lucide-react';
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { ArrowUp, Bolt, Check, Hash, Mic, Send, Share2, ShieldCheck } from 'lucide-react';
 import { GeekLogo } from './components/GeekLogo';
 import { SecretRoomModal } from './components/SecretRoomModal';
 import { PlatformPreview } from './components/PlatformPreview';
 import { RoadmapSection } from './components/RoadmapSection';
 import { FaqSection } from './components/FaqSection';
 import { FeedbackSection } from './components/FeedbackSection';
+import { registerVoicePanelTap, type VoicePanelTapState } from './utils/secretCode';
+import { warmUpKeypadAudio } from './utils/rickrollAudio';
 
 const FEATURES = [
   {
@@ -46,6 +48,7 @@ export default function App() {
   const [isSecretRoomOpen, setIsSecretRoomOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const voiceTapRef = useRef<VoicePanelTapState>({ count: 0, lastTapMs: 0 });
 
   // Global keyboard shortcut Shift+G opens the Secret Room
   useEffect(() => {
@@ -148,17 +151,6 @@ export default function App() {
           </nav>
 
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <button
-            type="button"
-            onClick={() => setIsSecretRoomOpen(true)}
-            aria-label="Открыть секретную комнату"
-            className="cyber-btn px-3 sm:px-4 py-2.5 text-xs font-cyber font-bold tracking-wider bg-[#150f24] border border-[#00f0ff]/45 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#0b0714] flex items-center gap-2 whitespace-nowrap cursor-pointer"
-          >
-            <Lock className="w-3.5 h-3.5 shrink-0" />
-            <span className="hidden sm:inline">СЕКРЕТНАЯ КОМНАТА</span>
-            <span className="sm:hidden">КОД</span>
-          </button>
-
           <a
             href="https://t.me/geek_mes"
             target="_blank"
@@ -179,24 +171,18 @@ export default function App() {
         id="top"
         className="relative z-20 flex-grow flex flex-col items-center justify-center text-center px-6 py-12 max-w-6xl mx-auto w-full"
       >
-        {/* Glowing Logo Container with Cyberpunk Corners (also acts as secret door) */}
+        {/* Glowing Logo Container with Cyberpunk Corners */}
         <div className="relative mb-12 floating">
           <div className="absolute -top-4 -left-4 w-10 h-10 border-t-2 border-l-2 border-[#00f0ff] z-20 pointer-events-none" />
           <div className="absolute -top-4 -right-4 w-10 h-10 border-t-2 border-r-2 border-[#ff007f] z-20 pointer-events-none" />
           <div className="absolute -bottom-4 -left-4 w-10 h-10 border-b-2 border-l-2 border-[#fcee0a] z-20 pointer-events-none" />
           <div className="absolute -bottom-4 -right-4 w-10 h-10 border-b-2 border-r-2 border-[#00f0ff] z-20 pointer-events-none" />
 
-          <button
-            type="button"
-            onClick={() => setIsSecretRoomOpen(true)}
-            aria-label="Войти в секретную комнату через эмблему Geek"
-            title="Нажмите, чтобы открыть секретную комнату"
-            className="p-3 bg-gradient-to-br from-[#00f0ff] via-[#ff007f] to-[#fcee0a] rounded-3xl shadow-neon-cyan block cursor-pointer hover:scale-[1.03] transition-transform focus-visible:outline-2 focus-visible:outline-[#00f0ff]"
-          >
+          <div className="p-3 bg-gradient-to-br from-[#00f0ff] via-[#ff007f] to-[#fcee0a] rounded-3xl shadow-neon-cyan block">
             <div className="bg-[#150f24] rounded-2xl p-5 overflow-hidden border border-white/10">
               <GeekLogo className="w-40 h-40 md:w-52 md:h-52" />
             </div>
-          </button>
+          </div>
         </div>
 
         {/* Title & Gradient */}
@@ -289,12 +275,24 @@ export default function App() {
               event.currentTarget.style.setProperty('--my', `${event.clientY - rect.top}px`);
             };
 
+            const handleVoicePanelClick = () => {
+              if (feature.id !== 'voice') return;
+              const next = registerVoicePanelTap(voiceTapRef.current, Date.now());
+              voiceTapRef.current = { count: next.count, lastTapMs: next.lastTapMs };
+              if (next.triggered) {
+                warmUpKeypadAudio();
+                setIsSecretRoomOpen(true);
+              }
+            };
+
             return (
               <div
                 key={feature.id}
                 onPointerMove={handleMove}
+                onClick={feature.id === 'voice' ? handleVoicePanelClick : undefined}
+                data-testid={feature.id === 'voice' ? 'p2p-voice-panel' : undefined}
                 style={{ '--spot-color': spotColor } as CSSProperties}
-                className={`neon-card p-6 rounded-2xl bg-[#150f24]/80 hover:bg-[#1c1432]/95 hover:-translate-y-1 border ${cardHover} backdrop-blur-md transition-all duration-300 group`}
+                className={`neon-card p-6 rounded-2xl bg-[#150f24]/80 hover:bg-[#1c1432]/95 hover:-translate-y-1 border ${cardHover} backdrop-blur-md transition-all duration-300 group select-none`}
               >
                 <div className="relative z-10">
                   <div
@@ -353,15 +351,6 @@ export default function App() {
             <Send className="w-3.5 h-3.5" />
             <span>Telegram-канал</span>
           </a>
-
-          <button
-            type="button"
-            onClick={() => setIsSecretRoomOpen(true)}
-            className="text-[#fcee0a] hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
-          >
-            <KeyRound className="w-3.5 h-3.5" />
-            <span>Войти в секретную комнату</span>
-          </button>
         </div>
       </footer>
 
