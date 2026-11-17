@@ -45,6 +45,7 @@ export function PreBetaWorkspace({
   const {
     nick,
     setNick,
+    transport,
     quota,
     roomSnapshot,
     myPeerId,
@@ -64,6 +65,15 @@ export function PreBetaWorkspace({
     toggleMicMute,
     toggleDeafen,
   } = controller;
+
+  const transportLabel =
+    transport === 'node-ws'
+      ? 'WEBSOCKET СИГНАЛИНГ + WEBRTC P2P AUDIO'
+      : transport === 'node-http'
+        ? 'HTTP-РЕТРАНСЛЯТОР + WEBRTC P2P AUDIO'
+        : transport === 'php-http'
+          ? 'PHP-СЕРВЕР СИГНАЛИНГ + WEBRTC P2P AUDIO'
+          : 'ЛОКАЛЬНЫЙ КАНАЛ ВКЛАДОК + WEBRTC P2P AUDIO';
 
   const [friendCodeInput, setFriendCodeInput] = useState(initialJoinCode);
   const [chatDraft, setChatDraft] = useState('');
@@ -151,13 +161,21 @@ export function PreBetaWorkspace({
             </div>
             <div className="shrink-0 flex flex-col items-start sm:items-end gap-1 rounded-lg bg-[#04070d]/90 border border-[#fcee0a]/45 px-3.5 py-2">
               <span className="text-[9.5px] font-mono-tech uppercase text-[#fcee0a]">
-                ЛИМИТ ДО РЕЛИЗА
+                {isActiveQuota && quota.paused ? 'ОСТАТОК · НА ПАУЗЕ' : 'ЛИМИТ ДО РЕЛИЗА'}
               </span>
               <span
                 data-testid="prebeta-quota-timer"
-                className="font-cyber font-black text-lg text-white tabular-nums"
+                className="font-cyber font-black text-lg text-white tabular-nums flex items-center gap-2"
               >
-                {quotaTimeLabel}
+                <span>{quotaTimeLabel}</span>
+                {isActiveQuota && quota.paused && (
+                  <span
+                    data-testid="prebeta-paused-badge"
+                    className="text-[9px] font-mono-tech px-1.5 py-0.5 rounded bg-[#00f0ff]/15 border border-[#00f0ff]/45 text-[#00f0ff]"
+                  >
+                    ПАУЗА
+                  </span>
+                )}
               </span>
             </div>
           </div>
@@ -248,7 +266,11 @@ export function PreBetaWorkspace({
                     className="w-full py-2.5 px-4 rounded-lg bg-[#00f0ff] text-[#031518] font-cyber font-black text-xs uppercase tracking-wider hover:brightness-110 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
                   >
                     <PhoneCall className="w-4 h-4" />
-                    <span>ВОЙТИ В СВОЙ ДИАЛОГ ({quotaTimeLabel})</span>
+                    <span>
+                      {quota.paused
+                        ? `ПРОДОЛЖИТЬ ДИАЛОГ (${quotaTimeLabel})`
+                        : `ВОЙТИ В СВОЙ ДИАЛОГ (${quotaTimeLabel})`}
+                    </span>
                   </button>
                 </div>
               ) : (
@@ -318,8 +340,8 @@ export function PreBetaWorkspace({
         </div>
 
         <div className="mt-5 pt-3 border-t border-[#00f0ff]/15 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono-tech text-[#63809b]">
-          <span>ПРОТОКОЛ: WEBSOCKET СИГНАЛИНГ + WEBRTC P2P AUDIO</span>
-          <span>ОГРАНИЧЕНИЕ PRE-BETA: 30:00 ДО РЕЛИЗА · 2 УЧАСТНИКА</span>
+          <span>ПРОТОКОЛ: {transportLabel}</span>
+          <span>ОГРАНИЧЕНИЕ PRE-BETA: 30:00 (ПАУЗА ПРИ ВЫХОДЕ) · 2 УЧАСТНИКА</span>
         </div>
       </div>
     );

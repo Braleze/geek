@@ -1,6 +1,7 @@
 export const PRE_BETA_DURATION_MS = 30 * 60 * 1000;
 export const PRE_BETA_MAX_PARTICIPANTS = 2;
 export const PRE_BETA_MAX_MESSAGES = 80;
+export const PRE_BETA_HTTP_IDLE_MS = 18_000;
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -11,6 +12,8 @@ export interface PreBetaParticipant {
   joinedAt: number;
   micMuted: boolean;
   hasAudio: boolean;
+  transport?: 'ws' | 'http';
+  lastSeenAt?: number;
 }
 
 export interface PreBetaChatMessage {
@@ -26,7 +29,9 @@ export interface PreBetaRoom {
   code: string;
   hostClientId: string;
   createdAt: number;
-  expiresAt: number;
+  remainingMs: number;
+  timerRunningSince: number | null;
+  expiresAt: number | null;
   participants: PreBetaParticipant[];
   messages: PreBetaChatMessage[];
 }
@@ -35,7 +40,8 @@ export interface ClientQuotaRecord {
   clientId: string;
   issuedCode: string;
   createdAt: number;
-  expiresAt: number;
+  remainingMs: number;
+  expiresAt?: number | null;
 }
 
 export interface PreBetaStoreState {
@@ -46,8 +52,9 @@ export interface PreBetaStoreState {
 export interface PublicRoomSnapshot {
   code: string;
   createdAt: number;
-  expiresAt: number;
+  expiresAt: number | null;
   remainingMs: number;
+  paused: boolean;
   maxParticipants: number;
   participants: Array<{
     peerId: string;
@@ -65,8 +72,9 @@ export type IssueCodeResult =
       alreadyIssued: boolean;
       code: string;
       createdAt: number;
-      expiresAt: number;
+      expiresAt: number | null;
       remainingMs: number;
+      paused: boolean;
     }
   | {
       ok: false;
@@ -80,6 +88,7 @@ export type JoinRoomResult =
       ok: true;
       peer: PreBetaParticipant;
       snapshot: PublicRoomSnapshot;
+      resumed: boolean;
     }
   | {
       ok: false;
@@ -135,8 +144,46 @@ export function generateUniqueRoomCode(
   throw new Error('Failed to generate unique pre-beta room code');
 }
 
-export function getRemainingMs(expiresAt: number, now: number): number {
+export function getRemainingMs(expiresAt: number | null, now: number): number {
+  if (typeof expiresAt !== 'number') return 0;
   return Math.max(0, expiresAt - now);
+}
+
+export function getRoomRemainingMs(room: PreBetaRoom, now: number): number {
+  if (room.timerRunningSince === null) {
+    return Math.max(0, room.remainingMs);
+  }
+  const elapsed = Math.max(0, now - room.timerRunningSince);
+  return Math.max(0, room.remainingMs - elapsed);
+}
+
+export function pauseRoomTimer(room: PreBetaRoom, now: number): boolean {
+  const left = getRoomRemainingMs(room, now);
+  room.remainingMs = left;
+  room.expiresAt = null;
+  if (room.timerRunningSince !== null) {
+    room.timerRunningSince = null;
+    return true;
+  }
+  return false;
+}
+
+export function resumeRoomTimer(room: PreBetaRoom, now: number): boolean {
+  const left = getRoomRemainingMs(room, now);
+  if (left <= 0) {
+    room.remainingMs = 0;
+    room.timerRunningSince = null;
+    room.expiresAt = null;
+    return false;
+  }
+  if (room.timerRunningSince === null) {
+    room.remainingMs = left;
+    room.timerRunningSince = now;
+    room.expiresAt = now + left;
+    return true;
+  }
+  room.expiresAt = room.timerRunningSince + room.remainingMs;
+  return false;
 }
 
 export function formatCountdownMs(remainingMs: number): string {
@@ -144,6 +191,15 @@ export function formatCountdownMs(remainingMs: number): string {
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
+function syncHostQuotaRecord(store: PreBetaStoreState, room: PreBetaRoom, now: number): void {
+  const rec = store.quotasByClientId[room.hostClientId];
+  if (rec) {
+    const left = getRoomRemainingMs(room, now);
+    rec.remainingMs = left;
+    rec.expiresAt = room.timerRunningSince !== null && left > 0 ? now + left : null;
+  }
 }
 
 export function getClientQuotaStatus(
@@ -155,6 +211,7 @@ export function getClientQuotaStatus(
   code: string | null;
   expiresAt: number | null;
   remainingMs: number;
+  paused: boolean;
 } {
   const clientId = sanitizeClientId(rawClientId);
   if (!clientId) {
@@ -163,6 +220,7 @@ export function getClientQuotaStatus(
       code: null,
       expiresAt: null,
       remainingMs: PRE_BETA_DURATION_MS,
+      paused: true,
     };
   }
 
@@ -173,24 +231,32 @@ export function getClientQuotaStatus(
       code: null,
       expiresAt: null,
       remainingMs: PRE_BETA_DURATION_MS,
+      paused: true,
     };
   }
 
-  const remainingMs = getRemainingMs(record.expiresAt, now);
+  const room = store.rooms[record.issuedCode];
+  const remainingMs = room
+    ? getRoomRemainingMs(room, now)
+    : Math.max(0, record.remainingMs);
+  const paused = room ? room.timerRunningSince === null : true;
+
   if (remainingMs <= 0) {
     return {
       status: 'EXHAUSTED',
       code: record.issuedCode,
-      expiresAt: record.expiresAt,
+      expiresAt: null,
       remainingMs: 0,
+      paused: false,
     };
   }
 
   return {
     status: 'ACTIVE',
     code: record.issuedCode,
-    expiresAt: record.expiresAt,
+    expiresAt: !paused ? now + remainingMs : null,
     remainingMs,
+    paused,
   };
 }
 
@@ -212,7 +278,12 @@ export function issueOneTimePreBetaCode(
 
   const existing = store.quotasByClientId[clientId];
   if (existing) {
-    const remainingMs = getRemainingMs(existing.expiresAt, now);
+    const room = store.rooms[existing.issuedCode];
+    const remainingMs = room
+      ? getRoomRemainingMs(room, now)
+      : Math.max(0, existing.remainingMs);
+    const paused = room ? room.timerRunningSince === null : true;
+
     if (remainingMs <= 0) {
       return {
         ok: false,
@@ -227,33 +298,36 @@ export function issueOneTimePreBetaCode(
       alreadyIssued: true,
       code: existing.issuedCode,
       createdAt: existing.createdAt,
-      expiresAt: existing.expiresAt,
+      expiresAt: !paused ? now + remainingMs : null,
       remainingMs,
+      paused,
     };
   }
 
   const code = generateUniqueRoomCode(store.rooms, randomFloat);
-  const expiresAt = now + PRE_BETA_DURATION_MS;
 
   store.quotasByClientId[clientId] = {
     clientId,
     issuedCode: code,
     createdAt: now,
-    expiresAt,
+    remainingMs: PRE_BETA_DURATION_MS,
+    expiresAt: null,
   };
 
   store.rooms[code] = {
     code,
     hostClientId: clientId,
     createdAt: now,
-    expiresAt,
+    remainingMs: PRE_BETA_DURATION_MS,
+    timerRunningSince: null,
+    expiresAt: null,
     participants: [],
     messages: [
       {
         id: `sys-create-${now}`,
         authorPeerId: 'system',
         authorNick: 'PRE-BETA ЯДРО',
-        text: 'Создан приватный канал 1-на-1. Таймер на 30 минут до релиза запущен.',
+        text: 'Создан приватный канал 1-на-1. Лимит: 30:00 (время ставится на паузу, когда в комнате никого нет).',
         timestamp: now,
         system: true,
       },
@@ -265,8 +339,9 @@ export function issueOneTimePreBetaCode(
     alreadyIssued: false,
     code,
     createdAt: now,
-    expiresAt,
+    expiresAt: null,
     remainingMs: PRE_BETA_DURATION_MS,
+    paused: true,
   };
 }
 
@@ -274,11 +349,14 @@ export function buildPublicRoomSnapshot(
   room: PreBetaRoom,
   now: number = Date.now(),
 ): PublicRoomSnapshot {
+  const remainingMs = getRoomRemainingMs(room, now);
+  const paused = room.timerRunningSince === null;
   return {
     code: room.code,
     createdAt: room.createdAt,
-    expiresAt: room.expiresAt,
-    remainingMs: getRemainingMs(room.expiresAt, now),
+    expiresAt: !paused && remainingMs > 0 ? now + remainingMs : null,
+    remainingMs,
+    paused,
     maxParticipants: PRE_BETA_MAX_PARTICIPANTS,
     participants: room.participants.map((p) => ({
       peerId: p.peerId,
@@ -299,6 +377,7 @@ export function joinPreBetaRoom(
     clientId: string;
     nick?: string;
     hasAudio?: boolean;
+    transport?: 'ws' | 'http';
   },
   now: number = Date.now(),
 ): JoinRoomResult {
@@ -329,8 +408,12 @@ export function joinPreBetaRoom(
     };
   }
 
-  if (getRemainingMs(room.expiresAt, now) <= 0) {
+  if (getRoomRemainingMs(room, now) <= 0) {
+    room.remainingMs = 0;
+    room.timerRunningSince = null;
+    room.expiresAt = null;
     room.participants = [];
+    syncHostQuotaRecord(store, room, now);
     return {
       ok: false,
       reason: 'ROOM_EXPIRED',
@@ -359,19 +442,33 @@ export function joinPreBetaRoom(
     joinedAt: now,
     micMuted: false,
     hasAudio: Boolean(params.hasAudio),
+    transport: params.transport ?? 'ws',
+    lastSeenAt: now,
   };
 
   if (existingIndex >= 0) {
     room.participants[existingIndex] = peer;
   } else {
     room.participants.push(peer);
+  }
+
+  const wasPausedWithPriorUsage =
+    room.timerRunningSince === null && room.remainingMs < PRE_BETA_DURATION_MS;
+  const resumed = resumeRoomTimer(room, now);
+  syncHostQuotaRecord(store, room, now);
+
+  if (existingIndex === -1) {
+    const leftText = formatCountdownMs(getRoomRemainingMs(room, now));
+    const resumeSuffix = wasPausedWithPriorUsage
+      ? ` Таймер продолжен с ${leftText}.`
+      : '';
     room.messages = [
       ...room.messages,
       {
         id: `sys-join-${now}-${params.peerId}`,
         authorPeerId: 'system',
         authorNick: 'PRE-BETA ЯДРО',
-        text: `${peer.nick} подключился к диалогу (${room.participants.length}/${PRE_BETA_MAX_PARTICIPANTS}).`,
+        text: `${peer.nick} подключился к диалогу (${room.participants.length}/${PRE_BETA_MAX_PARTICIPANTS}).${resumeSuffix}`,
         timestamp: now,
         system: true,
       },
@@ -382,6 +479,7 @@ export function joinPreBetaRoom(
     ok: true,
     peer,
     snapshot: buildPublicRoomSnapshot(room, now),
+    resumed,
   };
 }
 
@@ -390,25 +488,41 @@ export function leavePreBetaRoom(
   code: string,
   peerId: string,
   now: number = Date.now(),
-): { removedPeer: PreBetaParticipant | null; snapshot: PublicRoomSnapshot | null } {
+): { removedPeer: PreBetaParticipant | null; snapshot: PublicRoomSnapshot | null; pausedNow: boolean } {
   const room = store.rooms[code];
   if (!room) {
-    return { removedPeer: null, snapshot: null };
+    return { removedPeer: null, snapshot: null, pausedNow: false };
   }
 
   const index = room.participants.findIndex((p) => p.peerId === peerId);
   if (index === -1) {
-    return { removedPeer: null, snapshot: buildPublicRoomSnapshot(room, now) };
+    return {
+      removedPeer: null,
+      snapshot: buildPublicRoomSnapshot(room, now),
+      pausedNow: false,
+    };
   }
 
   const [removedPeer] = room.participants.splice(index, 1);
+  let pausedNow = false;
+  if (room.participants.length === 0) {
+    pausedNow = pauseRoomTimer(room, now);
+  }
+  syncHostQuotaRecord(store, room, now);
+
+  const leftText = formatCountdownMs(getRoomRemainingMs(room, now));
+  const pauseText =
+    room.participants.length === 0
+      ? ` Время остановлено на ${leftText} до повторного входа.`
+      : '';
+
   room.messages = [
     ...room.messages,
     {
       id: `sys-leave-${now}-${peerId}`,
       authorPeerId: 'system',
       authorNick: 'PRE-BETA ЯДРО',
-      text: `${removedPeer.nick} покинул диалог (${room.participants.length}/${PRE_BETA_MAX_PARTICIPANTS}).`,
+      text: `${removedPeer.nick} вышел из диалога (${room.participants.length}/${PRE_BETA_MAX_PARTICIPANTS}).${pauseText}`,
       timestamp: now,
       system: true,
     },
@@ -417,7 +531,32 @@ export function leavePreBetaRoom(
   return {
     removedPeer,
     snapshot: buildPublicRoomSnapshot(room, now),
+    pausedNow,
   };
+}
+
+export function pruneStaleHttpParticipants(
+  store: PreBetaStoreState,
+  now: number = Date.now(),
+  maxIdleMs: number = PRE_BETA_HTTP_IDLE_MS,
+): Array<{ code: string; removedPeerIds: string[] }> {
+  const results: Array<{ code: string; removedPeerIds: string[] }> = [];
+  for (const room of Object.values(store.rooms)) {
+    const stalePeers = room.participants.filter(
+      (p) =>
+        p.transport === 'http' &&
+        typeof p.lastSeenAt === 'number' &&
+        now - p.lastSeenAt > maxIdleMs,
+    );
+    if (stalePeers.length === 0) continue;
+    const removedPeerIds: string[] = [];
+    for (const stale of stalePeers) {
+      leavePreBetaRoom(store, room.code, stale.peerId, now);
+      removedPeerIds.push(stale.peerId);
+    }
+    results.push({ code: room.code, removedPeerIds });
+  }
+  return results;
 }
 
 export function appendPreBetaMessage(
@@ -435,8 +574,12 @@ export function appendPreBetaMessage(
   if (!room) {
     return { ok: false, reason: 'ROOM_NOT_FOUND', message: 'Комната не найдена.' };
   }
-  if (getRemainingMs(room.expiresAt, now) <= 0) {
+  if (getRoomRemainingMs(room, now) <= 0) {
+    room.remainingMs = 0;
+    room.timerRunningSince = null;
+    room.expiresAt = null;
     room.participants = [];
+    syncHostQuotaRecord(store, room, now);
     return {
       ok: false,
       reason: 'ROOM_EXPIRED',
@@ -448,6 +591,7 @@ export function appendPreBetaMessage(
     return { ok: false, reason: 'NOT_IN_ROOM', message: 'Вы не подключены к комнате.' };
   }
 
+  peer.lastSeenAt = now;
   const cleanText = params.rawText.trim().slice(0, 500);
   if (!cleanText) {
     return { ok: false, reason: 'EMPTY', message: 'Пустое сообщение.' };
@@ -476,13 +620,14 @@ export function updatePreBetaPeerState(
   now: number = Date.now(),
 ): PublicRoomSnapshot | null {
   const room = store.rooms[params.code];
-  if (!room || getRemainingMs(room.expiresAt, now) <= 0) {
+  if (!room || getRoomRemainingMs(room, now) <= 0) {
     return null;
   }
   const peer = room.participants.find((p) => p.peerId === params.peerId);
   if (!peer) {
     return null;
   }
+  peer.lastSeenAt = now;
   if (typeof params.micMuted === 'boolean') {
     peer.micMuted = params.micMuted;
   }
@@ -498,35 +643,57 @@ export function expireElapsedRooms(
 ): Array<{ code: string; kickedPeerIds: string[] }> {
   const expired: Array<{ code: string; kickedPeerIds: string[] }> = [];
   for (const room of Object.values(store.rooms)) {
-    if (getRemainingMs(room.expiresAt, now) <= 0 && room.participants.length > 0) {
+    if (getRoomRemainingMs(room, now) <= 0 && (room.participants.length > 0 || room.timerRunningSince !== null)) {
       const kickedPeerIds = room.participants.map((p) => p.peerId);
+      room.remainingMs = 0;
+      room.timerRunningSince = null;
+      room.expiresAt = null;
       room.participants = [];
-      expired.push({ code: room.code, kickedPeerIds });
+      syncHostQuotaRecord(store, room, now);
+      if (kickedPeerIds.length > 0) {
+        expired.push({ code: room.code, kickedPeerIds });
+      }
     }
   }
   return expired;
 }
 
-export function serializePreBetaStore(store: PreBetaStoreState): string {
+export function serializePreBetaStore(store: PreBetaStoreState, now: number = Date.now()): string {
   const sanitizedRooms: Record<string, PreBetaRoom> = {};
+  const sanitizedQuotas: Record<string, ClientQuotaRecord> = {};
+
   for (const [code, room] of Object.entries(store.rooms)) {
+    const left = getRoomRemainingMs(room, now);
     sanitizedRooms[code] = {
       ...room,
-      // Active WebSocket participants are transient across server restarts
+      remainingMs: left,
+      // Active WebSocket participants are transient across server restarts; pause clock safely
+      timerRunningSince: null,
+      expiresAt: null,
       participants: [],
     };
   }
+
+  for (const [clientId, rec] of Object.entries(store.quotasByClientId)) {
+    const room = sanitizedRooms[rec.issuedCode];
+    sanitizedQuotas[clientId] = {
+      ...rec,
+      remainingMs: room ? room.remainingMs : Math.max(0, rec.remainingMs),
+      expiresAt: null,
+    };
+  }
+
   return JSON.stringify(
     {
       rooms: sanitizedRooms,
-      quotasByClientId: store.quotasByClientId,
+      quotasByClientId: sanitizedQuotas,
     },
     null,
     2,
   );
 }
 
-export function hydratePreBetaStore(rawJson: string): PreBetaStoreState {
+export function hydratePreBetaStore(rawJson: string, now: number = Date.now()): PreBetaStoreState {
   try {
     const parsed = JSON.parse(rawJson) as Partial<PreBetaStoreState>;
     const rooms: Record<string, PreBetaRoom> = {};
@@ -536,14 +703,22 @@ export function hydratePreBetaStore(rawJson: string): PreBetaStoreState {
           room &&
           typeof room.code === 'string' &&
           typeof room.hostClientId === 'string' &&
-          typeof room.createdAt === 'number' &&
-          typeof room.expiresAt === 'number'
+          typeof room.createdAt === 'number'
         ) {
+          let remainingMs = PRE_BETA_DURATION_MS;
+          if (typeof room.remainingMs === 'number') {
+            remainingMs = Math.max(0, Math.min(PRE_BETA_DURATION_MS, room.remainingMs));
+          } else if (typeof room.expiresAt === 'number') {
+            remainingMs = Math.max(0, room.expiresAt - now);
+          }
+
           rooms[code] = {
             code: room.code,
             hostClientId: room.hostClientId,
             createdAt: room.createdAt,
-            expiresAt: room.expiresAt,
+            remainingMs,
+            timerRunningSince: null,
+            expiresAt: null,
             participants: [],
             messages: Array.isArray(room.messages) ? room.messages.slice(-PRE_BETA_MAX_MESSAGES) : [],
           };
@@ -558,10 +733,23 @@ export function hydratePreBetaStore(rawJson: string): PreBetaStoreState {
           rec &&
           typeof rec.clientId === 'string' &&
           typeof rec.issuedCode === 'string' &&
-          typeof rec.createdAt === 'number' &&
-          typeof rec.expiresAt === 'number'
+          typeof rec.createdAt === 'number'
         ) {
-          quotasByClientId[clientId] = rec;
+          const linkedRoom = rooms[rec.issuedCode];
+          const remainingMs = linkedRoom
+            ? linkedRoom.remainingMs
+            : typeof rec.remainingMs === 'number'
+              ? Math.max(0, rec.remainingMs)
+              : typeof rec.expiresAt === 'number'
+                ? Math.max(0, rec.expiresAt - now)
+                : PRE_BETA_DURATION_MS;
+          quotasByClientId[clientId] = {
+            clientId: rec.clientId,
+            issuedCode: rec.issuedCode,
+            createdAt: rec.createdAt,
+            remainingMs,
+            expiresAt: null,
+          };
         }
       }
     }

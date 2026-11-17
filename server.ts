@@ -7,15 +7,17 @@ import { WebSocket, WebSocketServer } from 'ws';
 import {
   PRE_BETA_MAX_PARTICIPANTS,
   appendPreBetaMessage,
+  buildPublicRoomSnapshot,
   createEmptyPreBetaStore,
   expireElapsedRooms,
   getClientQuotaStatus,
-  getRemainingMs,
+  getRoomRemainingMs,
   hydratePreBetaStore,
   issueOneTimePreBetaCode,
   joinPreBetaRoom,
   leavePreBetaRoom,
   normalizePreBetaCode,
+  pruneStaleHttpParticipants,
   serializePreBetaStore,
   updatePreBetaPeerState,
   type PreBetaStoreState,
@@ -51,11 +53,71 @@ interface ActiveSocketMeta {
   roomCode: string | null;
 }
 
+interface QueuedRtcSignal {
+  signalType: 'initiate' | 'offer' | 'answer' | 'ice';
+  fromPeerId: string;
+  payload: unknown;
+}
+
 const socketsByPeerId = new Map<string, ActiveSocketMeta>();
+const pendingSignalsByPeerId = new Map<string, QueuedRtcSignal[]>();
 
 function sendJson(ws: WebSocket, payload: Record<string, unknown>): void {
   if (ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(payload));
+  }
+}
+
+function enqueueHttpSignal(toPeerId: string, signal: QueuedRtcSignal): void {
+  const existing = pendingSignalsByPeerId.get(toPeerId) ?? [];
+  existing.push(signal);
+  if (existing.length > 64) {
+    existing.splice(0, existing.length - 64);
+  }
+  pendingSignalsByPeerId.set(toPeerId, existing);
+}
+
+function deliverRtcInitiate(firstPeerId: string, secondPeerId: string): void {
+  const firstMeta = socketsByPeerId.get(firstPeerId);
+  if (firstMeta && firstMeta.ws.readyState === WebSocket.OPEN) {
+    sendJson(firstMeta.ws, {
+      type: 'rtc:initiate',
+      targetPeerId: secondPeerId,
+    });
+  } else {
+    enqueueHttpSignal(firstPeerId, {
+      signalType: 'initiate',
+      fromPeerId: secondPeerId,
+      payload: { targetPeerId: secondPeerId },
+    });
+  }
+}
+
+function deliverRtcSignal(
+  roomCode: string,
+  fromPeerId: string,
+  signalType: 'offer' | 'answer' | 'ice',
+  payload: unknown,
+): void {
+  const room = store.rooms[roomCode];
+  if (!room) return;
+  for (const participant of room.participants) {
+    if (participant.peerId === fromPeerId) continue;
+    const meta = socketsByPeerId.get(participant.peerId);
+    if (meta && meta.ws.readyState === WebSocket.OPEN) {
+      sendJson(meta.ws, {
+        type: 'rtc:signal',
+        fromPeerId,
+        signalType,
+        payload: payload ?? null,
+      });
+    } else {
+      enqueueHttpSignal(participant.peerId, {
+        signalType,
+        fromPeerId,
+        payload: payload ?? null,
+      });
+    }
   }
 }
 
@@ -79,6 +141,7 @@ function detachPeerFromCurrentRoom(meta: ActiveSocketMeta): void {
   if (!meta.roomCode) return;
   const code = meta.roomCode;
   meta.roomCode = null;
+  pendingSignalsByPeerId.delete(meta.peerId);
   const { removedPeer, snapshot } = leavePreBetaRoom(store, code, meta.peerId, Date.now());
   if (removedPeer && snapshot) {
     broadcastToRoom(code, { type: 'peer:left', peerId: meta.peerId, nick: removedPeer.nick });
@@ -86,9 +149,31 @@ function detachPeerFromCurrentRoom(meta: ActiveSocketMeta): void {
   }
 }
 
+function parseBodyObj(body: unknown): Record<string, unknown> {
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    return body as Record<string, unknown>;
+  }
+  if (typeof body === 'string') {
+    try {
+      const parsed = JSON.parse(body);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Ignore invalid text payload
+    }
+  }
+  return {};
+}
+
 async function startServer(): Promise<void> {
   const app = express();
   app.use(express.json({ limit: '64kb' }));
+  app.use(express.text({ type: 'text/plain', limit: '64kb' }));
+
+  app.get('/api/health', (_req, res) => {
+    res.json({ ok: true });
+  });
 
   app.get('/api/prebeta/status', (req, res) => {
     const rawClientId = typeof req.query.clientId === 'string' ? req.query.clientId : '';
@@ -97,8 +182,8 @@ async function startServer(): Promise<void> {
   });
 
   app.post('/api/prebeta/issue', (req, res) => {
-    const rawClientId =
-      req.body && typeof req.body.clientId === 'string' ? req.body.clientId : '';
+    const body = parseBodyObj(req.body);
+    const rawClientId = typeof body.clientId === 'string' ? body.clientId : '';
     const result = issueOneTimePreBetaCode(store, rawClientId, Date.now());
     saveStore();
 
@@ -122,15 +207,196 @@ async function startServer(): Promise<void> {
       res.status(404).json({ ok: false, message: 'Комната не найдена.' });
       return;
     }
-    const remainingMs = getRemainingMs(room.expiresAt, Date.now());
+    const remainingMs = getRoomRemainingMs(room, Date.now());
     res.json({
       ok: true,
       code: room.code,
       remainingMs,
+      paused: room.timerRunningSince === null,
       expired: remainingMs <= 0,
       participantsCount: room.participants.length,
       maxParticipants: PRE_BETA_MAX_PARTICIPANTS,
     });
+  });
+
+  // HTTP polling fallback endpoints (work identically behind proxies without WS upgrade)
+  app.post('/api/prebeta/join', (req, res) => {
+    const body = parseBodyObj(req.body);
+    const now = Date.now();
+    const peerId =
+      typeof body.peerId === 'string' && body.peerId.trim().length >= 8
+        ? body.peerId.trim().slice(0, 64)
+        : crypto.randomUUID();
+    const joinResult = joinPreBetaRoom(
+      store,
+      {
+        code: typeof body.code === 'string' ? body.code : '',
+        peerId,
+        clientId: typeof body.clientId === 'string' ? body.clientId : '',
+        nick: typeof body.nick === 'string' ? body.nick : '',
+        hasAudio: Boolean(body.hasAudio),
+        transport: 'http',
+      },
+      now,
+    );
+
+    if (!joinResult.ok) {
+      const statusCode =
+        joinResult.reason === 'ROOM_NOT_FOUND'
+          ? 404
+          : joinResult.reason === 'ROOM_FULL' || joinResult.reason === 'ROOM_EXPIRED'
+            ? 409
+            : 400;
+      res.status(statusCode).json(joinResult);
+      return;
+    }
+
+    saveStore();
+    broadcastToRoom(
+      joinResult.snapshot.code,
+      { type: 'room:state', snapshot: joinResult.snapshot },
+      peerId,
+    );
+
+    if (joinResult.snapshot.participants.length === 2) {
+      const [firstPeer, secondPeer] = joinResult.snapshot.participants;
+      deliverRtcInitiate(firstPeer.peerId, secondPeer.peerId);
+    }
+
+    res.json({
+      ok: true,
+      peerId,
+      snapshot: joinResult.snapshot,
+    });
+  });
+
+  app.post('/api/prebeta/poll', (req, res) => {
+    const body = parseBodyObj(req.body);
+    const code = normalizePreBetaCode(typeof body.code === 'string' ? body.code : '');
+    const peerId = typeof body.peerId === 'string' ? body.peerId : '';
+    const now = Date.now();
+
+    if (!code || !peerId) {
+      res.status(400).json({ ok: false, reason: 'INVALID_PARAMS', message: 'Неверные параметры.' });
+      return;
+    }
+
+    const room = store.rooms[code];
+    if (!room) {
+      res.status(404).json({ ok: false, reason: 'ROOM_NOT_FOUND', message: 'Комната не найдена.' });
+      return;
+    }
+
+    const remainingMs = getRoomRemainingMs(room, now);
+    if (remainingMs <= 0) {
+      expireElapsedRooms(store, now);
+      saveStore();
+      res.status(410).json({
+        ok: false,
+        reason: 'ROOM_EXPIRED',
+        message: '30-минутный pre-beta лимит до релиза истёк. Связь завершена.',
+      });
+      return;
+    }
+
+    const peer = room.participants.find((p) => p.peerId === peerId);
+    if (!peer) {
+      res.status(409).json({ ok: false, reason: 'NOT_IN_ROOM', message: 'Сессия участника завершена.' });
+      return;
+    }
+
+    peer.lastSeenAt = now;
+    const signals = pendingSignalsByPeerId.get(peerId) ?? [];
+    if (signals.length > 0) {
+      pendingSignalsByPeerId.delete(peerId);
+    }
+
+    res.json({
+      ok: true,
+      snapshot: buildPublicRoomSnapshot(room, now),
+      signals,
+    });
+  });
+
+  app.post('/api/prebeta/send', (req, res) => {
+    const body = parseBodyObj(req.body);
+    const code = normalizePreBetaCode(typeof body.code === 'string' ? body.code : '');
+    const peerId = typeof body.peerId === 'string' ? body.peerId : '';
+    const text = typeof body.text === 'string' ? body.text : '';
+    const now = Date.now();
+
+    const chatResult = appendPreBetaMessage(store, { code, peerId, rawText: text }, now);
+    if (!chatResult.ok) {
+      const statusCode = chatResult.reason === 'ROOM_EXPIRED' ? 410 : 400;
+      res.status(statusCode).json(chatResult);
+      return;
+    }
+
+    saveStore();
+    broadcastToRoom(code, { type: 'chat:message', message: chatResult.message });
+    res.json({ ok: true, message: chatResult.message });
+  });
+
+  app.post('/api/prebeta/leave', (req, res) => {
+    const body = parseBodyObj(req.body);
+    const code = normalizePreBetaCode(typeof body.code === 'string' ? body.code : '');
+    const peerId = typeof body.peerId === 'string' ? body.peerId : '';
+    const now = Date.now();
+
+    if (!code || !peerId) {
+      res.json({ ok: true });
+      return;
+    }
+
+    pendingSignalsByPeerId.delete(peerId);
+    const { removedPeer, snapshot } = leavePreBetaRoom(store, code, peerId, now);
+    saveStore();
+
+    if (removedPeer && snapshot) {
+      broadcastToRoom(code, { type: 'peer:left', peerId, nick: removedPeer.nick });
+      broadcastToRoom(code, { type: 'room:state', snapshot });
+    }
+    res.json({ ok: true, snapshot });
+  });
+
+  app.post('/api/prebeta/peer', (req, res) => {
+    const body = parseBodyObj(req.body);
+    const code = normalizePreBetaCode(typeof body.code === 'string' ? body.code : '');
+    const peerId = typeof body.peerId === 'string' ? body.peerId : '';
+    const snapshot = updatePreBetaPeerState(
+      store,
+      {
+        code,
+        peerId,
+        micMuted: typeof body.micMuted === 'boolean' ? body.micMuted : undefined,
+        hasAudio: typeof body.hasAudio === 'boolean' ? body.hasAudio : undefined,
+      },
+      Date.now(),
+    );
+    if (snapshot) {
+      broadcastToRoom(code, { type: 'room:state', snapshot });
+    }
+    res.json({ ok: Boolean(snapshot), snapshot });
+  });
+
+  app.post('/api/prebeta/signal', (req, res) => {
+    const body = parseBodyObj(req.body);
+    const code = normalizePreBetaCode(typeof body.code === 'string' ? body.code : '');
+    const peerId = typeof body.peerId === 'string' ? body.peerId : '';
+    const signalType = typeof body.signalType === 'string' ? body.signalType : '';
+    const now = Date.now();
+
+    const room = store.rooms[code];
+    if (!room || getRoomRemainingMs(room, now) <= 0) {
+      res.status(410).json({ ok: false, reason: 'ROOM_EXPIRED', message: 'Время сессии истекло.' });
+      return;
+    }
+    if (signalType !== 'offer' && signalType !== 'answer' && signalType !== 'ice') {
+      res.status(400).json({ ok: false, reason: 'BAD_SIGNAL' });
+      return;
+    }
+    deliverRtcSignal(code, peerId, signalType, body.payload ?? null);
+    res.json({ ok: true });
   });
 
   const httpServer = http.createServer(app);
@@ -169,6 +435,7 @@ async function startServer(): Promise<void> {
             clientId: typeof msg.clientId === 'string' ? msg.clientId : '',
             nick: typeof msg.nick === 'string' ? msg.nick : '',
             hasAudio: Boolean(msg.hasAudio),
+            transport: 'ws',
           },
           now,
         );
@@ -197,16 +464,9 @@ async function startServer(): Promise<void> {
           peerId,
         );
 
-        // If 2 peers are now present, coordinate WebRTC offer/answer cleanly
         if (joinResult.snapshot.participants.length === 2) {
           const [firstPeer, secondPeer] = joinResult.snapshot.participants;
-          const firstMeta = socketsByPeerId.get(firstPeer.peerId);
-          if (firstMeta) {
-            sendJson(firstMeta.ws, {
-              type: 'rtc:initiate',
-              targetPeerId: secondPeer.peerId,
-            });
-          }
+          deliverRtcInitiate(firstPeer.peerId, secondPeer.peerId);
         }
         return;
       }
@@ -279,7 +539,7 @@ async function startServer(): Promise<void> {
       if (type === 'rtc:signal') {
         if (!meta.roomCode) return;
         const room = store.rooms[meta.roomCode];
-        if (!room || getRemainingMs(room.expiresAt, now) <= 0) {
+        if (!room || getRoomRemainingMs(room, now) <= 0) {
           sendJson(ws, {
             type: 'session:expired',
             code: meta.roomCode,
@@ -292,33 +552,44 @@ async function startServer(): Promise<void> {
         if (signalType !== 'offer' && signalType !== 'answer' && signalType !== 'ice') {
           return;
         }
-        broadcastToRoom(
-          meta.roomCode,
-          {
-            type: 'rtc:signal',
-            fromPeerId: peerId,
-            signalType,
-            payload: msg.payload ?? null,
-          },
-          peerId,
-        );
+        deliverRtcSignal(meta.roomCode, peerId, signalType, msg.payload ?? null);
       }
     });
 
     ws.on('close', () => {
       detachPeerFromCurrentRoom(meta);
+      saveStore();
       socketsByPeerId.delete(peerId);
     });
   });
 
-  // Authoritative server timer for 30-minute countdown sync and cutoff
+  // Authoritative server timer: prune stale HTTP peers (pauses clock), sync active rooms, expire when 0
   setInterval(() => {
     const now = Date.now();
+    let dirty = false;
+
+    const pruned = pruneStaleHttpParticipants(store, now);
+    if (pruned.length > 0) {
+      dirty = true;
+      for (const item of pruned) {
+        const room = store.rooms[item.code];
+        if (room) {
+          const snap = buildPublicRoomSnapshot(room, now);
+          for (const removedId of item.removedPeerIds) {
+            pendingSignalsByPeerId.delete(removedId);
+            broadcastToRoom(item.code, { type: 'peer:left', peerId: removedId });
+          }
+          broadcastToRoom(item.code, { type: 'room:state', snapshot: snap });
+        }
+      }
+    }
+
     const expiredRooms = expireElapsedRooms(store, now);
     if (expiredRooms.length > 0) {
-      saveStore();
+      dirty = true;
       for (const item of expiredRooms) {
         for (const kickedPeerId of item.kickedPeerIds) {
+          pendingSignalsByPeerId.delete(kickedPeerId);
           const meta = socketsByPeerId.get(kickedPeerId);
           if (meta) {
             meta.roomCode = null;
@@ -332,9 +603,13 @@ async function startServer(): Promise<void> {
       }
     }
 
+    if (dirty) {
+      saveStore();
+    }
+
     for (const room of Object.values(store.rooms)) {
-      if (room.participants.length === 0) continue;
-      const remainingMs = getRemainingMs(room.expiresAt, now);
+      if (room.participants.length === 0 || room.timerRunningSince === null) continue;
+      const remainingMs = getRoomRemainingMs(room, now);
       broadcastToRoom(room.code, {
         type: 'room:tick',
         remainingMs,

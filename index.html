@@ -3758,7 +3758,8 @@
             }
           })();
 
-          var pbQuota = { status: 'AVAILABLE', code: null, expiresAt: null, remainingMs: 1800000 };
+          var pbQuota = { status: 'AVAILABLE', code: null, expiresAt: null, remainingMs: 1800000, paused: true };
+          var pbTransport = 'node-ws';
           var pbRoom = null;
           var pbMyPeerId = null;
           var pbRemainingMs = 1800000;
@@ -3770,17 +3771,23 @@
           var pbWs = null;
           var pbPc = null;
           var pbLocalStream = null;
+          var pbPollTimer = null;
+          var pbLocalCh = null;
+          var PB_LOCAL_STORE_KEY = 'geek_prebeta_local_store_v2';
+          var PB_LOCAL_SIGNALS_KEY = 'geek_prebeta_local_signals_v2';
+          var PB_ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
           var pbQuotaTick = setInterval(function () {
-            if (pbQuota.status === 'ACTIVE' && pbQuota.expiresAt) {
+            if (pbQuota.status === 'ACTIVE' && !pbQuota.paused && pbQuota.expiresAt) {
               var left = Math.max(0, pbQuota.expiresAt - Date.now());
               pbQuota.remainingMs = left;
-              if (left <= 0) pbQuota.status = 'EXHAUSTED';
+              if (left <= 0) { pbQuota.status = 'EXHAUSTED'; pbQuota.paused = false; }
               renderPreBeta();
             }
           }, 1000);
 
           function pbFormatMs(ms) {
-            var total = Math.max(0, Math.floor((ms || 0) / 1000));
+            var total = Math.max(0, Math.ceil((ms || 0) / 1000));
             var mins = Math.floor(total / 60);
             var secs = total % 60;
             return String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
@@ -3804,6 +3811,10 @@
             }
           }
 
+          function pbStopPolling() {
+            if (pbPollTimer) { clearInterval(pbPollTimer); pbPollTimer = null; }
+          }
+
           function pbStopMedia() {
             if (pbLocalStream) {
               pbLocalStream.getTracks().forEach(function (t) { t.stop(); });
@@ -3824,10 +3835,186 @@
             pbRtcStatus = 'idle';
           }
 
-          function pbSendWs(obj) {
-            if (pbWs && pbWs.readyState === 1) {
-              pbWs.send(JSON.stringify(obj));
+          function pbGetUrls(mode) {
+            if (mode === 'php-http') {
+              return {
+                status: './api/prebeta.php?action=status&clientId=' + encodeURIComponent(pbClientId),
+                issue: './api/prebeta.php?action=issue',
+                join: './api/prebeta.php?action=join',
+                poll: './api/prebeta.php?action=poll',
+                send: './api/prebeta.php?action=send',
+                leave: './api/prebeta.php?action=leave',
+                peer: './api/prebeta.php?action=peer',
+                signal: './api/prebeta.php?action=signal'
+              };
             }
+            return {
+              status: './api/prebeta/status?clientId=' + encodeURIComponent(pbClientId),
+              issue: './api/prebeta/issue',
+              join: './api/prebeta/join',
+              poll: './api/prebeta/poll',
+              send: './api/prebeta/send',
+              leave: './api/prebeta/leave',
+              peer: './api/prebeta/peer',
+              signal: './api/prebeta/signal'
+            };
+          }
+
+          function pbFetchJson(url, opts) {
+            return fetch(url, opts).then(function (r) {
+              var ct = (r.headers.get('content-type') || '').toLowerCase();
+              if (ct.indexOf('application/json') === -1) return { ok: false, data: null };
+              return r.json().then(function (d) { return { ok: r.ok, data: d }; });
+            }).catch(function () { return { ok: false, data: null }; });
+          }
+
+          // Local multi-tab fallback engine (only when both Node and PHP are unreachable)
+          function pbReadLocal() {
+            try {
+              var raw = localStorage.getItem(PB_LOCAL_STORE_KEY);
+              var parsed = raw ? JSON.parse(raw) : null;
+              if (parsed && parsed.rooms && parsed.quotasByClientId) return parsed;
+            } catch (e) {}
+            return { rooms: {}, quotasByClientId: {} };
+          }
+          function pbWriteLocal(st) {
+            try { localStorage.setItem(PB_LOCAL_STORE_KEY, JSON.stringify(st)); } catch (e) {}
+            try {
+              if (typeof BroadcastChannel !== 'undefined') {
+                var c = new BroadcastChannel('geek_prebeta_ipc_v2');
+                c.postMessage({ type: 'update', ts: Date.now() });
+                c.close();
+              }
+            } catch (e) {}
+          }
+          function pbRoomLeft(room, now) {
+            if (!room) return 0;
+            if (room.timerRunningSince == null) return Math.max(0, room.remainingMs || 0);
+            return Math.max(0, (room.remainingMs || 0) - Math.max(0, now - room.timerRunningSince));
+          }
+          function pbLocalSnapshot(room, now) {
+            var left = pbRoomLeft(room, now);
+            var paused = room.timerRunningSince == null;
+            return {
+              code: room.code,
+              createdAt: room.createdAt,
+              expiresAt: (!paused && left > 0) ? now + left : null,
+              remainingMs: left,
+              paused: paused,
+              maxParticipants: 2,
+              participants: (room.participants || []).map(function (p) {
+                return { peerId: p.peerId, nick: p.nick, micMuted: !!p.micMuted, hasAudio: !!p.hasAudio, isHost: p.clientId === room.hostClientId };
+              }),
+              messages: (room.messages || []).slice(-80)
+            };
+          }
+          function pbLocalIssue() {
+            var st = pbReadLocal(), now = Date.now(), ex = st.quotasByClientId[pbClientId];
+            if (ex) {
+              var rm = st.rooms[ex.issuedCode];
+              var left = rm ? pbRoomLeft(rm, now) : Math.max(0, ex.remainingMs || 0);
+              var paused = rm ? (rm.timerRunningSince == null) : true;
+              if (left <= 0) return { ok: false, message: '30-минутный pre-beta лимит до релиза полностью исчерпан для этого устройства.' };
+              return { ok: true, code: ex.issuedCode, expiresAt: paused ? null : now + left, remainingMs: left, paused: paused };
+            }
+            var code = '';
+            for (var a = 0; a < 32; a++) {
+              var p1 = '', p2 = '';
+              for (var i = 0; i < 4; i++) {
+                p1 += PB_ALPHA[Math.floor(Math.random() * PB_ALPHA.length)];
+                p2 += PB_ALPHA[Math.floor(Math.random() * PB_ALPHA.length)];
+              }
+              var cand = 'GK-' + p1 + '-' + p2;
+              if (!st.rooms[cand]) { code = cand; break; }
+            }
+            st.quotasByClientId[pbClientId] = { clientId: pbClientId, issuedCode: code, createdAt: now, remainingMs: 1800000 };
+            st.rooms[code] = {
+              code: code, hostClientId: pbClientId, createdAt: now, remainingMs: 1800000, timerRunningSince: null, participants: [],
+              messages: [{ id: 'sys-create-' + now, authorPeerId: 'system', authorNick: 'PRE-BETA ЯДРО', text: 'Создан приватный канал 1-на-1. Лимит: 30:00 (время ставится на паузу, когда в комнате никого нет).', timestamp: now, system: true }]
+            };
+            pbWriteLocal(st);
+            return { ok: true, code: code, expiresAt: null, remainingMs: 1800000, paused: true };
+          }
+          function pbLocalJoin(code, peerId, nick, hasAudio) {
+            var st = pbReadLocal(), now = Date.now(), rm = st.rooms[code];
+            if (!rm) return { ok: false, message: 'Комната с таким кодом не найдена.' };
+            if (pbRoomLeft(rm, now) <= 0) return { ok: false, message: 'Время pre-beta сессии (30 минут) истекло до релиза.' };
+            var idx = rm.participants.findIndex(function (p) { return p.peerId === peerId || p.clientId === pbClientId; });
+            if (idx === -1 && rm.participants.length >= 2) return { ok: false, message: 'Комната заполнена: в одном диалоге максимум 2 участника (2/2).' };
+            var isHost = pbClientId === rm.hostClientId;
+            var peer = { peerId: peerId, clientId: pbClientId, nick: (nick || '').trim().slice(0, 22) || (isHost ? 'Создатель' : 'Собеседник'), joinedAt: now, micMuted: false, hasAudio: !!hasAudio, lastSeenAt: now };
+            if (idx >= 0) rm.participants[idx] = peer; else rm.participants.push(peer);
+            var wasPaused = rm.timerRunningSince == null && rm.remainingMs < 1800000;
+            if (rm.timerRunningSince == null) { rm.remainingMs = pbRoomLeft(rm, now); rm.timerRunningSince = now; }
+            if (st.quotasByClientId[rm.hostClientId]) st.quotasByClientId[rm.hostClientId].remainingMs = pbRoomLeft(rm, now);
+            if (idx === -1) {
+              var extra = wasPaused ? ' Таймер продолжен с ' + pbFormatMs(pbRoomLeft(rm, now)) + '.' : '';
+              rm.messages.push({ id: 'sys-join-' + now, authorPeerId: 'system', authorNick: 'PRE-BETA ЯДРО', text: peer.nick + ' подключился к диалогу (' + rm.participants.length + '/2).' + extra, timestamp: now, system: true });
+            }
+            if (rm.participants.length === 2) {
+              try {
+                var sm = JSON.parse(localStorage.getItem(PB_LOCAL_SIGNALS_KEY) || '{}');
+                sm[rm.participants[0].peerId] = (sm[rm.participants[0].peerId] || []).concat([{ signalType: 'initiate', fromPeerId: peerId, payload: { targetPeerId: peerId } }]);
+                localStorage.setItem(PB_LOCAL_SIGNALS_KEY, JSON.stringify(sm));
+              } catch (e) {}
+            }
+            pbWriteLocal(st);
+            return { ok: true, peerId: peerId, snapshot: pbLocalSnapshot(rm, now) };
+          }
+          function pbLocalLeave(code, peerId) {
+            var st = pbReadLocal(), now = Date.now(), rm = st.rooms[code];
+            if (!rm) return;
+            var idx = rm.participants.findIndex(function (p) { return p.peerId === peerId; });
+            if (idx === -1) return;
+            var rem = rm.participants.splice(idx, 1)[0];
+            if (rm.participants.length === 0 && rm.timerRunningSince != null) {
+              rm.remainingMs = pbRoomLeft(rm, now);
+              rm.timerRunningSince = null;
+            }
+            if (st.quotasByClientId[rm.hostClientId]) st.quotasByClientId[rm.hostClientId].remainingMs = pbRoomLeft(rm, now);
+            var pTxt = rm.participants.length === 0 ? ' Время остановлено на ' + pbFormatMs(pbRoomLeft(rm, now)) + ' до повторного входа.' : '';
+            rm.messages.push({ id: 'sys-leave-' + now, authorPeerId: 'system', authorNick: 'PRE-BETA ЯДРО', text: rem.nick + ' вышел из диалога (' + rm.participants.length + '/2).' + pTxt, timestamp: now, system: true });
+            pbWriteLocal(st);
+          }
+
+          function pbProbeBackend() {
+            return pbFetchJson(pbGetUrls('node-ws').status).then(function (n) {
+              if (n.ok && n.data && n.data.ok) return { transport: pbTransport === 'node-http' ? 'node-http' : 'node-ws', data: n.data };
+              return pbFetchJson(pbGetUrls('php-http').status).then(function (p) {
+                if (p.ok && p.data && p.data.ok) return { transport: 'php-http', data: p.data };
+                var st = pbReadLocal(), now = Date.now(), ex = st.quotasByClientId[pbClientId];
+                if (!ex) return { transport: 'local', data: { status: 'AVAILABLE', code: null, expiresAt: null, remainingMs: 1800000, paused: true } };
+                var rm = st.rooms[ex.issuedCode];
+                var left = rm ? pbRoomLeft(rm, now) : (ex.remainingMs || 0);
+                var paused = rm ? (rm.timerRunningSince == null) : true;
+                return { transport: 'local', data: { status: left <= 0 ? 'EXHAUSTED' : 'ACTIVE', code: ex.issuedCode, expiresAt: paused ? null : now + left, remainingMs: left, paused: paused } };
+              });
+            });
+          }
+
+          function pbSendSignal(signalType, payload) {
+            if (pbTransport === 'node-ws') {
+              if (pbWs && pbWs.readyState === 1) pbWs.send(JSON.stringify({ type: 'rtc:signal', signalType: signalType, payload: payload }));
+              return;
+            }
+            if (!pbRoom || !pbMyPeerId) return;
+            if (pbTransport === 'local') {
+              try {
+                var st = pbReadLocal(), rm = st.rooms[pbRoom.code];
+                if (!rm) return;
+                var sm = JSON.parse(localStorage.getItem(PB_LOCAL_SIGNALS_KEY) || '{}');
+                rm.participants.forEach(function (p) {
+                  if (p.peerId !== pbMyPeerId) sm[p.peerId] = (sm[p.peerId] || []).concat([{ signalType: signalType, fromPeerId: pbMyPeerId, payload: payload }]);
+                });
+                localStorage.setItem(PB_LOCAL_SIGNALS_KEY, JSON.stringify(sm));
+                pbWriteLocal(st);
+              } catch (e) {}
+              return;
+            }
+            fetch(pbGetUrls(pbTransport).signal, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: pbRoom.code, peerId: pbMyPeerId, signalType: signalType, payload: payload })
+            }).catch(function () {});
           }
 
           function pbEnsurePc() {
@@ -3841,9 +4028,7 @@
               try { pc.addTransceiver('audio', { direction: 'recvonly' }); } catch (e) {}
             }
             pc.onicecandidate = function (ev) {
-              if (ev.candidate) {
-                pbSendWs({ type: 'rtc:signal', signalType: 'ice', payload: ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate });
-              }
+              if (ev.candidate) pbSendSignal('ice', ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate);
             };
             pc.ontrack = function (ev) {
               if (pbRemoteAudio && ev.streams && ev.streams[0]) {
@@ -3866,36 +4051,106 @@
             return pc;
           }
 
+          function pbHandleRtcSignal(signalType, payload) {
+            if (signalType === 'initiate') {
+              var pc = pbEnsurePc();
+              if (!pc) return;
+              pbRtcStatus = pbLocalStream ? 'negotiating' : 'text-only';
+              pc.createOffer().then(function (offer) {
+                return pc.setLocalDescription(offer).then(function () { pbSendSignal('offer', offer); });
+              }).catch(function () { pbRtcStatus = 'text-only'; renderPreBeta(); });
+              return;
+            }
+            var pc2 = pbEnsurePc();
+            if (!pc2) return;
+            if (signalType === 'offer' && payload) {
+              pc2.setRemoteDescription(new RTCSessionDescription(payload))
+                .then(function () { return pc2.createAnswer(); })
+                .then(function (ans) { return pc2.setLocalDescription(ans).then(function () { pbSendSignal('answer', ans); }); })
+                .catch(function () {});
+            } else if (signalType === 'answer' && payload) {
+              pc2.setRemoteDescription(new RTCSessionDescription(payload)).catch(function () {});
+            } else if (signalType === 'ice' && payload) {
+              pc2.addIceCandidate(new RTCIceCandidate(payload)).catch(function () {});
+            }
+          }
+
           function pbRefreshQuota() {
-            fetch('./api/prebeta/status?clientId=' + encodeURIComponent(pbClientId))
-              .then(function (r) { return r.ok ? r.json() : null; })
-              .then(function (d) {
-                if (!d) return;
-                pbQuota = {
-                  status: d.status || 'AVAILABLE',
-                  code: d.code || null,
-                  expiresAt: d.expiresAt || null,
-                  remainingMs: typeof d.remainingMs === 'number' ? d.remainingMs : 1800000
-                };
-                renderPreBeta();
-              })
-              .catch(function () {});
+            return pbProbeBackend().then(function (res) {
+              pbTransport = res.transport;
+              var d = res.data || {};
+              pbQuota = {
+                status: d.status || 'AVAILABLE',
+                code: d.code || null,
+                expiresAt: d.expiresAt || null,
+                remainingMs: typeof d.remainingMs === 'number' ? d.remainingMs : 1800000,
+                paused: typeof d.paused === 'boolean' ? d.paused : true
+              };
+              renderPreBeta();
+              return res;
+            }).catch(function () {});
+          }
+
+          function pbApplySnapshot(snap, signals) {
+            pbRoom = snap;
+            pbRemainingMs = snap.remainingMs;
+            if (snap.participants.length < 2) { pbCleanupRtc(); pbRtcStatus = 'waiting-peer'; }
+            (signals || []).forEach(function (s) { pbHandleRtcSignal(s.signalType, s.payload); });
+            renderPreBeta();
+          }
+
+          function pbStartPolling(mode, code, peerId) {
+            pbStopPolling();
+            pbPollTimer = setInterval(function () {
+              if (!pbRoom) return;
+              if (mode === 'local') {
+                var st = pbReadLocal(), now = Date.now(), rm = st.rooms[code];
+                if (!rm) return;
+                var left = pbRoomLeft(rm, now);
+                if (left <= 0) {
+                  rm.remainingMs = 0; rm.timerRunningSince = null; rm.participants = []; pbWriteLocal(st);
+                  pbStopPolling(); pbCleanupRtc(); pbStopMedia(); pbRoom = null; pbRemainingMs = 0;
+                  pbShowError('30-минутный pre-beta лимит до релиза истёк.'); pbRefreshQuota(); renderPreBeta(); return;
+                }
+                var sigs = [];
+                try {
+                  var sm = JSON.parse(localStorage.getItem(PB_LOCAL_SIGNALS_KEY) || '{}');
+                  sigs = sm[peerId] || [];
+                  if (sigs.length) { delete sm[peerId]; localStorage.setItem(PB_LOCAL_SIGNALS_KEY, JSON.stringify(sm)); }
+                } catch (e) {}
+                pbApplySnapshot(pbLocalSnapshot(rm, now), sigs);
+                return;
+              }
+              pbFetchJson(pbGetUrls(mode).poll, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code, peerId: peerId, clientId: pbClientId })
+              }).then(function (r) {
+                if (!r.data) return;
+                if (!r.data.ok || !r.data.snapshot) {
+                  if (r.data.reason === 'ROOM_EXPIRED' || r.data.reason === 'NOT_IN_ROOM') {
+                    pbStopPolling(); pbCleanupRtc(); pbStopMedia(); pbRoom = null;
+                    if (r.data.reason === 'ROOM_EXPIRED') pbRemainingMs = 0;
+                    pbShowError(r.data.message || 'Сессия завершена.'); pbRefreshQuota(); renderPreBeta();
+                  }
+                  return;
+                }
+                pbApplySnapshot(r.data.snapshot, r.data.signals || []);
+              });
+            }, 750);
           }
 
           function pbEnsureSocket() {
             if (pbWs && pbWs.readyState === 1) return Promise.resolve(pbWs);
             return new Promise(function (resolve, reject) {
               var proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-              var ws = new WebSocket(proto + '//' + window.location.host + '/ws/prebeta');
+              var baseP = window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname.replace(/[^/]*$/, '');
+              var ws = new WebSocket(proto + '//' + window.location.host + baseP + 'ws/prebeta');
               pbWs = ws;
               var tm = setTimeout(function () {
-                if (ws.readyState !== 1) {
-                  ws.close();
-                  reject(new Error('Таймаут подключения к серверу Pre-Beta связи.'));
-                }
-              }, 6000);
+                if (ws.readyState !== 1) { ws.close(); reject(new Error('WS_UNAVAILABLE')); }
+              }, 3500);
               ws.onopen = function () { clearTimeout(tm); resolve(ws); };
-              ws.onerror = function () { clearTimeout(tm); reject(new Error('Не удалось установить WebSocket-соединение с сервером.')); };
+              ws.onerror = function () { clearTimeout(tm); reject(new Error('WS_UNAVAILABLE')); };
               ws.onclose = function () { pbWs = null; };
               ws.onmessage = function (ev) {
                 var data;
@@ -3909,17 +4164,9 @@
                     pbRemainingMs = pbRoom.remainingMs;
                     pbRtcStatus = pbRoom.participants.length < 2 ? 'waiting-peer' : pbRoom.participants.some(function (p) { return p.hasAudio; }) ? 'negotiating' : 'text-only';
                   }
-                  pbShowError('');
-                  pbBusy = false;
-                  pbRefreshQuota();
-                  renderPreBeta();
+                  pbShowError(''); pbBusy = false; pbRefreshQuota(); renderPreBeta();
                 } else if (t === 'room:state') {
-                  pbRoom = data.snapshot || null;
-                  if (pbRoom) {
-                    pbRemainingMs = pbRoom.remainingMs;
-                    if (pbRoom.participants.length < 2) { pbCleanupRtc(); pbRtcStatus = 'waiting-peer'; }
-                  }
-                  renderPreBeta();
+                  if (data.snapshot) pbApplySnapshot(data.snapshot, []);
                 } else if (t === 'room:tick') {
                   if (typeof data.remainingMs === 'number') pbRemainingMs = data.remainingMs;
                   renderPreBeta();
@@ -3929,106 +4176,100 @@
                     renderPreBeta();
                   }
                 } else if (t === 'rtc:initiate') {
-                  var pc = pbEnsurePc();
-                  if (!pc) return;
-                  pbRtcStatus = pbLocalStream ? 'negotiating' : 'text-only';
-                  pc.createOffer().then(function (offer) {
-                    return pc.setLocalDescription(offer).then(function () {
-                      pbSendWs({ type: 'rtc:signal', signalType: 'offer', payload: offer });
-                    });
-                  }).catch(function () { pbRtcStatus = 'text-only'; renderPreBeta(); });
+                  pbHandleRtcSignal('initiate', null);
                 } else if (t === 'rtc:signal') {
-                  var pc2 = pbEnsurePc();
-                  if (!pc2) return;
-                  if (data.signalType === 'offer' && data.payload) {
-                    pc2.setRemoteDescription(new RTCSessionDescription(data.payload))
-                      .then(function () { return pc2.createAnswer(); })
-                      .then(function (ans) { return pc2.setLocalDescription(ans).then(function () { pbSendWs({ type: 'rtc:signal', signalType: 'answer', payload: ans }); }); })
-                      .catch(function () {});
-                  } else if (data.signalType === 'answer' && data.payload) {
-                    pc2.setRemoteDescription(new RTCSessionDescription(data.payload)).catch(function () {});
-                  } else if (data.signalType === 'ice' && data.payload) {
-                    pc2.addIceCandidate(new RTCIceCandidate(data.payload)).catch(function () {});
-                  }
+                  pbHandleRtcSignal(data.signalType, data.payload);
                 } else if (t === 'peer:left') {
-                  pbCleanupRtc();
-                  pbRtcStatus = 'waiting-peer';
-                  renderPreBeta();
+                  pbCleanupRtc(); pbRtcStatus = 'waiting-peer'; renderPreBeta();
                 } else if (t === 'room:left') {
-                  pbCleanupRtc();
-                  pbRoom = null;
-                  pbBusy = false;
-                  renderPreBeta();
+                  pbCleanupRtc(); pbRoom = null; pbBusy = false; pbRefreshQuota(); renderPreBeta();
                 } else if (t === 'session:expired') {
-                  pbCleanupRtc();
-                  pbStopMedia();
-                  pbRoom = null;
-                  pbRemainingMs = 0;
-                  pbBusy = false;
+                  pbCleanupRtc(); pbStopMedia(); pbRoom = null; pbRemainingMs = 0; pbBusy = false;
                   pbShowError(data.message || '30-минутный pre-beta лимит до релиза истёк.');
-                  pbRefreshQuota();
-                  renderPreBeta();
+                  pbRefreshQuota(); renderPreBeta();
                 } else if (t === 'room:error') {
-                  pbBusy = false;
-                  pbShowError(data.message || 'Ошибка подключения к pre-beta каналу.');
-                  renderPreBeta();
+                  pbBusy = false; pbShowError(data.message || 'Ошибка подключения к pre-beta каналу.'); renderPreBeta();
                 }
               };
+            });
+          }
+
+          function pbJoinHttp(mode, code, effNick, gotMic) {
+            if (mode === 'local') {
+              var pid = 'loc-' + Math.random().toString(36).slice(2, 12);
+              var lr = pbLocalJoin(code, pid, effNick, gotMic);
+              if (!lr.ok) { pbBusy = false; pbShowError(lr.message); renderPreBeta(); return Promise.resolve(); }
+              pbMyPeerId = pid; pbBusy = false; pbShowError(''); pbRoom = lr.snapshot; pbRemainingMs = lr.snapshot.remainingMs;
+              pbRtcStatus = lr.snapshot.participants.length < 2 ? 'waiting-peer' : 'text-only';
+              pbStartPolling('local', lr.snapshot.code, pid); pbRefreshQuota(); renderPreBeta();
+              return Promise.resolve();
+            }
+            return pbFetchJson(pbGetUrls(mode).join, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: code, clientId: pbClientId, nick: effNick, hasAudio: gotMic })
+            }).then(function (r) {
+              if (!r.data || !r.data.ok || !r.data.snapshot) {
+                pbBusy = false; pbShowError((r.data && r.data.message) || 'Не удалось подключиться к диалогу.'); renderPreBeta(); return;
+              }
+              pbMyPeerId = r.data.peerId; pbBusy = false; pbShowError('');
+              pbRoom = r.data.snapshot; pbRemainingMs = pbRoom.remainingMs;
+              pbRtcStatus = pbRoom.participants.length < 2 ? 'waiting-peer' : 'text-only';
+              pbStartPolling(mode, pbRoom.code, pbMyPeerId); pbRefreshQuota(); renderPreBeta();
             });
           }
 
           function pbJoinRoom(rawCode, customNick) {
             var code = pbNormalizeCode(rawCode);
             if (!code) { pbShowError('Введите корректный код формата GK-XXXX-XXXX.'); return; }
-            pbShowError('');
-            pbBusy = true;
-            renderPreBeta();
+            pbShowError(''); pbBusy = true; renderPreBeta();
             var effNick = String(customNick != null ? customNick : (pbNickInput ? pbNickInput.value : '')).trim();
             var getMic = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
               ? navigator.mediaDevices.getUserMedia({ audio: true, video: false }).then(function (s) { pbLocalStream = s; pbHasMicAudio = true; return true; }).catch(function () { pbHasMicAudio = false; return false; })
               : Promise.resolve(false);
             getMic.then(function (gotMic) {
-              return pbEnsureSocket().then(function (ws) {
-                ws.send(JSON.stringify({ type: 'room:join', code: code, clientId: pbClientId, nick: effNick, hasAudio: gotMic }));
-              });
-            }).catch(function (err) {
-              pbBusy = false;
-              pbShowError((err && err.message) || 'Сервер pre-beta связи недоступен.');
-              renderPreBeta();
+              if (pbTransport === 'node-ws') {
+                return pbEnsureSocket().then(function (ws) {
+                  ws.send(JSON.stringify({ type: 'room:join', code: code, clientId: pbClientId, nick: effNick, hasAudio: gotMic }));
+                }).catch(function () {
+                  pbTransport = 'node-http';
+                  return pbJoinHttp('node-http', code, effNick, gotMic);
+                });
+              }
+              return pbJoinHttp(pbTransport, code, effNick, gotMic);
+            }).catch(function () {
+              pbBusy = false; pbShowError('Не удалось подключиться к pre-beta диалогу.'); renderPreBeta();
             });
           }
 
           function pbIssueAndJoin() {
-            pbShowError('');
-            pbBusy = true;
-            renderPreBeta();
-            fetch('./api/prebeta/issue', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ clientId: pbClientId })
-            })
-              .then(function (r) { return r.json(); })
-              .then(function (payload) {
+            pbShowError(''); pbBusy = true; renderPreBeta();
+            pbProbeBackend().then(function (res) {
+              pbTransport = res.transport;
+              if (pbTransport === 'local') {
+                var loc = pbLocalIssue();
+                if (!loc.ok) { pbBusy = false; pbShowError(loc.message); pbRefreshQuota(); renderPreBeta(); return; }
+                pbQuota = { status: 'ACTIVE', code: loc.code, expiresAt: loc.expiresAt, remainingMs: loc.remainingMs, paused: loc.paused };
+                pbJoinRoom(loc.code, (pbNickInput && pbNickInput.value.trim()) || 'Создатель');
+                return;
+              }
+              return pbFetchJson(pbGetUrls(pbTransport).issue, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ clientId: pbClientId })
+              }).then(function (r) {
+                var payload = r.data;
                 if (!payload || !payload.ok || !payload.code) {
-                  pbBusy = false;
-                  pbShowError((payload && payload.message) || 'Не удалось выдать код доступа.');
-                  pbRefreshQuota();
-                  renderPreBeta();
-                  return;
+                  pbBusy = false; pbShowError((payload && payload.message) || 'Не удалось выдать код доступа.'); pbRefreshQuota(); renderPreBeta(); return;
                 }
                 pbQuota = {
-                  status: 'ACTIVE',
-                  code: payload.code,
-                  expiresAt: payload.expiresAt || null,
-                  remainingMs: payload.remainingMs || 1800000
+                  status: 'ACTIVE', code: payload.code, expiresAt: payload.expiresAt || null,
+                  remainingMs: typeof payload.remainingMs === 'number' ? payload.remainingMs : 1800000,
+                  paused: typeof payload.paused === 'boolean' ? payload.paused : true
                 };
                 pbJoinRoom(payload.code, (pbNickInput && pbNickInput.value.trim()) || 'Создатель');
-              })
-              .catch(function () {
-                pbBusy = false;
-                pbShowError('Сервер pre-beta связи недоступен.');
-                renderPreBeta();
               });
+            }).catch(function () {
+              pbBusy = false; pbShowError('Сервер pre-beta связи недоступен.'); renderPreBeta();
+            });
           }
 
           function renderPreBeta() {
@@ -4068,7 +4309,9 @@
             if (!pbRoom) {
               if (pbLobbyView) pbLobbyView.style.display = 'flex';
               if (pbActiveView) pbActiveView.style.display = 'none';
-              if (pbQuotaTimerEl) pbQuotaTimerEl.textContent = pbFormatMs(pbQuota.remainingMs);
+              if (pbQuotaTimerEl) {
+                pbQuotaTimerEl.textContent = pbFormatMs(pbQuota.remainingMs) + (pbQuota.status === 'ACTIVE' && pbQuota.paused ? ' · ПАУЗА' : '');
+              }
               if (pbHostActions) {
                 pbHostActions.innerHTML = '';
                 if (pbQuota.status === 'EXHAUSTED') {
@@ -4106,7 +4349,7 @@
                   resBtn.setAttribute('data-testid', 'prebeta-resume-btn');
                   resBtn.disabled = pbBusy;
                   resBtn.style.cssText = 'width:100%;padding:10px 14px;border-radius:8px;border:none;background:#00f0ff;color:#031518;font-family:"Orbitron",sans-serif;font-weight:900;font-size:12px;cursor:pointer;';
-                  resBtn.textContent = 'ВОЙТИ В СВОЙ ДИАЛОГ (' + pbFormatMs(pbQuota.remainingMs) + ')';
+                  resBtn.textContent = (pbQuota.paused ? 'ПРОДОЛЖИТЬ ДИАЛОГ (' : 'ВОЙТИ В СВОЙ ДИАЛОГ (') + pbFormatMs(pbQuota.remainingMs) + ')';
                   resBtn.addEventListener('click', function () {
                     pbJoinRoom(pbQuota.code, (pbNickInput && pbNickInput.value.trim()) || 'Создатель');
                   });
@@ -4227,9 +4470,11 @@
           };
           window.__GEEK_STATIC_CLEANUP__ = function () {
             clearInterval(pbQuotaTick);
+            pbStopPolling();
             pbCleanupRtc();
             pbStopMedia();
             if (pbWs) { try { pbWs.close(); } catch (e) {} pbWs = null; }
+            if (pbLocalCh) { try { pbLocalCh.close(); } catch (e) {} pbLocalCh = null; }
           };
 
           if (pbTabDemo) pbTabDemo.addEventListener('click', function () { pbActive = false; renderPreBeta(); renderCyberNet(); });
@@ -4255,25 +4500,57 @@
               e.preventDefault();
               var txt = pbChatInput ? pbChatInput.value.trim() : '';
               if (!txt || !pbRoom) return;
-              pbSendWs({ type: 'chat:send', text: txt });
               pbChatInput.value = '';
+              if (pbTransport === 'node-ws') {
+                if (pbWs && pbWs.readyState === 1) pbWs.send(JSON.stringify({ type: 'chat:send', text: txt }));
+              } else if (pbTransport === 'local') {
+                var st = pbReadLocal(), now = Date.now(), rm = st.rooms[pbRoom.code];
+                if (rm) {
+                  var me = rm.participants.find(function (p) { return p.peerId === pbMyPeerId; });
+                  if (me) {
+                    rm.messages.push({ id: 'msg-' + now + '-' + Math.random().toString(36).slice(2, 6), authorPeerId: pbMyPeerId, authorNick: me.nick, text: txt, timestamp: now });
+                    pbWriteLocal(st);
+                    pbApplySnapshot(pbLocalSnapshot(rm, now), []);
+                  }
+                }
+              } else {
+                pbFetchJson(pbGetUrls(pbTransport).send, {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ code: pbRoom.code, peerId: pbMyPeerId, text: txt })
+                }).then(function (r) {
+                  if (r.data && r.data.ok && r.data.message && pbRoom) {
+                    if (!pbRoom.messages.some(function (m) { return m.id === r.data.message.id; })) {
+                      pbRoom.messages = pbRoom.messages.concat([r.data.message]).slice(-80);
+                      renderPreBeta();
+                    }
+                  }
+                });
+              }
             });
           }
           if (pbLeaveBtn) {
             pbLeaveBtn.addEventListener('click', function () {
-              pbSendWs({ type: 'room:leave' });
-              pbCleanupRtc();
-              pbStopMedia();
-              pbRoom = null;
-              pbRefreshQuota();
-              renderPreBeta();
+              var oldCode = pbRoom && pbRoom.code;
+              pbStopPolling();
+              if (pbTransport === 'node-ws') {
+                if (pbWs && pbWs.readyState === 1) pbWs.send(JSON.stringify({ type: 'room:leave' }));
+              } else if (oldCode && pbMyPeerId) {
+                if (pbTransport === 'local') pbLocalLeave(oldCode, pbMyPeerId);
+                else fetch(pbGetUrls(pbTransport).leave, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: oldCode, peerId: pbMyPeerId }) }).catch(function () {});
+              }
+              pbCleanupRtc(); pbStopMedia(); pbRoom = null;
+              pbRefreshQuota(); renderPreBeta();
             });
           }
           if (pbMicBtn) {
             pbMicBtn.addEventListener('click', function () {
               pbMicMuted = !pbMicMuted;
               if (pbLocalStream) pbLocalStream.getAudioTracks().forEach(function (t) { t.enabled = !pbMicMuted; });
-              pbSendWs({ type: 'peer:update', micMuted: pbMicMuted });
+              if (pbTransport === 'node-ws') {
+                if (pbWs && pbWs.readyState === 1) pbWs.send(JSON.stringify({ type: 'peer:update', micMuted: pbMicMuted }));
+              } else if (pbRoom && pbMyPeerId && pbTransport !== 'local') {
+                fetch(pbGetUrls(pbTransport).peer, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: pbRoom.code, peerId: pbMyPeerId, micMuted: pbMicMuted }) }).catch(function () {});
+              }
               renderPreBeta();
             });
           }
