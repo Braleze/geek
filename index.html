@@ -2009,13 +2009,13 @@
                     </div>
                   </div>
                   <div>
-                    <div class="gk-cn-vdock">
+                    <div id="gk-cn-vdock" data-testid="preview-vdock" class="gk-cn-vdock" style="display:none;">
                       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
                         <div style="min-width:0;">
-                          <div id="gk-cn-vdock-status" style="font-size:10px;font-weight:800;color:#63809b;text-transform:uppercase;">📡 ГОЛОСОВОЙ КАНАЛ</div>
+                          <div id="gk-cn-vdock-status" style="font-size:10px;font-weight:800;color:#10b981;text-transform:uppercase;">🟢 В ЭФИРЕ</div>
                           <div id="gk-cn-vdock-room" style="font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Ночной эфир</div>
                         </div>
-                        <button type="button" id="gk-cn-join-voice" class="gk-cn-vdock-btn">ВОЙТИ</button>
+                        <button type="button" id="gk-cn-join-voice" data-testid="preview-voice-dock-btn" class="gk-cn-vdock-btn is-in">ВЫЙТИ</button>
                       </div>
                       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
                         <button type="button" id="gk-cn-cam" class="gk-cn-tool-btn" aria-pressed="false">📷 Камера</button>
@@ -3576,6 +3576,7 @@
           var cnVoiceRowEl = document.getElementById('gk-cn-voice-row');
           var cnVoiceLiveEl = document.getElementById('gk-cn-voice-live');
           var cnVoicePeersEl = document.getElementById('gk-cn-voice-peers');
+          var cnVdockEl = document.getElementById('gk-cn-vdock');
           var cnVdockStatusEl = document.getElementById('gk-cn-vdock-status');
           var cnVdockRoomEl = document.getElementById('gk-cn-vdock-room');
           var cnJoinVoiceBtn = document.getElementById('gk-cn-join-voice');
@@ -3667,24 +3668,20 @@
             var isInViewedVoice = cnVoiceServerId === srv.id;
 
             if (cnVoiceNameEl) cnVoiceNameEl.textContent = '🔊 ' + srv.voiceChannel;
-            if (cnVdockRoomEl) cnVdockRoomEl.textContent = connectedVoiceSrv ? connectedVoiceSrv.voiceChannel : srv.voiceChannel;
+            if (cnVdockEl) cnVdockEl.style.display = connectedVoiceSrv ? 'block' : 'none';
+            if (cnVdockRoomEl && connectedVoiceSrv) cnVdockRoomEl.textContent = connectedVoiceSrv.voiceChannel;
             if (cnVoiceRowEl) {
               cnVoiceRowEl.classList.toggle('is-active', isInViewedVoice);
               cnVoiceRowEl.setAttribute('aria-pressed', isInViewedVoice ? 'true' : 'false');
             }
             if (cnVoiceLiveEl) cnVoiceLiveEl.style.display = isInViewedVoice ? 'inline' : 'none';
-            if (cnVdockStatusEl) {
-              if (connectedVoiceSrv) {
-                cnVdockStatusEl.textContent = connectedVoiceSrv.id === srv.id ? '🟢 В ЭФИРЕ' : ('🟢 В ЭФИРЕ · ' + connectedVoiceSrv.name);
-                cnVdockStatusEl.style.color = '#10b981';
-              } else {
-                cnVdockStatusEl.textContent = '📡 ГОЛОСОВОЙ КАНАЛ';
-                cnVdockStatusEl.style.color = '#63809b';
-              }
+            if (cnVdockStatusEl && connectedVoiceSrv) {
+              cnVdockStatusEl.textContent = connectedVoiceSrv.id === srv.id ? '🟢 В ЭФИРЕ' : ('🟢 В ЭФИРЕ · ' + connectedVoiceSrv.name);
+              cnVdockStatusEl.style.color = '#10b981';
             }
             if (cnJoinVoiceBtn) {
               cnJoinVoiceBtn.classList.toggle('is-in', Boolean(connectedVoiceSrv));
-              cnJoinVoiceBtn.textContent = connectedVoiceSrv ? 'ВЫЙТИ' : 'ВОЙТИ';
+              cnJoinVoiceBtn.textContent = 'ВЫЙТИ';
             }
             if (cnCamBtn) {
               cnCamBtn.classList.toggle('is-cam', cnCam);
@@ -5428,20 +5425,16 @@
           }
           if (cnJoinVoiceBtn) {
             cnJoinVoiceBtn.addEventListener('click', function () {
-              if (cnVoiceServerId) {
-                cnVoiceServerId = null;
-                cnCam = false;
-                cnScreen = false;
-              } else {
-                cnVoiceServerId = cnActiveSrvId;
-              }
+              cnVoiceServerId = null;
+              cnCam = false;
+              cnScreen = false;
               renderCyberNet();
             });
           }
           if (vcMicBtn) vcMicBtn.addEventListener('click', function () { cnMicMuted = !cnMicMuted; renderCyberNet(); });
           if (vcDeafBtn) vcDeafBtn.addEventListener('click', function () { cnDeafened = !cnDeafened; renderCyberNet(); });
-          if (cnCamBtn) cnCamBtn.addEventListener('click', function () { if (!cnVoiceServerId) cnVoiceServerId = cnActiveSrvId; cnCam = !cnCam; renderCyberNet(); });
-          if (cnScreenBtn) cnScreenBtn.addEventListener('click', function () { if (!cnVoiceServerId) cnVoiceServerId = cnActiveSrvId; cnScreen = !cnScreen; renderCyberNet(); });
+          if (cnCamBtn) cnCamBtn.addEventListener('click', function () { cnCam = !cnCam; renderCyberNet(); });
+          if (cnScreenBtn) cnScreenBtn.addEventListener('click', function () { cnScreen = !cnScreen; renderCyberNet(); });
           if (cnToggleMembersBtn) cnToggleMembersBtn.addEventListener('click', function () { cnShowMembers = !cnShowMembers; if (pbActive) renderPreBeta(); else renderCyberNet(); });
           if (cnInviteBtn) {
             cnInviteBtn.addEventListener('click', function () {

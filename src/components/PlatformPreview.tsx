@@ -767,90 +767,69 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
             </div>
 
             <div className="shrink-0">
-              {/* Voice Dock */}
-              <div className="bg-[#06101a]/95 border-t border-[#00f0ff]/35 px-2.5 py-2 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <div
-                      data-testid="preview-vdock-status"
-                      className={`text-[10px] font-extrabold uppercase truncate ${
-                        connectedVoiceServer ? 'text-[#10b981]' : 'text-[#63809b]'
+              {/* Voice Dock (visible only while connected to a voice channel) */}
+              {connectedVoiceServer && (
+                <div
+                  data-testid="preview-vdock"
+                  className="bg-[#06101a]/95 border-t border-[#00f0ff]/35 px-2.5 py-2 space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <div
+                        data-testid="preview-vdock-status"
+                        className="text-[10px] font-extrabold uppercase truncate text-[#10b981]"
+                      >
+                        {connectedVoiceServer.id === activeServer.id
+                          ? '🟢 В ЭФИРЕ'
+                          : `🟢 В ЭФИРЕ · ${connectedVoiceServer.name}`}
+                      </div>
+                      <div
+                        data-testid="preview-vdock-room"
+                        className="text-xs font-bold text-white truncate"
+                      >
+                        {connectedVoiceServer.voiceChannel}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      data-testid="preview-voice-dock-btn"
+                      onClick={handleLeaveVoice}
+                      className="px-2.5 py-1 rounded text-[10.5px] font-extrabold cursor-pointer transition-colors shrink-0 bg-[#ff2a85]/25 border border-[#ff2a85] text-[#ff80a0] hover:bg-[#ff2a85] hover:text-white"
+                    >
+                      ВЫЙТИ
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setCamActive((prev) => !prev)}
+                      aria-pressed={camActive}
+                      className={`py-1 px-2 rounded border text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
+                        camActive
+                          ? 'bg-[#10b981]/25 border-[#10b981] text-[#6ee7b7]'
+                          : 'bg-[#0d1829] border-[#00f0ff]/15 text-[#b4cde0] hover:text-white'
                       }`}
                     >
-                      {connectedVoiceServer
-                        ? connectedVoiceServer.id === activeServer.id
-                          ? '🟢 В ЭФИРЕ'
-                          : `🟢 В ЭФИРЕ · ${connectedVoiceServer.name}`
-                        : '📡 ГОЛОСОВОЙ КАНАЛ'}
-                    </div>
-                    <div
-                      data-testid="preview-vdock-room"
-                      className="text-xs font-bold text-white truncate"
+                      <Video className="w-3 h-3" />
+                      <span>Камера</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScreenActive((prev) => !prev)}
+                      aria-pressed={screenActive}
+                      className={`py-1 px-2 rounded border text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
+                        screenActive
+                          ? 'bg-[#ff2a85]/25 border-[#ff2a85] text-[#ffaec2]'
+                          : 'bg-[#0d1829] border-[#00f0ff]/15 text-[#b4cde0] hover:text-white'
+                      }`}
                     >
-                      {connectedVoiceServer
-                        ? connectedVoiceServer.voiceChannel
-                        : activeServer.voiceChannel}
-                    </div>
+                      <Monitor className="w-3 h-3" />
+                      <span>Экран</span>
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    data-testid="preview-voice-dock-btn"
-                    onClick={() =>
-                      connectedVoiceServer
-                        ? handleLeaveVoice()
-                        : handleToggleVoiceChannel(activeServer.id)
-                    }
-                    className={`px-2.5 py-1 rounded text-[10.5px] font-extrabold cursor-pointer transition-colors shrink-0 ${
-                      connectedVoiceServer
-                        ? 'bg-[#ff2a85]/25 border border-[#ff2a85] text-[#ff80a0]'
-                        : 'bg-[#00f0ff] text-[#031518]'
-                    }`}
-                  >
-                    {connectedVoiceServer ? 'ВЫЙТИ' : 'ВОЙТИ'}
-                  </button>
                 </div>
-
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!voiceServerId) {
-                        setVoiceServerId(activeServer.id);
-                        syncL30nelVoiceAudio(activeServer.id, preBetaMode, deafened);
-                      }
-                      setCamActive((prev) => !prev);
-                    }}
-                    aria-pressed={camActive}
-                    className={`py-1 px-2 rounded border text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
-                      camActive
-                        ? 'bg-[#10b981]/25 border-[#10b981] text-[#6ee7b7]'
-                        : 'bg-[#0d1829] border-[#00f0ff]/15 text-[#b4cde0] hover:text-white'
-                    }`}
-                  >
-                    <Video className="w-3 h-3" />
-                    <span>Камера</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!voiceServerId) {
-                        setVoiceServerId(activeServer.id);
-                        syncL30nelVoiceAudio(activeServer.id, preBetaMode, deafened);
-                      }
-                      setScreenActive((prev) => !prev);
-                    }}
-                    aria-pressed={screenActive}
-                    className={`py-1 px-2 rounded border text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
-                      screenActive
-                        ? 'bg-[#ff2a85]/25 border-[#ff2a85] text-[#ffaec2]'
-                        : 'bg-[#0d1829] border-[#00f0ff]/15 text-[#b4cde0] hover:text-white'
-                    }`}
-                  >
-                    <Monitor className="w-3 h-3" />
-                    <span>Экран</span>
-                  </button>
-                </div>
-              </div>
+              )}
 
               {/* Bottom User Bar with Hex Controls */}
               <div className="h-[54px] px-2.5 bg-[#040810] border-t border-[#00f0ff]/15 flex items-center justify-between gap-1.5">
