@@ -10,6 +10,7 @@ const MAX_REPLY_CHARS = 320;
 const MAX_HISTORY_ITEMS = 8;
 
 const DEFAULT_UNLOCK_CODE = 'gk-cyber-9472-unlock';
+const DEFAULT_VOICE_UNLOCK_CODE = 'gk-voice-7714-test';
 const MAX_UNLOCKED_QUESTION_CHARS = 2000;
 const MAX_UNLOCKED_REPLY_CHARS = 4000;
 const UNLOCK_TOKEN_TTL_MS = 86400000;
@@ -163,6 +164,32 @@ function isValidUnlockAttempt(string $raw, string $expectedCode): bool {
         hash('sha256', $candidate, true),
         hash('sha256', $expected, true)
     );
+}
+
+function extractVoiceUnlockCandidate(string $raw): string {
+    $trimmed = trim($raw);
+    if (preg_match('/^\/(?:voice|voicetest)\s+(.+)$/iu', $trimmed, $m)) {
+        return trim($m[1]);
+    }
+    return $trimmed;
+}
+
+function isValidVoiceUnlockAttempt(string $raw, string $expectedCode): bool {
+    $candidate = extractVoiceUnlockCandidate($raw);
+    $expected = trim($expectedCode);
+    if ($candidate === '' || $expected === '') {
+        return false;
+    }
+    return hash_equals(
+        hash('sha256', $candidate, true),
+        hash('sha256', $expected, true)
+    );
+}
+
+function getVoiceUnlockHmacSecret(string $apiKey): string {
+    $voiceCode = readEnvSetting('PREVIEW_VOICE_UNLOCK_CODE') ?: DEFAULT_VOICE_UNLOCK_CODE;
+    $baseKey = $apiKey !== '' ? $apiKey : 'local-preview-key';
+    return $baseKey . '::voice-unlock::' . $voiceCode;
 }
 
 function signUnlockToken(string $hmacSecret): string {
@@ -444,6 +471,24 @@ if ($action === 'status') {
     respondJson(200, [
         'ok' => true,
         'liveEnabled' => $apiKey !== '',
+        'voiceUnlockEnabled' => true,
+    ]);
+}
+
+$voiceCode = readEnvSetting('PREVIEW_VOICE_UNLOCK_CODE') ?: DEFAULT_VOICE_UNLOCK_CODE;
+$voiceHmacSecret = getVoiceUnlockHmacSecret($apiKey);
+$voiceUnlockedMessageText = '🎙 Тестовый живой голосовой канал «🔊 Live Голос (Тест)» открыт в списке голосовых каналов! Подключайтесь для проверки WebRTC / WS-голоса, камеры, экрана и Эхо-теста. Чтобы снова скрыть канал, отправьте /voice-lock.';
+
+if ($action === 'voice-unlock') {
+    $rawCode = (string)($input['code'] ?? ($input['question'] ?? ''));
+    if (!isValidVoiceUnlockAttempt($rawCode, $voiceCode)) {
+        respondJson(200, ['ok' => true, 'matched' => false]);
+    }
+    respondJson(200, [
+        'ok' => true,
+        'matched' => true,
+        'voiceUnlockToken' => signUnlockToken($voiceHmacSecret),
+        'reply' => buildSystemMessage($voiceUnlockedMessageText, 'voice-unlock'),
     ]);
 }
 
@@ -451,11 +496,21 @@ if ($action !== 'reply') {
     respondJson(400, ['ok' => false, 'reason' => 'UNKNOWN_ACTION', 'error' => 'Неизвестное действие preview API.']);
 }
 
+$rawQuestion = (string)($input['question'] ?? '');
+
+if (isValidVoiceUnlockAttempt($rawQuestion, $voiceCode)) {
+    respondJson(200, [
+        'ok' => true,
+        'voiceUnlocked' => true,
+        'voiceUnlockToken' => signUnlockToken($voiceHmacSecret),
+        'reply' => buildSystemMessage($voiceUnlockedMessageText, 'voice-unlock'),
+    ]);
+}
+
 if ($apiKey === '') {
     respondJson(503, ['ok' => false, 'reason' => 'GEMINI_NOT_CONFIGURED', 'error' => 'Gemini API key is not configured on the server.']);
 }
 
-$rawQuestion = (string)($input['question'] ?? '');
 $unlockCode = readEnvSetting('PREVIEW_UNLOCK_CODE') ?: DEFAULT_UNLOCK_CODE;
 $hmacSecret = $apiKey . '::' . $unlockCode;
 

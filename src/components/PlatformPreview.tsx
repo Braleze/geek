@@ -155,6 +155,7 @@ export function PlatformPreview({
     }
   });
   const [typingPeerName, setTypingPeerName] = useState<string | null>(null);
+  const [voiceBackend, setVoiceBackend] = useState<'node' | 'php' | 'local' | undefined>(undefined);
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const replyCountRef = useRef<number>(0);
   const replyTimersRef = useRef<number[]>([]);
@@ -177,6 +178,7 @@ export function PlatformPreview({
   };
 
   const liveVoice = useLiveVoiceRoom({
+    preferredBackend: voiceBackend,
     onUnauthorized: () => {
       persistVoiceUnlockToken(null);
     },
@@ -386,6 +388,7 @@ export function PlatformPreview({
         liveReplyUrlRef.current = cfg.replyUrl;
       }
       voiceUnlockUrlRef.current = cfg.voiceUnlockUrl;
+      setVoiceBackend(cfg.voiceBackend);
     });
 
     return () => {
@@ -545,19 +548,36 @@ export function PlatformPreview({
         scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
         return;
       }
-      void fetch(voiceUnlockUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: trimmedRaw.slice(0, 220) }),
-      })
-        .then(async (res) => {
-          if (!res.ok) return null;
-          return (await res.json()) as {
-            ok?: boolean;
-            matched?: boolean;
-            voiceUnlockToken?: string;
-            reply?: PreviewMessage;
-          };
+      const postVoiceUnlock = async (url: string) => {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: trimmedRaw.slice(0, 220) }),
+        });
+        const ct = res.headers.get('content-type') || '';
+        if (!res.ok || !ct.toLowerCase().includes('application/json')) {
+          return null;
+        }
+        return (await res.json()) as {
+          ok?: boolean;
+          matched?: boolean;
+          voiceUnlockToken?: string;
+          reply?: PreviewMessage;
+        };
+      };
+
+      void postVoiceUnlock(voiceUnlockUrl)
+        .then(async (data) => {
+          if (data) return data;
+          if (voiceUnlockUrl === './api/preview/voice-unlock') {
+            const phpData = await postVoiceUnlock('./api/preview.php?action=voice-unlock');
+            if (phpData) {
+              voiceUnlockUrlRef.current = './api/preview.php?action=voice-unlock';
+              setVoiceBackend('php');
+            }
+            return phpData;
+          }
+          return null;
         })
         .then((data) => {
           if (!isMountedRef.current) return;

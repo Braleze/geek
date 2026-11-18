@@ -11,6 +11,7 @@ import {
   resampleFloat32ToInt16,
   type ResamplerState,
 } from '../utils/preBetaAudio';
+import { liveVoiceHttpUrls } from '../utils/previewTransport';
 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -35,8 +36,10 @@ export interface RemoteVideoEntry {
 }
 
 export function useLiveVoiceRoom({
+  preferredBackend,
   onUnauthorized,
 }: {
+  preferredBackend?: 'node' | 'php' | 'local';
   onUnauthorized?: () => void;
 } = {}) {
   const [connected, setConnected] = useState(false);
@@ -60,10 +63,16 @@ export function useLiveVoiceRoom({
 
   const onUnauthorizedRef = useRef(onUnauthorized);
   onUnauthorizedRef.current = onUnauthorized;
+  const preferredBackendRef = useRef<'node' | 'php' | 'local' | undefined>(preferredBackend);
+  preferredBackendRef.current = preferredBackend;
 
   const connectedRef = useRef(false);
   connectedRef.current = connected;
   const transportRef = useRef<'ws' | 'http'>('ws');
+  const httpBackendRef = useRef<'node' | 'php'>(preferredBackend === 'php' ? 'php' : 'node');
+  if (!connectedRef.current && (preferredBackend === 'php' || preferredBackend === 'node')) {
+    httpBackendRef.current = preferredBackend;
+  }
   const tokenRef = useRef<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const wsConnectPromiseRef = useRef<Promise<WebSocket> | null>(null);
@@ -157,7 +166,7 @@ export function useLiveVoiceRoom({
       const token = tokenRef.current;
       const peerId = myPeerIdRef.current;
       if (!token || !peerId) return;
-      void fetch('./api/voice/update', {
+      void fetch(liveVoiceHttpUrls(httpBackendRef.current).update, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token, peerId, ...patch }),
@@ -202,7 +211,7 @@ export function useLiveVoiceRoom({
       const token = tokenRef.current;
       const peerId = myPeerIdRef.current;
       if (!token || !peerId) return;
-      await fetch('./api/voice/signal', {
+      await fetch(liveVoiceHttpUrls(httpBackendRef.current).signal, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -969,11 +978,13 @@ export function useLiveVoiceRoom({
       const pollOnce = async () => {
         if (!connectedRef.current) return;
         try {
-          const response = await fetch('./api/voice/poll', {
+          const response = await fetch(liveVoiceHttpUrls(httpBackendRef.current).poll, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token, peerId }),
           });
+          const ct = response.headers.get('content-type') || '';
+          if (!ct.toLowerCase().includes('application/json')) return;
           const payload = (await response.json()) as {
             ok?: boolean;
             reason?: string;
@@ -1172,32 +1183,32 @@ export function useLiveVoiceRoom({
 
       const gotMic = await acquireMicBestEffort();
 
-      try {
-        const ws = await ensureSocketConnected();
-        transportRef.current = 'ws';
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(
-            JSON.stringify({
-              type: 'voice:join',
-              token,
-              nick,
-              hasAudio: gotMic,
-              micMuted: micMutedRef.current,
-              deafened: deafenedRef.current,
-              camActive: camActiveRef.current,
-              screenActive: screenActiveRef.current,
-            }),
-          );
-          return true;
+      if (preferredBackendRef.current !== 'php') {
+        try {
+          const ws = await ensureSocketConnected();
+          transportRef.current = 'ws';
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(
+              JSON.stringify({
+                type: 'voice:join',
+                token,
+                nick,
+                hasAudio: gotMic,
+                micMuted: micMutedRef.current,
+                deafened: deafenedRef.current,
+                camActive: camActiveRef.current,
+                screenActive: screenActiveRef.current,
+              }),
+            );
+            return true;
+          }
+        } catch {
+          // Fall through cleanly to HTTP polling fallback
         }
-      } catch {
-        // Fall through cleanly to HTTP polling fallback
       }
 
-      try {
-        transportRef.current = 'http';
-        pollIntervalMsRef.current = 450;
-        const response = await fetch('./api/voice/join', {
+      const tryHttpJoin = async (backend: 'node' | 'php') => {
+        const res = await fetch(liveVoiceHttpUrls(backend).join, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1210,7 +1221,11 @@ export function useLiveVoiceRoom({
             screenActive: screenActiveRef.current,
           }),
         });
-        const payload = (await response.json()) as {
+        const ct = res.headers.get('content-type') || '';
+        if (!ct.toLowerCase().includes('application/json')) {
+          return null;
+        }
+        return (await res.json()) as {
           ok?: boolean;
           reason?: string;
           message?: string;
@@ -1218,6 +1233,25 @@ export function useLiveVoiceRoom({
           peers?: LiveVoicePublicPeer[];
           signals?: Array<Record<string, unknown>>;
         };
+      };
+
+      try {
+        transportRef.current = 'http';
+        pollIntervalMsRef.current = 450;
+        const initialBackend: 'node' | 'php' =
+          preferredBackendRef.current === 'php' ? 'php' : 'node';
+        let activeBackend: 'node' | 'php' = initialBackend;
+        let payload = await tryHttpJoin(initialBackend);
+        if (!payload && initialBackend === 'node') {
+          activeBackend = 'php';
+          payload = await tryHttpJoin('php');
+        }
+        if (!payload) {
+          setConnecting(false);
+          setError('Сервер живого голоса недоступен.');
+          return false;
+        }
+        httpBackendRef.current = activeBackend;
         if (!payload.ok || !payload.peerId) {
           setConnecting(false);
           if (payload.reason === 'UNAUTHORIZED') {
@@ -1275,10 +1309,10 @@ export function useLiveVoiceRoom({
           ws.send(JSON.stringify({ type: 'voice:leave' }));
         }
       } else if (token && peerId) {
-        void fetch('./api/voice/leave', {
+        void fetch(liveVoiceHttpUrls(httpBackendRef.current).leave, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ peerId }),
+          body: JSON.stringify({ token, peerId }),
         }).catch(() => {});
       }
     }
@@ -1527,7 +1561,7 @@ export function useLiveVoiceRoom({
       const peerId = myPeerIdRef.current;
       if (transportRef.current === 'http' && peerId && navigator.sendBeacon) {
         navigator.sendBeacon(
-          './api/voice/leave',
+          liveVoiceHttpUrls(httpBackendRef.current).leave,
           new Blob([JSON.stringify({ peerId })], { type: 'text/plain' }),
         );
       }

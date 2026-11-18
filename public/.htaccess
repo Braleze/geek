@@ -3,6 +3,7 @@ DirectoryIndex index.html
 RedirectMatch 404 ^/\.git
 RedirectMatch 404 ^/\.env
 RedirectMatch 404 ^/\.prebeta-state\.json$
+RedirectMatch 404 \.geek_live_voice_state_v1\.json$
 
 <IfModule mod_mime.c>
   AddType application/javascript .js .mjs
