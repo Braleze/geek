@@ -12,6 +12,10 @@ import {
   type ResamplerState,
 } from '../utils/preBetaAudio';
 import { liveVoiceHttpUrls } from '../utils/previewTransport';
+import {
+  joinLocalBroadcastVoiceRoom,
+  type LocalVoiceSession,
+} from '../utils/liveVoiceLocalTransport';
 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -68,7 +72,7 @@ export function useLiveVoiceRoom({
 
   const connectedRef = useRef(false);
   connectedRef.current = connected;
-  const transportRef = useRef<'ws' | 'http'>('ws');
+  const transportRef = useRef<'ws' | 'http' | 'local'>('ws');
   const httpBackendRef = useRef<'node' | 'php'>(preferredBackend === 'php' ? 'php' : 'node');
   if (!connectedRef.current && (preferredBackend === 'php' || preferredBackend === 'node')) {
     httpBackendRef.current = preferredBackend;
@@ -76,6 +80,7 @@ export function useLiveVoiceRoom({
   const tokenRef = useRef<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const wsConnectPromiseRef = useRef<Promise<WebSocket> | null>(null);
+  const localSessionRef = useRef<LocalVoiceSession | null>(null);
   const pollTimerRef = useRef<number | null>(null);
   const pollIntervalMsRef = useRef<number>(800);
   const myPeerIdRef = useRef<string | null>(null);
@@ -146,6 +151,13 @@ export function useLiveVoiceRoom({
     }
   }, []);
 
+  const stopLocalSession = useCallback(() => {
+    if (localSessionRef.current) {
+      localSessionRef.current.leave();
+      localSessionRef.current = null;
+    }
+  }, []);
+
   const sendRoomUpdate = useCallback(
     (patch: {
       micMuted?: boolean;
@@ -156,6 +168,10 @@ export function useLiveVoiceRoom({
       speaking?: boolean;
     }) => {
       if (!connectedRef.current) return;
+      if (transportRef.current === 'local') {
+        localSessionRef.current?.sendUpdate(patch);
+        return;
+      }
       if (transportRef.current === 'ws') {
         const ws = wsRef.current;
         if (ws && ws.readyState === WebSocket.OPEN) {
@@ -182,6 +198,27 @@ export function useLiveVoiceRoom({
       payload: unknown,
     ) => {
       if (!connectedRef.current) return;
+      if (transportRef.current === 'local') {
+        const session = localSessionRef.current;
+        if (!session) return;
+        if (signalType === 'audio' && payload && typeof payload === 'object') {
+          const p = payload as { sr?: number; data?: string };
+          session.sendPacket(null, {
+            type: 'voice:audio',
+            fromPeerId: session.peerId,
+            sr: p.sr ?? RELAY_SAMPLE_RATE,
+            data: p.data ?? '',
+          });
+        } else if (toPeerId) {
+          session.sendPacket(toPeerId, {
+            type: 'voice:signal',
+            fromPeerId: session.peerId,
+            signalType,
+            payload,
+          });
+        }
+        return;
+      }
       if (transportRef.current === 'ws') {
         const ws = wsRef.current;
         if (ws && ws.readyState === WebSocket.OPEN) {
@@ -1177,11 +1214,48 @@ export function useLiveVoiceRoom({
       }
 
       tokenRef.current = token;
+      stopPolling();
+      stopLocalSession();
       setConnecting(true);
       setError(null);
       cleanupAllPeers();
 
       const gotMic = await acquireMicBestEffort();
+
+      const enterLocalRoomFallback = (): boolean => {
+        stopPolling();
+        stopLocalSession();
+        transportRef.current = 'local';
+        const session = joinLocalBroadcastVoiceRoom(
+          {
+            nick,
+            hasAudio: gotMic,
+            micMuted: micMutedRef.current,
+            deafened: deafenedRef.current,
+            camActive: camActiveRef.current,
+            screenActive: screenActiveRef.current,
+          },
+          handleServerPacket,
+        );
+        localSessionRef.current = session;
+        myPeerIdRef.current = session.peerId;
+        setMyPeerId(session.peerId);
+        peersRef.current = session.peers;
+        setPeers(session.peers);
+        connectedRef.current = true;
+        setConnected(true);
+        setConnecting(false);
+        setError(null);
+        if (session.peers.length >= 2) {
+          scheduleRelayFallback();
+        }
+        evaluateRoomAudioMode();
+        return true;
+      };
+
+      if (token.startsWith('local-') || preferredBackendRef.current === 'local') {
+        return enterLocalRoomFallback();
+      }
 
       if (preferredBackendRef.current !== 'php') {
         try {
@@ -1247,18 +1321,22 @@ export function useLiveVoiceRoom({
           payload = await tryHttpJoin('php');
         }
         if (!payload) {
-          setConnecting(false);
-          setError('Сервер живого голоса недоступен.');
-          return false;
+          return enterLocalRoomFallback();
         }
         httpBackendRef.current = activeBackend;
         if (!payload.ok || !payload.peerId) {
-          setConnecting(false);
           if (payload.reason === 'UNAUTHORIZED') {
+            setConnecting(false);
             onUnauthorizedRef.current?.();
+            setError(payload.message ?? 'Сессия голосового канала недействительна.');
+            return false;
           }
-          setError(payload.message ?? 'Не удалось войти в голосовой канал.');
-          return false;
+          if (payload.reason === 'ROOM_FULL') {
+            setConnecting(false);
+            setError(payload.message ?? 'Голосовой канал заполнен.');
+            return false;
+          }
+          return enterLocalRoomFallback();
         }
         myPeerIdRef.current = payload.peerId;
         setMyPeerId(payload.peerId);
@@ -1281,9 +1359,7 @@ export function useLiveVoiceRoom({
         startHttpPolling(token, payload.peerId);
         return true;
       } catch {
-        setConnecting(false);
-        setError('Сервер живого голоса недоступен.');
-        return false;
+        return enterLocalRoomFallback();
       }
     },
     [
@@ -1294,6 +1370,8 @@ export function useLiveVoiceRoom({
       handleServerPacket,
       scheduleRelayFallback,
       startHttpPolling,
+      stopLocalSession,
+      stopPolling,
     ],
   );
 
@@ -1303,7 +1381,9 @@ export function useLiveVoiceRoom({
     stopPolling();
 
     if (connectedRef.current) {
-      if (transportRef.current === 'ws') {
+      if (transportRef.current === 'local') {
+        stopLocalSession();
+      } else if (transportRef.current === 'ws') {
         const ws = wsRef.current;
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'voice:leave' }));
@@ -1315,6 +1395,8 @@ export function useLiveVoiceRoom({
           body: JSON.stringify({ token, peerId }),
         }).catch(() => {});
       }
+    } else {
+      stopLocalSession();
     }
 
     connectedRef.current = false;
@@ -1325,7 +1407,7 @@ export function useLiveVoiceRoom({
     setError(null);
     cleanupAllPeers();
     stopLocalMedia();
-  }, [cleanupAllPeers, stopLocalMedia, stopPolling]);
+  }, [cleanupAllPeers, stopLocalMedia, stopLocalSession, stopPolling]);
 
   const toggleMicMute = useCallback(() => {
     setMicMuted((prev) => {
@@ -1558,6 +1640,10 @@ export function useLiveVoiceRoom({
   useEffect(() => {
     const handleUnload = () => {
       if (!connectedRef.current) return;
+      if (transportRef.current === 'local') {
+        localSessionRef.current?.leave();
+        return;
+      }
       const peerId = myPeerIdRef.current;
       if (transportRef.current === 'http' && peerId && navigator.sendBeacon) {
         navigator.sendBeacon(
@@ -1577,6 +1663,7 @@ export function useLiveVoiceRoom({
   useEffect(() => {
     return () => {
       stopPolling();
+      stopLocalSession();
       cleanupAllPeers();
       stopLocalMedia();
       if (wsRef.current) {
@@ -1584,7 +1671,7 @@ export function useLiveVoiceRoom({
         wsRef.current = null;
       }
     };
-  }, [cleanupAllPeers, stopLocalMedia, stopPolling]);
+  }, [cleanupAllPeers, stopLocalMedia, stopLocalSession, stopPolling]);
 
   return {
     connected,

@@ -21,9 +21,11 @@ import {
   BADGE_META,
   PREVIEW_QUICK_QUESTIONS,
   PREVIEW_SERVERS,
+  buildLocalVoiceUnlockMessage,
   createUserPreviewMessage,
   generatePreviewPeerReply,
   getVoicePeersForServer,
+  matchesLocalVoiceUnlockCode,
   resolvePreviewShortcutAction,
   shouldPlayL30nelVoiceAudio,
   toggleVoiceForViewedServer,
@@ -163,8 +165,11 @@ export function PlatformPreview({
   const voiceUnlockUrlRef = useRef<string | null>('./api/preview/voice-unlock');
   const isMountedRef = useRef<boolean>(true);
   const l30nelAudioPlayerRef = useRef<TrackAudioPlayer | null>(null);
+  const voiceUnlockTokenRef = useRef<string | null>(voiceUnlockToken);
+  voiceUnlockTokenRef.current = voiceUnlockToken;
 
   const persistVoiceUnlockToken = (nextToken: string | null) => {
+    voiceUnlockTokenRef.current = nextToken;
     setVoiceUnlockToken(nextToken);
     try {
       if (nextToken) {
@@ -180,7 +185,9 @@ export function PlatformPreview({
   const liveVoice = useLiveVoiceRoom({
     preferredBackend: voiceBackend,
     onUnauthorized: () => {
-      persistVoiceUnlockToken(null);
+      if (!voiceUnlockTokenRef.current?.startsWith('local-')) {
+        persistVoiceUnlockToken(null);
+      }
     },
   });
 
@@ -541,10 +548,20 @@ export function PlatformPreview({
       setTypingPeerName(null);
     };
 
+    const tryLocalVoiceUnlockFallback = (): boolean => {
+      if (!matchesLocalVoiceUnlockCode(trimmedRaw)) return false;
+      applyVoiceUnlockResult(
+        `local-voice-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        buildLocalVoiceUnlockMessage(new Date()),
+      );
+      return true;
+    };
+
     const replyUrl = liveReplyUrlRef.current;
     if (!replyUrl) {
       const voiceUnlockUrl = voiceUnlockUrlRef.current;
       if (!voiceUnlockUrl) {
+        if (tryLocalVoiceUnlockFallback()) return;
         scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
         return;
       }
@@ -585,10 +602,12 @@ export function PlatformPreview({
             applyVoiceUnlockResult(data.voiceUnlockToken, data.reply);
             return;
           }
+          if (tryLocalVoiceUnlockFallback()) return;
           scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
         })
         .catch(() => {
           if (!isMountedRef.current) return;
+          if (tryLocalVoiceUnlockFallback()) return;
           scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
         });
       return;
@@ -622,6 +641,7 @@ export function PlatformPreview({
           applyVoiceUnlockResult(data.voiceUnlockToken, data.reply);
           return;
         }
+        if (tryLocalVoiceUnlockFallback()) return;
         if (data.unlocked && data.unlockToken) {
           persistUnlockToken(data.unlockToken);
         }
@@ -643,6 +663,7 @@ export function PlatformPreview({
       })
       .catch(() => {
         if (!isMountedRef.current) return;
+        if (tryLocalVoiceUnlockFallback()) return;
         scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
       });
   };

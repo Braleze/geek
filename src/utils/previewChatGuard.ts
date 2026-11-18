@@ -104,17 +104,18 @@ export function getConfiguredPreviewVoiceCode(envOverride?: string): string {
 }
 
 export function extractVoiceUnlockCodeCandidate(rawInput: string): string {
-  const trimmed = String(rawInput ?? '').trim();
+  const withoutZeroWidth = String(rawInput ?? '').replace(/[\u200B-\u200D\uFEFF]/g, '');
+  let trimmed = withoutZeroWidth.trim();
   const cmdMatch = /^\/(?:voice|voicetest)\s+(.+)$/i.exec(trimmed);
   if (cmdMatch) {
-    return cmdMatch[1].trim();
+    trimmed = cmdMatch[1].trim();
   }
-  return trimmed;
+  return trimmed.replace(/^[`'"«»\s]+|[`'"«»\s]+$/g, '').toLowerCase();
 }
 
 export function isValidPreviewVoiceUnlockAttempt(rawInput: string, expectedCode: string): boolean {
   const candidate = extractVoiceUnlockCodeCandidate(rawInput);
-  const expected = String(expectedCode ?? '').trim();
+  const expected = String(expectedCode ?? '').trim().toLowerCase();
   if (!candidate || !expected) return false;
   const candidateDigest = crypto.createHash('sha256').update(candidate, 'utf8').digest();
   const expectedDigest = crypto.createHash('sha256').update(expected, 'utf8').digest();

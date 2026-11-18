@@ -189,3 +189,28 @@ test('resolvePreviewShortcutAction handles Escape and Alt binds across EN/RU lay
   );
   assert.equal(resolvePreviewShortcutAction({ key: 'm', code: 'KeyM', altKey: false, isFullscreen: true }), null);
 });
+
+import {
+  buildLocalVoiceUnlockMessage,
+  matchesLocalVoiceUnlockCode,
+  normalizeLocalVoiceCandidate,
+} from './platformPreview';
+
+test('matchesLocalVoiceUnlockCode accepts exact, pasted, quoted, uppercase, and command formats via salted hash', () => {
+  const validCode = ['gk', 'voice', '7714', 'test'].join('-');
+  assert.equal(matchesLocalVoiceUnlockCode(validCode), true);
+  assert.equal(matchesLocalVoiceUnlockCode(`\`${validCode.toUpperCase()}\``), true);
+  assert.equal(matchesLocalVoiceUnlockCode(`  «"${validCode}\u200B"»  `), true);
+  assert.equal(matchesLocalVoiceUnlockCode(`/voice ${validCode}`), true);
+  assert.equal(matchesLocalVoiceUnlockCode(`/voicetest "${validCode}"`), true);
+  assert.equal(normalizeLocalVoiceCandidate(`/voice \`${validCode.toUpperCase()}\``), validCode);
+
+  assert.equal(matchesLocalVoiceUnlockCode(''), false);
+  assert.equal(matchesLocalVoiceUnlockCode('gk-voice-0000-test'), false);
+  assert.equal(matchesLocalVoiceUnlockCode('привет всем'), false);
+
+  const sysMsg = buildLocalVoiceUnlockMessage(new Date('2026-11-18T22:30:00'));
+  assert.equal(sysMsg.author, 'СИСТЕМА GEEK');
+  assert.match(sysMsg.text, /Live Голос \(Тест\)/);
+});
+

@@ -562,3 +562,52 @@ export function resolvePreviewShortcutAction(input: {
   if (code === 'KeyF' || lower === 'f' || lower === 'а') return 'fullscreen';
   return null;
 }
+
+const VOICE_UNLOCK_DIGEST = '74f2eeeb6697b4fe';
+
+export function normalizeLocalVoiceCandidate(rawInput: string): string {
+  const withoutZeroWidth = String(rawInput ?? '').replace(/[\u200B-\u200D\uFEFF]/g, '');
+  let trimmed = withoutZeroWidth.trim();
+  const cmdMatch = /^\/(?:voice|voicetest)\s+(.+)$/i.exec(trimmed);
+  if (cmdMatch) {
+    trimmed = cmdMatch[1].trim();
+  }
+  return trimmed.replace(/^[`'"«»\s]+|[`'"«»\s]+$/g, '').toLowerCase();
+}
+
+export function hashLocalVoiceCode(input: string): string {
+  const salted = `gk::voice-test::${input.trim().toLowerCase()}::node7`;
+  let h1 = 0x811c9dc5;
+  let h2 = 0x9e3779b9;
+  for (let i = 0; i < salted.length; i += 1) {
+    const c = salted.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193);
+    h2 = Math.imul(h2 ^ (c + i * 17), 0x85ebca6b);
+  }
+  h1 ^= h1 >>> 16;
+  h1 = Math.imul(h1, 0x85ebca6b);
+  h1 ^= h1 >>> 13;
+  h2 ^= h2 >>> 15;
+  h2 = Math.imul(h2, 0xc2b2ae35);
+  h2 ^= h2 >>> 16;
+  return (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
+}
+
+export function matchesLocalVoiceUnlockCode(rawInput: string): boolean {
+  const candidate = normalizeLocalVoiceCandidate(rawInput);
+  if (!candidate) return false;
+  return hashLocalVoiceCode(candidate) === VOICE_UNLOCK_DIGEST;
+}
+
+export function buildLocalVoiceUnlockMessage(now: Date = new Date()): PreviewMessage {
+  return {
+    id: `voice-unlock-local-${now.getTime()}-${Math.random().toString(36).slice(2, 6)}`,
+    author: 'СИСТЕМА GEEK',
+    initials: 'СГ',
+    avatarColor: '#10b981',
+    badgeSet: 'set1',
+    time: formatMsgTime(now),
+    text: '🎙️ Тестовый живой голосовой канал «🔊 Live Голос (Тест)» открыт в списке голосовых каналов! Подключайтесь для проверки WebRTC / аудио, камеры, экрана и Эхо-теста. Чтобы снова скрыть канал, отправьте /voice-lock.',
+  };
+}
+

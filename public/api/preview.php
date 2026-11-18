@@ -167,16 +167,18 @@ function isValidUnlockAttempt(string $raw, string $expectedCode): bool {
 }
 
 function extractVoiceUnlockCandidate(string $raw): string {
-    $trimmed = trim($raw);
+    $cleaned = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $raw) ?? $raw;
+    $trimmed = trim($cleaned);
     if (preg_match('/^\/(?:voice|voicetest)\s+(.+)$/iu', $trimmed, $m)) {
-        return trim($m[1]);
+        $trimmed = trim($m[1]);
     }
-    return $trimmed;
+    $trimmed = trim($trimmed, " \t\n\r\0\x0B`'\"«»");
+    return strtolower($trimmed);
 }
 
 function isValidVoiceUnlockAttempt(string $raw, string $expectedCode): bool {
     $candidate = extractVoiceUnlockCandidate($raw);
-    $expected = trim($expectedCode);
+    $expected = strtolower(trim($expectedCode));
     if ($candidate === '' || $expected === '') {
         return false;
     }
