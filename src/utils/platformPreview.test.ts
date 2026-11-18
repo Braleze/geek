@@ -108,6 +108,7 @@ test('user messages embed hard cipher clues for codes 1 and 2 without key 3, ter
 
 import {
   getVoicePeersForServer,
+  resolvePreviewShortcutAction,
   shouldPlayL30nelVoiceAudio,
   toggleVoiceForViewedServer,
 } from './platformPreview';
@@ -172,4 +173,19 @@ test('L30nel plays MP3 audio only when user is connected to Ночной эфи�
   assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: 'cy-4371', preBetaMode: true }), false);
 });
 
+test('resolvePreviewShortcutAction handles Escape and Alt binds across EN/RU layouts', () => {
+  assert.equal(resolvePreviewShortcutAction({ key: 'Escape', isFullscreen: true }), 'exitFullscreen');
+  assert.equal(resolvePreviewShortcutAction({ key: 'Escape', isFullscreen: false }), null);
 
+  assert.equal(resolvePreviewShortcutAction({ key: 'm', code: 'KeyM', altKey: true, isFullscreen: false }), 'mic');
+  assert.equal(resolvePreviewShortcutAction({ key: 'в', code: 'KeyD', altKey: true, isFullscreen: true }), 'deafen');
+  assert.equal(resolvePreviewShortcutAction({ key: 'с', code: 'KeyC', altKey: true, isFullscreen: true }), 'cam');
+  assert.equal(resolvePreviewShortcutAction({ key: 'f', code: 'KeyF', altKey: true, isFullscreen: false }), 'fullscreen');
+
+  // Ignore Alt binds while typing in an input, or without Alt
+  assert.equal(
+    resolvePreviewShortcutAction({ key: 'm', code: 'KeyM', altKey: true, isFullscreen: true, isEditableTarget: true }),
+    null,
+  );
+  assert.equal(resolvePreviewShortcutAction({ key: 'm', code: 'KeyM', altKey: false, isFullscreen: true }), null);
+});

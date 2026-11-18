@@ -531,4 +531,34 @@ export function shouldPlayL30nelVoiceAudio(state: {
   return !state.preBetaMode && state.voiceServerId === 'cy-4371';
 }
 
+export type PreviewShortcutAction =
+  | 'exitFullscreen'
+  | 'fullscreen'
+  | 'mic'
+  | 'deafen'
+  | 'cam'
+  | null;
 
+export function resolvePreviewShortcutAction(input: {
+  key: string;
+  code?: string;
+  altKey?: boolean;
+  ctrlKey?: boolean;
+  metaKey?: boolean;
+  isFullscreen: boolean;
+  isEditableTarget?: boolean;
+}): PreviewShortcutAction {
+  if (input.key === 'Escape') {
+    return input.isFullscreen ? 'exitFullscreen' : null;
+  }
+  if (!input.altKey || input.ctrlKey || input.metaKey || input.isEditableTarget) {
+    return null;
+  }
+  const code = input.code ?? '';
+  const lower = input.key.toLowerCase();
+  if (code === 'KeyM' || lower === 'm' || lower === 'ь') return 'mic';
+  if (code === 'KeyD' || lower === 'd' || lower === 'в') return 'deafen';
+  if (code === 'KeyC' || lower === 'c' || lower === 'с') return 'cam';
+  if (code === 'KeyF' || lower === 'f' || lower === 'а') return 'fullscreen';
+  return null;
+}

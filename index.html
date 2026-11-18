@@ -229,9 +229,12 @@
         justify-content: center;
         text-align: center;
         padding: 40px 24px;
-        max-width: 1152px;
+        max-width: 1440px;
         margin: 0 auto;
         width: 100%;
+      }
+      .gk-main.has-fullscreen {
+        z-index: 50;
       }
       .gk-hero-emblem-wrap {
         position: relative;
@@ -379,6 +382,55 @@
         overflow: hidden;
         color: #e6f7ff;
         text-align: left;
+        display: flex;
+        flex-direction: column;
+      }
+      .gk-cn-shell.is-fullscreen {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        width: 100vw;
+        height: 100dvh;
+        border-radius: 0;
+        border: none;
+        box-shadow: none;
+      }
+      .gk-cn-fs-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10.5px;
+        font-weight: 800;
+        padding: 4px 10px;
+        border-radius: 6px;
+        border: 1px solid rgba(0, 240, 255, 0.45);
+        background: #0b1626;
+        color: #00f0ff;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .gk-cn-fs-btn:hover {
+        background: rgba(0, 240, 255, 0.16);
+        color: #fff;
+      }
+      .gk-cn-fs-btn.is-active {
+        background: #00f0ff;
+        border-color: #00f0ff;
+        color: #031518;
+      }
+      .gk-cn-binds {
+        height: 28px;
+        padding: 0 14px;
+        background: #03060c;
+        border-top: 1px solid rgba(0, 240, 255, 0.15);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        font-family: "Share Tech Mono", monospace;
+        font-size: 10px;
+        color: #63809b;
+        flex-shrink: 0;
       }
       .gk-cn-topbar {
         min-height: 42px;
@@ -1589,12 +1641,14 @@
         min-width: 0;
       }
       @media (min-width: 1025px) {
-        .gk-cn-workspace { height: 640px; }
+        .gk-cn-workspace { height: 720px; }
+        .gk-cn-shell.is-fullscreen .gk-cn-workspace { height: auto; flex: 1 1 0%; min-height: 0; }
         .gk-cn-messages { max-height: none; }
         .gk-cn-members { overflow-y: auto; }
       }
       @media (max-width: 1024px) {
         .gk-nav { display: none; }
+        .gk-cn-shell.is-fullscreen .gk-cn-workspace { flex: 1 1 0%; min-height: 0; overflow-y: auto; }
         .gk-cn-workspace, .gk-pb-active-wrap { flex-direction: column; }
         .gk-cn-messages { max-height: 380px; }
         .gk-cn-rail {
@@ -1621,7 +1675,7 @@
       }
       @media (max-width: 640px) {
         .gk-hide-sm { display: none; }
-        .gk-cn-proto-pill, .gk-cn-eq { display: none; }
+        .gk-cn-proto-pill, .gk-cn-eq, .gk-cn-binds { display: none; }
       }
       @media (prefers-reduced-motion: reduce) {
         .gk-grid, .gk-hero-emblem-wrap, .gk-shake,
@@ -1781,7 +1835,7 @@
             </div>
           </section>
 
-          <section id="preview" class="gk-section" aria-labelledby="gk-preview-title">
+          <section id="preview" class="gk-section" style="max-width:1400px;" aria-labelledby="gk-preview-title">
             <div class="gk-section-head">
               <div>
                 <p class="gk-kicker">GEEK // CYBER.NET · ПРЕВЬЮ КЛИЕНТА</p>
@@ -1796,9 +1850,12 @@
                 <button type="button" id="gk-pb-tab-demo" class="gk-pb-tab is-demo-active" aria-pressed="true">Обзор клиента (Демо-серверы)</button>
                 <button type="button" id="gk-pb-tab-live" class="gk-pb-tab gk-pb-tab-live" data-testid="prebeta-banner-btn" aria-pressed="false">📞 PRE-BETA СВЯЗЬ 1-НА-1 · 30 МИН ДО РЕЛИЗА</button>
               </div>
-              <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;padding:0 6px;">1 одноразовый код · макс. 2 участника · лимит 30:00</span>
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <span style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;padding:0 6px;">1 одноразовый код · макс. 2 участника · лимит 30:00</span>
+                <button type="button" id="gk-cn-banner-fs" data-testid="preview-banner-fullscreen-btn" class="gk-cn-fs-btn" style="padding:8px 14px;border-radius:10px;font-family:'Orbitron',sans-serif;font-size:11px;">⛶ НА ВЕСЬ ЭКРАН</button>
+              </div>
             </div>
-            <div class="gk-cn-shell">
+            <div class="gk-cn-shell" id="gk-cn-shell" data-testid="preview-shell">
               <div class="gk-cn-topbar">
                 <div class="gk-cn-brand">
                   <span class="gk-cn-logo">⚡ GEEK</span>
@@ -1812,6 +1869,7 @@
                     <span id="gk-cn-node-id">cy-4371</span>
                   </span>
                   <button type="button" id="gk-cn-invite" class="gk-cn-invite-btn">+ ПРИГЛАСИТЬ</button>
+                  <button type="button" id="gk-cn-fullscreen" data-testid="preview-fullscreen-btn" class="gk-cn-fs-btn" aria-pressed="false">⛶ РАЗВЕРНУТЬ</button>
                 </div>
               </div>
               <div class="gk-cn-subbar">
@@ -1985,7 +2043,7 @@
                   <div class="geek-chat-scroll" style="flex:1 1 0%;min-height:0;overflow-y:auto;">
                     <div class="gk-cn-srv-head">
                       <div style="min-width:0;">
-                        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#00f0ff;">ОТКРЫТЫЙ СЕРВЕР</div>
+                        <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#00f0ff;">ОТКРЫТЫЙ УЗЕЛ</div>
                         <div id="gk-cn-srv-name" style="font-size:15px;font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;">Ночной клуб</div>
                       </div>
                       <span id="gk-cn-srv-badge" style="background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.4);color:#00f0ff;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:4px;">cy-4371</span>
@@ -2071,19 +2129,26 @@
                       <div id="gk-preview-qa-chips" data-testid="preview-qa-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
                     </div>
                     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:9px;font-weight:800;text-transform:uppercase;color:#63809b;margin-bottom:8px;">
-                      <span id="gk-cn-console-tag">КАНАЛ #ИГРОВАЯ-КОМНАТА // ЧАТ С УЧАСТНИКАМИ</span>
-                      <button type="button" id="gk-preview-qa-toggle" data-testid="preview-qa-toggle" class="gk-cn-qa-toggle" aria-expanded="false" aria-controls="gk-preview-qa-drawer">
-                        <span>? Быстрые вопросы (5) ▾</span>
-                      </button>
+                      <span>ОКНО ВВОДА // КОНСОЛЬ</span>
+                      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                        <span id="gk-cn-console-tag">КАНАЛ #ИГРОВАЯ-КОМНАТА</span>
+                        <button type="button" id="gk-preview-qa-toggle" data-testid="preview-qa-toggle" class="gk-cn-qa-toggle" aria-expanded="false" aria-controls="gk-preview-qa-drawer">
+                          <span>? Быстрые вопросы (5) ▾</span>
+                        </button>
+                      </div>
                     </div>
                     <form id="gk-preview-form" style="display:flex;align-items:center;gap:8px;">
                       <span style="width:36px;height:36px;border-radius:6px;background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.4);color:#00f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;" aria-hidden="true">📎</span>
-                      <input type="text" id="gk-preview-input" class="gk-fb-input" style="background:#050a12;border-radius:6px;padding:8px 12px;" placeholder="Задайте вопрос собеседникам в #игровая-комната..." aria-label="Сообщение в демо канал" />
-                      <button type="submit" style="background:#00f0ff;color:#031518;border:none;border-radius:6px;padding:9px 14px;font-weight:800;font-size:11.5px;text-transform:uppercase;cursor:pointer;flex-shrink:0;">ОТПРАВИТЬ</button>
+                      <input type="text" id="gk-preview-input" class="gk-fb-input" style="background:#050a12;border-radius:6px;padding:8px 12px;" placeholder="Написать в #игровая-комната..." aria-label="Сообщение в демо канал" />
+                      <button type="submit" style="background:#00f0ff;color:#031518;border:none;border-radius:6px;padding:9px 16px;font-weight:800;font-size:11.5px;text-transform:uppercase;cursor:pointer;flex-shrink:0;">ОТПРАВИТЬ</button>
                     </form>
                   </div>
                 </div>
                 <aside id="gk-cn-members" class="gk-cn-members geek-chat-scroll" aria-label="Участники сервера"></aside>
+              </div>
+              <div class="gk-cn-binds">
+                <span>БИНДЫ: МИКР [Alt+M] • ЗВУК [Alt+D] • КАМЕРА [Alt+C] • ЭКРАН ПРЕВЬЮ [Alt+F]</span>
+                <span style="color:rgba(0,240,255,0.8);">GEEK // CYBER.NET · P2P</span>
               </div>
             </div>
           </section>
@@ -3587,9 +3652,26 @@
           var cnInviteBtn = document.getElementById('gk-cn-invite');
           var cnConsoleTagEl = document.getElementById('gk-cn-console-tag');
           var cnEqEl = document.getElementById('gk-cn-eq');
+          var cnShellEl = document.getElementById('gk-cn-shell');
+          var cnFsBtn = document.getElementById('gk-cn-fullscreen');
+          var cnBannerFsBtn = document.getElementById('gk-cn-banner-fs');
+          var cnFullscreen = false;
           var vcMicBtn = document.getElementById('gk-vc-mic');
           var vcDeafBtn = document.getElementById('gk-vc-deaf');
           var vcGuestStatus = document.getElementById('gk-vc-guest-status');
+
+          function setCnFullscreen(next) {
+            cnFullscreen = Boolean(next);
+            if (cnShellEl) cnShellEl.classList.toggle('is-fullscreen', cnFullscreen);
+            var mainEl = document.getElementById('top');
+            if (mainEl) mainEl.classList.toggle('has-fullscreen', cnFullscreen);
+            if (cnFsBtn) {
+              cnFsBtn.classList.toggle('is-active', cnFullscreen);
+              cnFsBtn.setAttribute('aria-pressed', cnFullscreen ? 'true' : 'false');
+              cnFsBtn.textContent = cnFullscreen ? '✕ СВЕРНУТЬ' : '⛶ РАЗВЕРНУТЬ';
+            }
+            document.body.style.overflow = cnFullscreen ? 'hidden' : '';
+          }
 
           function makeBadgeNode(badgeKey) {
             var meta = cnBadgeLabels[badgeKey];
@@ -3637,7 +3719,7 @@
             if (cnChNameEl) cnChNameEl.textContent = ch.name;
             if (cnChTopicEl) cnChTopicEl.textContent = 'АКТИВНЫЙ ПОТОК // ' + srv.name.toUpperCase();
             if (cnConsoleTagEl) cnConsoleTagEl.textContent = 'КАНАЛ #' + ch.name.toUpperCase();
-            if (cnInputEl) cnInputEl.placeholder = 'Задайте вопрос собеседникам в #' + ch.name + '...';
+            if (cnInputEl) cnInputEl.placeholder = 'Написать в #' + ch.name + '...';
 
             if (cnChListEl) {
               cnChListEl.innerHTML = '';
@@ -5448,6 +5530,24 @@
               setTimeout(function () { cnInviteBtn.textContent = '+ ПРИГЛАСИТЬ'; }, 1800);
             });
           }
+          if (cnFsBtn) cnFsBtn.addEventListener('click', function () { setCnFullscreen(!cnFullscreen); });
+          if (cnBannerFsBtn) cnBannerFsBtn.addEventListener('click', function () { setCnFullscreen(true); });
+          window.addEventListener('keydown', function (e) {
+            var tg = e.target;
+            var editable = tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.tagName === 'SELECT' || tg.isContentEditable);
+            if (e.key === 'Escape' && cnFullscreen) {
+              e.preventDefault();
+              setCnFullscreen(false);
+              return;
+            }
+            if (!e.altKey || e.ctrlKey || e.metaKey || editable) return;
+            var code = e.code || '';
+            var lk = (e.key || '').toLowerCase();
+            if (code === 'KeyF' || lk === 'f' || lk === 'а') { e.preventDefault(); setCnFullscreen(!cnFullscreen); }
+            else if (code === 'KeyM' || lk === 'm' || lk === 'ь') { e.preventDefault(); cnMicMuted = !cnMicMuted; renderCyberNet(); }
+            else if (code === 'KeyD' || lk === 'd' || lk === 'в') { e.preventDefault(); cnDeafened = !cnDeafened; renderCyberNet(); }
+            else if ((code === 'KeyC' || lk === 'c' || lk === 'с') && cnVoiceServerId) { e.preventDefault(); cnCam = !cnCam; renderCyberNet(); }
+          });
           renderCyberNet();
           renderPreBeta();
 

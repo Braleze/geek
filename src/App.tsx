@@ -49,6 +49,7 @@ export default function App() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [preBetaOpenSignal, setPreBetaOpenSignal] = useState(0);
+  const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
   const voiceTapRef = useRef<VoicePanelTapState>({ count: 0, lastTapMs: 0 });
 
   const handleOpenPreBeta = () => {
@@ -194,7 +195,7 @@ export default function App() {
       {/* Main Hero Section */}
       <main
         id="top"
-        className="relative z-20 flex-grow flex flex-col items-center justify-center text-center px-6 py-12 max-w-6xl mx-auto w-full"
+        className={`relative ${isPreviewFullscreen ? 'z-50' : 'z-20'} flex-grow flex flex-col items-center justify-center text-center px-4 sm:px-6 py-12 max-w-[1440px] mx-auto w-full`}
       >
         {/* Glowing Logo Container with Cyberpunk Corners */}
         <div className="relative mb-12 floating">
@@ -346,7 +347,10 @@ export default function App() {
         </section>
 
         {/* Interactive Platform Workspace Preview */}
-        <PlatformPreview openPreBetaSignal={preBetaOpenSignal} />
+        <PlatformPreview
+          openPreBetaSignal={preBetaOpenSignal}
+          onFullscreenChange={setIsPreviewFullscreen}
+        />
 
         {/* Roadmap Section */}
         <RoadmapSection />

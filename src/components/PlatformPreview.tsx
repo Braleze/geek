@@ -3,8 +3,10 @@ import {
   ChevronDown,
   Headphones,
   HelpCircle,
+  Maximize2,
   Mic,
   MicOff,
+  Minimize2,
   Monitor,
   Paperclip,
   PhoneCall,
@@ -21,6 +23,7 @@ import {
   createUserPreviewMessage,
   generatePreviewPeerReply,
   getVoicePeersForServer,
+  resolvePreviewShortcutAction,
   shouldPlayL30nelVoiceAudio,
   toggleVoiceForViewedServer,
   type PreviewBadgeSet,
@@ -82,9 +85,16 @@ function CyberBadge({ setKey }: { setKey: PreviewBadgeSet }) {
   );
 }
 
-export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?: number }) {
+export function PlatformPreview({
+  openPreBetaSignal = 0,
+  onFullscreenChange,
+}: {
+  openPreBetaSignal?: number;
+  onFullscreenChange?: (fullscreen: boolean) => void;
+}) {
   const [activeServerId, setActiveServerId] = useState<PreviewServerId>('cy-4371');
   const [preBetaMode, setPreBetaMode] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [initialPreBetaCode, setInitialPreBetaCode] = useState<string>('');
   const [activeChannelByServer, setActiveChannelByServer] = useState<Record<PreviewServerId, string>>({
     'cy-4371': 'игровая-комната',
@@ -224,6 +234,49 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
       l30nelAudioPlayerRef.current?.stop();
     };
   }, []);
+
+  useEffect(() => {
+    onFullscreenChange?.(isFullscreen);
+    if (!isFullscreen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isFullscreen, onFullscreenChange]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName ?? '';
+      const isEditable =
+        tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || Boolean(target?.isContentEditable);
+      const action = resolvePreviewShortcutAction({
+        key: event.key,
+        code: event.code,
+        altKey: event.altKey,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        isFullscreen,
+        isEditableTarget: isEditable,
+      });
+      if (!action) return;
+      event.preventDefault();
+      if (action === 'exitFullscreen') {
+        setIsFullscreen(false);
+      } else if (action === 'fullscreen') {
+        setIsFullscreen((prev) => !prev);
+      } else if (action === 'mic') {
+        setMicMuted((prev) => !prev);
+      } else if (action === 'deafen') {
+        setDeafened((prev) => !prev);
+      } else if (action === 'cam' && voiceServerId !== null) {
+        setCamActive((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isFullscreen, voiceServerId]);
 
   const handleSelectServer = (srvId: PreviewServerId) => {
     setPreBetaMode(false);
@@ -434,7 +487,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
     <section
       id="preview"
       aria-labelledby="preview-heading"
-      className="w-full max-w-6xl mx-auto mt-20 text-left"
+      className="w-full max-w-[1400px] mx-auto mt-20 text-left"
     >
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
@@ -460,7 +513,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
             type="button"
             onClick={() => setPreBetaMode(false)}
             aria-pressed={!preBetaMode}
-            className={`px-4 py-2.5 rounded-xl font-cyber font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl font-cyber font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap ${
               !preBetaMode
                 ? 'bg-[#00f0ff]/20 border border-[#00f0ff] text-white'
                 : 'bg-[#060b14] border border-white/10 text-slate-300 hover:text-white'
@@ -473,7 +526,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
             onClick={() => setPreBetaMode(true)}
             aria-pressed={preBetaMode}
             data-testid="prebeta-banner-btn"
-            className={`px-4 py-2.5 rounded-xl font-cyber font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl font-cyber font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
               preBetaMode
                 ? 'bg-[#00f0ff] border border-[#00f0ff] text-[#031518] shadow-[0_0_24px_rgba(0,240,255,0.65)]'
                 : 'bg-gradient-to-r from-[#ff007f] to-[#ff2a85] border border-[#ff8ac4]/70 text-white shadow-[0_0_24px_rgba(255,0,127,0.55)] hover:brightness-110'
@@ -487,24 +540,42 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
             </span>
           </button>
         </div>
-        <span className="text-[11px] font-mono-tech text-[#fcee0a] px-2">
-          1 одноразовый код · макс. 2 участника · лимит 30:00
-        </span>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="text-[11px] font-mono-tech text-[#fcee0a] px-2">
+            1 одноразовый код · макс. 2 участника · лимит 30:00
+          </span>
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(true)}
+            data-testid="preview-banner-fullscreen-btn"
+            className="px-3.5 py-2 rounded-xl bg-[#00f0ff]/12 border border-[#00f0ff]/45 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#031518] font-cyber font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+          >
+            <Maximize2 className="w-3.5 h-3.5 shrink-0" />
+            <span>На весь экран</span>
+          </button>
+        </div>
       </div>
 
       {/* Authentic GEEK // CYBER.NET Application Window */}
-      <div className="geek-pcb-bg rounded-2xl border border-[#00f0ff]/35 shadow-neon-cyan overflow-hidden text-[#e6f7ff]">
+      <div
+        data-testid="preview-shell"
+        className={
+          isFullscreen
+            ? 'fixed inset-0 z-50 w-screen h-dvh geek-pcb-bg flex flex-col overflow-hidden text-[#e6f7ff]'
+            : 'geek-pcb-bg rounded-2xl border border-[#00f0ff]/35 shadow-neon-cyan overflow-hidden text-[#e6f7ff] flex flex-col'
+        }
+      >
         {/* Top App Bar */}
-        <div className="min-h-[42px] bg-[#04070d]/95 border-b border-[#00f0ff]/15 px-3 py-1.5 flex flex-wrap items-center justify-between gap-2">
+        <div className="shrink-0 min-h-[44px] bg-[#04070d]/95 border-b border-[#00f0ff]/15 px-3.5 py-1.5 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
-            <div className="flex items-center gap-1.5 font-black text-xs tracking-wider text-white">
+            <div className="flex items-center gap-1.5 font-black text-xs tracking-wider text-white whitespace-nowrap shrink-0">
               <Zap className="w-3.5 h-3.5 text-[#00f0ff]" />
               <span>GEEK</span>
             </div>
-            <span className="bg-[#ff2a85]/20 border border-[#ff2a85]/50 text-[#ff7aa8] text-[9px] font-extrabold px-1.5 py-0.5 rounded">
+            <span className="bg-[#ff2a85]/20 border border-[#ff2a85]/50 text-[#ff7aa8] text-[9px] font-extrabold px-1.5 py-0.5 rounded whitespace-nowrap shrink-0">
               CYBER.NET
             </span>
-            <span className="hidden sm:inline-block bg-[#00f0ff]/5 border border-[#00f0ff]/15 text-[#63809b] text-[10px] font-bold px-2.5 py-0.5 rounded">
+            <span className="hidden sm:inline-block bg-[#00f0ff]/5 border border-[#00f0ff]/15 text-[#63809b] text-[10px] font-bold px-2.5 py-0.5 rounded whitespace-nowrap">
               МЕСТО ДЛЯ СВОИХ // P2P ПРОТОКОЛ
             </span>
           </div>
@@ -528,7 +599,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                   : 'PRE-BETA СВЯЗЬ · 30 МИН'}
               </span>
             </button>
-            <span className="inline-flex items-center gap-1.5 bg-[#10b981]/10 border border-[#10b981]/40 text-[#6ee7b7] text-[10.5px] font-bold px-2.5 py-1 rounded-md">
+            <span className="inline-flex items-center gap-1.5 bg-[#10b981]/10 border border-[#10b981]/40 text-[#6ee7b7] text-[10.5px] font-bold px-2.5 py-1 rounded-md whitespace-nowrap">
               <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
               <span>{preBetaMode ? 'pre-beta-1on1' : activeServer.id}</span>
             </span>
@@ -539,11 +610,35 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
             >
               {inviteCopied ? '✓ СКОПИРОВАНО' : '+ ПРИГЛАСИТЬ'}
             </button>
+            <button
+              type="button"
+              onClick={() => setIsFullscreen((prev) => !prev)}
+              aria-pressed={isFullscreen}
+              data-testid="preview-fullscreen-btn"
+              title={isFullscreen ? 'Свернуть превью (Esc)' : 'Развернуть превью на всю страницу (Alt+F)'}
+              className={`inline-flex items-center gap-1.5 text-[10.5px] font-extrabold px-2.5 py-1 rounded-md border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+                isFullscreen
+                  ? 'bg-[#00f0ff] border-[#00f0ff] text-[#031518] hover:brightness-110'
+                  : 'bg-[#0b1626] border-[#00f0ff]/45 text-[#00f0ff] hover:bg-[#00f0ff]/15 hover:text-white'
+              }`}
+            >
+              {isFullscreen ? (
+                <>
+                  <Minimize2 className="w-3 h-3 shrink-0" />
+                  <span>СВЕРНУТЬ</span>
+                </>
+              ) : (
+                <>
+                  <Maximize2 className="w-3 h-3 shrink-0" />
+                  <span>РАЗВЕРНУТЬ</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 
         {/* Sub Sync Bar */}
-        <div className="h-8 bg-[#060b14]/95 border-b border-[#00f0ff]/15 px-3 flex items-center justify-between gap-2 text-[11px]">
+        <div className="shrink-0 h-8 bg-[#060b14]/95 border-b border-[#00f0ff]/15 px-3.5 flex items-center justify-between gap-2 text-[11px]">
           <div className="flex items-center gap-1.5 font-bold text-[#00f0ff] min-w-0 truncate">
             <span className="shrink-0">●</span>
             <span className="hidden sm:inline shrink-0">АКТИВНАЯ СЕТЬ:</span>
@@ -555,7 +650,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
             type="button"
             onClick={() => setShowMembers((prev) => !prev)}
             aria-pressed={showMembers}
-            className="bg-[#00f0ff]/10 border border-[#00f0ff]/20 hover:border-[#00f0ff]/50 text-[#e6f7ff] text-[10.5px] font-bold px-2.5 py-1 rounded flex items-center gap-1.5 cursor-pointer transition-colors shrink-0"
+            className="bg-[#00f0ff]/10 border border-[#00f0ff]/20 hover:border-[#00f0ff]/50 text-[#e6f7ff] text-[10.5px] font-bold px-2.5 py-1 rounded flex items-center gap-1.5 cursor-pointer transition-colors shrink-0 whitespace-nowrap"
           >
             <Users className="w-3 h-3 text-[#00f0ff]" />
             <span>УЧАСТНИКИ</span>
@@ -563,12 +658,19 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
         </div>
 
         {/* Main 4-Pane Workspace */}
-        <div className="flex flex-col lg:flex-row min-h-[470px] lg:h-[640px]">
+        <div
+          data-testid="preview-workspace"
+          className={`flex flex-col lg:flex-row ${
+            isFullscreen
+              ? 'flex-1 min-h-0 overflow-y-auto lg:overflow-hidden'
+              : 'min-h-[520px] lg:h-[720px]'
+          }`}
+        >
           {/* 1. Left Hexagonal Servers Rail */}
           <div
             role="navigation"
             aria-label="Серверы Geek"
-            className="bg-[#04070d]/95 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 px-3 py-2.5 lg:py-3 lg:px-0 lg:w-[66px] flex lg:flex-col items-center gap-2.5 shrink-0 overflow-x-auto"
+            className="bg-[#04070d]/95 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 px-3 py-2.5 lg:py-3 lg:px-0 lg:w-[68px] flex lg:flex-col items-center gap-2.5 shrink-0 overflow-x-auto"
           >
             <div
               className="w-10 h-10 geek-hex bg-[#0d1829] text-[#fcee09] flex items-center justify-center shrink-0"
@@ -650,13 +752,13 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
             <>
 
           {/* 2. Channels Sidebar + Voice Dock + User Bar */}
-          <aside className="lg:w-[272px] bg-[#060b14]/92 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 flex flex-col justify-between shrink-0 min-h-0">
+          <aside className="lg:w-[276px] bg-[#060b14]/92 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 flex flex-col justify-between shrink-0 min-h-0">
             <div className="flex-1 min-h-0 overflow-y-auto geek-chat-scroll">
               {/* Server Title Header */}
               <div className="px-3.5 py-2.5 border-b border-[#00f0ff]/15 flex items-center justify-between gap-2">
                 <div className="min-w-0">
                   <div className="text-[9px] font-extrabold uppercase tracking-wider text-[#00f0ff]">
-                    ОТКРЫТЫЙ СЕРВЕР
+                    ОТКРЫТЫЙ УЗЕЛ
                   </div>
                   <div className="text-[15px] font-black text-white truncate mt-0.5">
                     {activeServer.name}
@@ -894,10 +996,10 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
           </aside>
 
           {/* 3. Main Chat Stream & Console */}
-          <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#08101c]/90">
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#040912]/70">
             {/* Audio Stream Header Card with Wave Equalizer */}
-            <div className="shrink-0 m-3 mb-0 px-3 py-2 rounded-[10px] bg-[#0a1320]/90 border border-[#00f0ff]/15 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 min-w-0">
+            <div className="shrink-0 m-3.5 mb-0 px-3.5 py-2 rounded-[10px] bg-[#0a1320]/90 border border-[#00f0ff]/15 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2.5 min-w-0">
                 <span className="text-[#00f0ff] text-lg font-black">#</span>
                 <div className="min-w-0">
                   <div className="text-[9.5px] font-extrabold uppercase text-[#00f0ff] truncate">
@@ -926,7 +1028,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
             {/* Messages Container (stretches flush to input border) */}
             <div
               ref={messagesScrollRef}
-              className="flex-1 min-h-0 px-3 py-3 space-y-2 overflow-y-auto geek-chat-scroll max-h-[380px] lg:max-h-none"
+              className="flex-1 min-h-0 px-3.5 py-3 space-y-2.5 overflow-y-auto geek-chat-scroll max-h-[420px] lg:max-h-none"
               data-testid="preview-messages"
             >
               {allMessages.map((msg) => (
@@ -965,7 +1067,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
             </div>
 
             {/* Docked Bottom Input Area (flush against chat stream) + Collapsible Quick Questions */}
-            <div className="shrink-0 border-t border-[#00f0ff]/35 bg-[#060c16]/95 px-3 py-2.5 space-y-2">
+            <div className="shrink-0 border-t border-[#00f0ff]/35 bg-[#060c16]/95 px-3.5 py-2.5 space-y-2">
               {showQuickQuestions && (
                 <div
                   id="preview-qa-drawer"
@@ -1004,28 +1106,33 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                 <span>
                   {unlockToken
                     ? '🔓 СВОБОДНЫЙ РЕЖИМ АКТИВЕН (/lock — ВЫЙТИ)'
-                    : `КАНАЛ #${activeChannel.name.toUpperCase()} // ЧАТ С УЧАСТНИКАМИ`}
+                    : 'ОКНО ВВОДА // КОНСОЛЬ'}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => setShowQuickQuestions((prev) => !prev)}
-                  aria-expanded={showQuickQuestions}
-                  aria-controls="preview-qa-drawer"
-                  data-testid="preview-qa-toggle"
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[9.5px] font-extrabold uppercase transition-colors cursor-pointer ${
-                    showQuickQuestions
-                      ? 'bg-[#00f0ff]/20 border-[#00f0ff] text-white'
-                      : 'bg-[#0a1320] border-[#00f0ff]/30 text-[#9eeeff] hover:border-[#00f0ff] hover:text-white'
-                  }`}
-                >
-                  <HelpCircle className="w-3 h-3 text-[#00f0ff]" />
-                  <span>Быстрые вопросы ({PREVIEW_QUICK_QUESTIONS.length})</span>
-                  <ChevronDown
-                    className={`w-3 h-3 transition-transform duration-150 ${
-                      showQuickQuestions ? 'rotate-180' : ''
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <span className="hidden sm:inline text-[#63809b]">
+                    КАНАЛ #{activeChannel.name.toUpperCase()}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowQuickQuestions((prev) => !prev)}
+                    aria-expanded={showQuickQuestions}
+                    aria-controls="preview-qa-drawer"
+                    data-testid="preview-qa-toggle"
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[9.5px] font-extrabold uppercase transition-colors cursor-pointer ${
+                      showQuickQuestions
+                        ? 'bg-[#00f0ff]/20 border-[#00f0ff] text-white'
+                        : 'bg-[#0a1320] border-[#00f0ff]/30 text-[#9eeeff] hover:border-[#00f0ff] hover:text-white'
                     }`}
-                  />
-                </button>
+                  >
+                    <HelpCircle className="w-3 h-3 text-[#00f0ff]" />
+                    <span>Быстрые вопросы ({PREVIEW_QUICK_QUESTIONS.length})</span>
+                    <ChevronDown
+                      className={`w-3 h-3 transition-transform duration-150 ${
+                        showQuickQuestions ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                </div>
               </div>
 
               <form onSubmit={handleSend} className="flex items-center gap-2">
@@ -1039,7 +1146,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                   type="text"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  placeholder={`Задайте вопрос собеседникам в #${activeChannel.name}...`}
+                  placeholder={`Написать в #${activeChannel.name}...`}
                   aria-label={`Сообщение в канал ${activeChannel.name}`}
                   data-testid="preview-chat-input"
                   className="flex-1 min-w-0 bg-[#050a12] border border-[#00f0ff]/25 focus:border-[#00f0ff] focus:outline-none rounded-md px-3 py-2 text-sm text-[#e6f7ff] placeholder:text-[#63809b]"
@@ -1047,7 +1154,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                 <button
                   type="submit"
                   data-testid="preview-chat-send"
-                  className="bg-[#00f0ff] text-[#031518] px-3.5 py-2 rounded-md font-extrabold text-[11.5px] uppercase hover:brightness-110 transition-all cursor-pointer shrink-0"
+                  className="bg-[#00f0ff] text-[#031518] px-4 py-2 rounded-md font-extrabold text-[11.5px] uppercase hover:brightness-110 transition-all cursor-pointer shrink-0"
                 >
                   ОТПРАВИТЬ
                 </button>
@@ -1059,7 +1166,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
           {showMembers && (
             <aside
               aria-label="Участники сервера"
-              className="lg:w-[225px] bg-[#060b14]/92 border-t lg:border-t-0 lg:border-l border-[#00f0ff]/15 px-2.5 py-3 shrink-0 lg:overflow-y-auto geek-chat-scroll"
+              className="lg:w-[244px] bg-[#060b14]/92 border-t lg:border-t-0 lg:border-l border-[#00f0ff]/15 px-3 py-3 shrink-0 lg:overflow-y-auto geek-chat-scroll"
             >
               <div className="text-[10.5px] font-extrabold uppercase text-[#00f0ff] px-1.5 pb-1.5">
                 ⬢ В сети — {onlineMembers.length}
@@ -1120,6 +1227,16 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
           )}
             </>
           )}
+        </div>
+
+        {/* Bottom Shortcut Binds Strip */}
+        <div className="shrink-0 hidden sm:flex h-7 px-3.5 bg-[#03060c] border-t border-[#00f0ff]/15 items-center justify-between gap-4 text-[10px] font-mono-tech text-[#63809b]">
+          <span className="truncate">
+            БИНДЫ: МИКР [Alt+M] • ЗВУК [Alt+D] • КАМЕРА [Alt+C] • ЭКРАН ПРЕВЬЮ [Alt+F]
+          </span>
+          <span className="text-[#00f0ff]/80 whitespace-nowrap shrink-0">
+            GEEK // CYBER.NET · P2P
+          </span>
         </div>
       </div>
     </section>
