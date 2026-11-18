@@ -429,10 +429,10 @@ export function generatePreviewPeerReply(
     preferredAuthor = 'Sergo';
     answerText =
       'Сначала откроемся прямо в браузере и в лёгком десктоп-клиенте для Windows, macOS и Linux, а следующим шагом выйдут нативные приложения для iOS и Android.';
-  } else if (/бот|sdk|api|вебхук|webhook|discord|дискорд|импорт|перенес/.test(q)) {
+  } else if (/discord|дискорд|импорт|перенес/.test(q)) {
     preferredAuthor = serverId === 'hc-node' ? 'Sergo' : 'Max';
     answerText =
-      'На третьем этапе дорожной карты добавим открытый SDK для ботов, вебхуки и инструмент быстрого переноса структуры серверов, ролей и каналов из Discord.';
+      'На третьем этапе дорожной карты добавим инструмент быстрого переноса структуры серверов, ролей и каналов из Discord, а также кастомные темы оформления.';
   } else if (/секрет|пасхал|шифр|загад|подсказ|код\s*\d|четыре\s*цифр|ребус/.test(q)) {
     preferredAuthor = 'Sergo';
     answerText =
@@ -450,7 +450,7 @@ export function generatePreviewPeerReply(
     answerText = `Привет! Добро пожаловать в #${channelId}. Тут в сети L30nel, Sergo и Max — спрашивай про релиз, P2P-голос, Pre-Beta связь 1-на-1, платформы или нашу разработку.`;
   } else {
     const snippet = clean.length > 52 ? `${clean.slice(0, 52)}...` : clean;
-    answerText = `По вопросу «${snippet}»: в #${channelId} мы как раз тестируем превью-клиент Geek. У нас команда из трёх разработчиков (L30nel, Sergo и Max), прямой P2P-голос, Pre-Beta звонки 1-на-1 по коду, Bot SDK в плане и бесплатный базовый доступ. Спроси подробнее про любую из этих тем!`;
+    answerText = `По вопросу «${snippet}»: в #${channelId} мы как раз тестируем превью-клиент Geek. У нас команда из трёх разработчиков (L30nel, Sergo и Max), прямой P2P-голос, Pre-Beta звонки 1-на-1 по коду, перенос серверов в плане и бесплатный базовый доступ. Спроси подробнее про любую из этих тем!`;
   }
 
   const peer = pickServerPeer(serverId, preferredAuthor, replyIndex);
@@ -464,3 +464,63 @@ export function generatePreviewPeerReply(
     text: answerText,
   };
 }
+
+export interface PreviewVoicePeer {
+  id: string;
+  nick: string;
+  initials: string;
+  avatarColor: string;
+  speaking: boolean;
+  inCam: boolean;
+  inScreen: boolean;
+  isGuest?: boolean;
+}
+
+export function getVoicePeersForServer(
+  server: PreviewServer,
+  voiceServerId: PreviewServerId | null,
+  options: {
+    micMuted?: boolean;
+    deafened?: boolean;
+    camActive?: boolean;
+    screenActive?: boolean;
+  } = {},
+): PreviewVoicePeer[] {
+  const isGuestInThisServer = voiceServerId === server.id;
+  const guestPeer: PreviewVoicePeer[] = isGuestInThisServer
+    ? [
+        {
+          id: 'guest-self',
+          nick: 'Вы (Гость)',
+          initials: 'ГО',
+          avatarColor: '#3b82f6',
+          speaking: !options.micMuted && !options.deafened,
+          inCam: Boolean(options.camActive),
+          inScreen: Boolean(options.screenActive),
+          isGuest: true,
+        },
+      ]
+    : [];
+
+  const memberPeers: PreviewVoicePeer[] = server.members
+    .filter((m) => m.online && m.inVoice)
+    .map((m) => ({
+      id: m.id,
+      nick: m.nick,
+      initials: m.initials,
+      avatarColor: m.avatarColor,
+      speaking: Boolean(m.speaking),
+      inCam: false,
+      inScreen: false,
+    }));
+
+  return [...guestPeer, ...memberPeers];
+}
+
+export function toggleVoiceForViewedServer(
+  currentVoiceServerId: PreviewServerId | null,
+  viewedServerId: PreviewServerId,
+): PreviewServerId | null {
+  return currentVoiceServerId === viewedServerId ? null : viewedServerId;
+}
+

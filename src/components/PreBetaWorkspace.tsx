@@ -363,7 +363,7 @@ export function PreBetaWorkspace({
       {/* Left Pre-Beta Room Sidebar */}
       <aside className="lg:w-[272px] bg-[#060b14]/92 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 flex flex-col justify-between shrink-0">
 
-        <div>
+        <div className="flex-1 min-h-0 overflow-y-auto geek-chat-scroll">
           <div className="px-3.5 py-2.5 border-b border-[#ff2a85]/25 flex items-center justify-between gap-2">
             <div className="min-w-0">
               <div className="text-[9px] font-extrabold uppercase tracking-wider text-[#ff7aa8]">
@@ -476,7 +476,7 @@ export function PreBetaWorkspace({
         </div>
 
         {/* Voice Dock + Bottom Bar */}
-        <div>
+        <div className="shrink-0">
           <div className="bg-[#06101a]/95 border-t border-[#00f0ff]/35 px-2.5 py-2 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <div className="min-w-0">
@@ -569,90 +569,87 @@ export function PreBetaWorkspace({
       </aside>
 
       {/* Main Live Dialogue Chat Stream */}
-      <div className="flex-1 flex flex-col justify-between min-w-0 bg-[#08101c]/90">
-        <div>
-          <div className="m-3 mb-1 px-3 py-2 rounded-[10px] bg-[#0a1320]/90 border border-[#ff2a85]/35 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[#ff2a85] text-lg font-black">#</span>
-              <div className="min-w-0">
-                <div className="text-[9.5px] font-extrabold uppercase text-[#ff7aa8] truncate">
-                  PRE-BETA ЖИВОЙ ДИАЛОГ // {roomSnapshot.code}
-                </div>
-                <div className="text-sm font-extrabold text-white truncate">
-                  прямая-связь-1-на-1
-                </div>
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#08101c]/90">
+        <div className="shrink-0 m-3 mb-0 px-3 py-2 rounded-[10px] bg-[#0a1320]/90 border border-[#ff2a85]/35 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[#ff2a85] text-lg font-black">#</span>
+            <div className="min-w-0">
+              <div className="text-[9.5px] font-extrabold uppercase text-[#ff7aa8] truncate">
+                PRE-BETA ЖИВОЙ ДИАЛОГ // {roomSnapshot.code}
+              </div>
+              <div className="text-sm font-extrabold text-white truncate">
+                прямая-связь-1-на-1
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-[11px] font-mono-tech text-[#fcee0a]">
-                ⏱ {countdownText}
-              </span>
-            </div>
           </div>
-
-          <div
-            ref={messagesContainerRef}
-            data-testid="prebeta-messages"
-            className="px-3 py-2 space-y-2 max-h-[360px] overflow-y-auto"
-          >
-            {roomSnapshot.messages.map((msg) => {
-              const timeStr = new Date(msg.timestamp).toLocaleTimeString('ru-RU', {
-                hour: '2-digit',
-                minute: '2-digit',
-              });
-              const isMine = msg.authorPeerId === myPeerId;
-              return (
-                <div
-                  key={msg.id}
-                  className={`flex gap-3 px-3 py-2.5 rounded-lg border ${
-                    msg.system
-                      ? 'bg-[#ff2a85]/10 border-[#ff2a85]/30'
-                      : isMine
-                        ? 'bg-[#00f0ff]/10 border-[#00f0ff]/35'
-                        : 'bg-[#0a1320]/90 border-[#00f0ff]/15'
-                  }`}
-                >
-                  <div
-                    className={`w-9 h-9 geek-hex flex items-center justify-center font-extrabold text-xs text-white shrink-0 ${
-                      msg.system ? 'bg-[#ff2a85]' : isMine ? 'bg-[#3b82f6]' : 'bg-[#10b981]'
-                    }`}
-                  >
-                    {msg.system ? 'PB' : getInitials(msg.authorNick)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className={`text-[13px] font-extrabold ${
-                          msg.system ? 'text-[#ff7aa8]' : 'text-[#00f0ff]'
-                        }`}
-                      >
-                        {msg.authorNick}
-                      </span>
-                      <span className="text-[10.5px] text-[#63809b] font-mono">{timeStr}</span>
-                    </div>
-                    <p className="text-[13.5px] text-[#e6f7ff] mt-1 leading-snug break-words">
-                      {msg.text}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[11px] font-mono-tech text-[#fcee0a]">
+              ⏱ {countdownText}
+            </span>
           </div>
         </div>
 
-        <div className="px-3 pb-3 pt-1">
-          <div className="rounded-lg bg-[#0a1320]/95 border border-[#00f0ff]/40 px-2.5 py-2 space-y-1.5">
-            <div className="flex items-center justify-between text-[9px] font-extrabold uppercase text-[#63809b]">
-              <span>PRE-BETA КОНСОЛЬ // ЖИВОЙ ЭФИР</span>
-              <span>КОД {roomSnapshot.code}</span>
-            </div>
-            <form onSubmit={handleSendChat} data-testid="prebeta-chat-form" className="flex items-center gap-2">
-              <span
-                className="w-9 h-9 rounded-md bg-[#00f0ff]/10 border border-[#00f0ff]/40 text-[#00f0ff] flex items-center justify-center shrink-0"
-                aria-hidden="true"
+        <div
+          ref={messagesContainerRef}
+          data-testid="prebeta-messages"
+          className="flex-1 min-h-0 px-3 py-3 space-y-2 overflow-y-auto geek-chat-scroll max-h-[380px] lg:max-h-none"
+        >
+          {roomSnapshot.messages.map((msg) => {
+            const timeStr = new Date(msg.timestamp).toLocaleTimeString('ru-RU', {
+              hour: '2-digit',
+              minute: '2-digit',
+            });
+            const isMine = msg.authorPeerId === myPeerId;
+            return (
+              <div
+                key={msg.id}
+                className={`flex gap-3 px-3 py-2.5 rounded-lg border ${
+                  msg.system
+                    ? 'bg-[#ff2a85]/10 border-[#ff2a85]/30'
+                    : isMine
+                      ? 'bg-[#00f0ff]/10 border-[#00f0ff]/35'
+                      : 'bg-[#0a1320]/90 border-[#00f0ff]/15'
+                }`}
               >
-                <Paperclip className="w-4 h-4" />
-              </span>
+                <div
+                  className={`w-9 h-9 geek-hex flex items-center justify-center font-extrabold text-xs text-white shrink-0 ${
+                    msg.system ? 'bg-[#ff2a85]' : isMine ? 'bg-[#3b82f6]' : 'bg-[#10b981]'
+                  }`}
+                >
+                  {msg.system ? 'PB' : getInitials(msg.authorNick)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span
+                      className={`text-[13px] font-extrabold ${
+                        msg.system ? 'text-[#ff7aa8]' : 'text-[#00f0ff]'
+                      }`}
+                    >
+                      {msg.authorNick}
+                    </span>
+                    <span className="text-[10.5px] text-[#63809b] font-mono">{timeStr}</span>
+                  </div>
+                  <p className="text-[13.5px] text-[#e6f7ff] mt-1 leading-snug break-words">
+                    {msg.text}
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="shrink-0 border-t border-[#00f0ff]/35 bg-[#060c16]/95 px-3 py-2.5 space-y-1.5">
+          <div className="flex items-center justify-between text-[9px] font-extrabold uppercase text-[#63809b]">
+            <span>PRE-BETA КОНСОЛЬ // ЖИВОЙ ЭФИР</span>
+            <span>КОД {roomSnapshot.code}</span>
+          </div>
+          <form onSubmit={handleSendChat} data-testid="prebeta-chat-form" className="flex items-center gap-2">
+            <span
+              className="w-9 h-9 rounded-md bg-[#00f0ff]/10 border border-[#00f0ff]/40 text-[#00f0ff] flex items-center justify-center shrink-0"
+              aria-hidden="true"
+            >
+              <Paperclip className="w-4 h-4" />
+            </span>
               <input
                 type="text"
                 value={chatDraft}
@@ -670,7 +667,6 @@ export function PreBetaWorkspace({
                 ОТПРАВИТЬ
               </button>
             </form>
-          </div>
         </div>
       </div>
 
@@ -678,7 +674,7 @@ export function PreBetaWorkspace({
       {showMembers && (
         <aside
           aria-label="Участники Pre-Beta диалога"
-          className="lg:w-[225px] bg-[#060b14]/92 border-t lg:border-t-0 lg:border-l border-[#00f0ff]/15 px-2.5 py-3 shrink-0"
+          className="lg:w-[225px] bg-[#060b14]/92 border-t lg:border-t-0 lg:border-l border-[#00f0ff]/15 px-2.5 py-3 shrink-0 lg:overflow-y-auto geek-chat-scroll"
         >
           <div className="text-[10.5px] font-extrabold uppercase text-[#00f0ff] px-1.5 pb-2 flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5" />

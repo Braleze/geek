@@ -105,3 +105,58 @@ test('user messages embed hard cipher clues for codes 1 and 2 without key 3, ter
   assert.equal(/горшен[её]в|король и шут|ключ\s*0?3/i.test(allTexts), false);
   assert.equal(/5\s*нажатий|откроют\s*терминал|p2p\s*голос/i.test(allTexts), false);
 });
+
+import { getVoicePeersForServer, toggleVoiceForViewedServer } from './platformPreview';
+
+test('preview starts outside any voice channel and keeps guest only in the joined server when browsing others', () => {
+  const nightclub = PREVIEW_SERVERS[0];
+  const cyberNode = PREVIEW_SERVERS[1];
+  const workshop = PREVIEW_SERVERS[2];
+
+  // Initial state: voiceServerId = null -> guest is NOT in any voice channel
+  let voiceServerId: 'cy-4371' | 'hc-node' | 'ma-club' | null = null;
+  for (const srv of PREVIEW_SERVERS) {
+    const peers = getVoicePeersForServer(srv, voiceServerId);
+    assert.equal(
+      peers.some((p) => p.isGuest || p.nick === 'Вы (Гость)'),
+      false,
+      `Guest should not be in ${srv.name} on initial load`,
+    );
+  }
+
+  // Join voice on Ночной клуб ('cy-4371')
+  voiceServerId = toggleVoiceForViewedServer(voiceServerId, nightclub.id);
+  assert.equal(voiceServerId, 'cy-4371');
+  assert.equal(
+    getVoicePeersForServer(nightclub, voiceServerId).some((p) => p.nick === 'Вы (Гость)'),
+    true,
+  );
+
+  // Switch preview view to Кибер Узел ('hc-node') and Мастерская ('ma-club') -> guest stays in 'cy-4371', NOT shown in others
+  assert.equal(
+    getVoicePeersForServer(cyberNode, voiceServerId).some((p) => p.nick === 'Вы (Гость)'),
+    false,
+  );
+  assert.equal(
+    getVoicePeersForServer(workshop, voiceServerId).some((p) => p.nick === 'Вы (Гость)'),
+    false,
+  );
+  // Returning back to Ночной клуб still shows guest in 'Ночной эфир'
+  assert.equal(
+    getVoicePeersForServer(nightclub, voiceServerId).some((p) => p.nick === 'Вы (Гость)'),
+    true,
+  );
+
+  // Clicking Кибер Узел voice channel moves guest from cy-4371 -> hc-node
+  voiceServerId = toggleVoiceForViewedServer(voiceServerId, cyberNode.id);
+  assert.equal(voiceServerId, 'hc-node');
+  assert.equal(
+    getVoicePeersForServer(nightclub, voiceServerId).some((p) => p.nick === 'Вы (Гость)'),
+    false,
+  );
+  assert.equal(
+    getVoicePeersForServer(cyberNode, voiceServerId).some((p) => p.nick === 'Вы (Гость)'),
+    true,
+  );
+});
+

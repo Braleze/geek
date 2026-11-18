@@ -538,6 +538,7 @@
       }
       .gk-cn-channels {
         width: 272px;
+        min-height: 0;
         background: rgba(6, 11, 20, 0.92);
         border-right: 1px solid rgba(0, 240, 255, 0.16);
         display: flex;
@@ -589,20 +590,45 @@
         color: #fff;
       }
       .gk-cn-voice-row {
+        width: 100%;
         padding: 6px 10px;
         border-radius: 6px;
         border: 1px solid transparent;
+        background: transparent;
+        color: #b4cde0;
         font-size: 13px;
         font-weight: 600;
         display: flex;
         align-items: center;
         justify-content: space-between;
         margin-bottom: 6px;
+        cursor: pointer;
+        text-align: left;
+      }
+      .gk-cn-voice-row:hover {
+        background: rgba(0, 240, 255, 0.08);
+        color: #fff;
       }
       .gk-cn-voice-row.is-active {
         background: rgba(16, 185, 129, 0.15);
         border-color: rgba(16, 185, 129, 0.45);
         color: #6ee7b7;
+      }
+      .gk-cn-srv-vdot {
+        display: none;
+        position: absolute;
+        top: -2px;
+        right: 8px;
+        width: 10px;
+        height: 10px;
+        border-radius: 9999px;
+        background: #10b981;
+        border: 1px solid #04070d;
+        box-shadow: 0 0 8px #10b981;
+        pointer-events: none;
+      }
+      .gk-cn-srv-wrap.has-voice .gk-cn-srv-vdot {
+        display: block;
       }
       .gk-cn-vpeer {
         display: flex;
@@ -706,13 +732,14 @@
       .gk-cn-chat {
         flex: 1;
         min-width: 0;
+        min-height: 0;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
         background: rgba(8, 16, 28, 0.9);
       }
       .gk-cn-streamhead {
-        margin: 12px 12px 4px;
+        flex-shrink: 0;
+        margin: 12px 12px 0;
         padding: 8px 12px;
         border-radius: 10px;
         background: rgba(10, 19, 32, 0.9);
@@ -742,12 +769,35 @@
         transform: scaleY(0.25);
       }
       .gk-cn-messages {
-        padding: 8px 12px;
+        flex: 1 1 0%;
+        min-height: 0;
+        padding: 12px;
         display: flex;
         flex-direction: column;
         gap: 8px;
-        max-height: 360px;
         overflow-y: auto;
+      }
+      .geek-chat-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: #00f0ff rgba(4, 8, 16, 0.9);
+      }
+      .geek-chat-scroll::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      .geek-chat-scroll::-webkit-scrollbar-track {
+        background: rgba(4, 8, 16, 0.92);
+        border-left: 1px solid rgba(0, 240, 255, 0.14);
+      }
+      .geek-chat-scroll::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, #00f0ff 0%, #3b82f6 52%, #ff2a85 100%);
+        border-radius: 9999px;
+        border: 1.5px solid #040810;
+        box-shadow: 0 0 10px rgba(0, 240, 255, 0.45);
+      }
+      .geek-chat-scroll::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(180deg, #6bf6ff 0%, #ff2a85 100%);
+        box-shadow: 0 0 14px rgba(255, 42, 133, 0.65);
       }
       .gk-cn-msg {
         display: flex;
@@ -758,11 +808,37 @@
         border: 1px solid rgba(0, 240, 255, 0.16);
       }
       .gk-cn-console {
-        margin: 4px 12px 12px;
+        flex-shrink: 0;
+        border-top: 1px solid rgba(0, 240, 255, 0.35);
+        background: rgba(6, 12, 22, 0.96);
+        padding: 10px 12px;
+      }
+      .gk-cn-qa-drawer {
         border-radius: 8px;
-        background: rgba(10, 19, 32, 0.95);
-        border: 1px solid rgba(0, 240, 255, 0.4);
+        background: #091220;
+        border: 1px solid rgba(0, 240, 255, 0.3);
         padding: 8px 10px;
+        margin-bottom: 8px;
+      }
+      .gk-cn-qa-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 2px 8px;
+        border-radius: 4px;
+        border: 1px solid rgba(0, 240, 255, 0.3);
+        background: #0a1320;
+        color: #9eeeff;
+        font-size: 9.5px;
+        font-weight: 800;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .gk-cn-qa-toggle.is-open,
+      .gk-cn-qa-toggle:hover {
+        border-color: #00f0ff;
+        color: #fff;
+        background: rgba(0, 240, 255, 0.16);
       }
       .gk-cn-members {
         width: 225px;
@@ -1512,9 +1588,15 @@
         flex: 1;
         min-width: 0;
       }
+      @media (min-width: 1025px) {
+        .gk-cn-workspace { height: 640px; }
+        .gk-cn-messages { max-height: none; }
+        .gk-cn-members { overflow-y: auto; }
+      }
       @media (max-width: 1024px) {
         .gk-nav { display: none; }
         .gk-cn-workspace, .gk-pb-active-wrap { flex-direction: column; }
+        .gk-cn-messages { max-height: 380px; }
         .gk-cn-rail {
           width: 100%;
           flex-direction: row;
@@ -1695,7 +1777,7 @@
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
               </div>
               <h3>Скорость</h3>
-              <p>Легковесный клиент, открытое API для ботов и мгновенный отклик на любых устройствах.</p>
+              <p>Легковесный клиент, плавная работа интерфейса и мгновенный отклик на любых устройствах.</p>
             </div>
           </section>
 
@@ -1750,14 +1832,17 @@
                   <div class="gk-cn-srv-wrap is-active" data-gk-srv-wrap="cy-4371">
                     <span class="gk-cn-srv-bar"></span>
                     <button type="button" class="gk-cn-hex gk-cn-srv-btn" data-gk-server="cy-4371" aria-label="Сервер Ночной клуб" aria-pressed="true" title="Ночной клуб">НК</button>
+                    <span class="gk-cn-srv-vdot"></span>
                   </div>
                   <div class="gk-cn-srv-wrap" data-gk-srv-wrap="hc-node">
                     <span class="gk-cn-srv-bar"></span>
                     <button type="button" class="gk-cn-hex gk-cn-srv-btn" data-gk-server="hc-node" aria-label="Сервер Кибер Узел" aria-pressed="false" title="Кибер Узел">HC</button>
+                    <span class="gk-cn-srv-vdot"></span>
                   </div>
                   <div class="gk-cn-srv-wrap" data-gk-srv-wrap="ma-club">
                     <span class="gk-cn-srv-bar"></span>
                     <button type="button" class="gk-cn-hex gk-cn-srv-btn" data-gk-server="ma-club" aria-label="Сервер Мастерская" aria-pressed="false" title="Мастерская">MA</button>
+                    <span class="gk-cn-srv-vdot"></span>
                   </div>
                   <div class="gk-cn-rail-sep" style="background:rgba(255,42,133,0.35);"></div>
                   <div class="gk-cn-srv-wrap" id="gk-cn-pb-rail-wrap">
@@ -1870,19 +1955,17 @@
                       </div>
                     </aside>
                     <div class="gk-cn-chat">
-                      <div>
-                        <div class="gk-cn-streamhead" style="border-color:rgba(255,42,133,0.35);">
-                          <div style="display:flex;align-items:center;gap:8px;">
-                            <span style="color:#ff2a85;font-size:18px;font-weight:900;">#</span>
-                            <div>
-                              <div id="gk-pb-chat-topic" style="font-size:9.5px;font-weight:800;color:#ff7aa8;">PRE-BETA ЖИВОЙ ДИАЛОГ</div>
-                              <div style="font-size:14px;font-weight:800;color:#fff;">прямая-связь-1-на-1</div>
-                            </div>
+                      <div class="gk-cn-streamhead" style="border-color:rgba(255,42,133,0.35);">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                          <span style="color:#ff2a85;font-size:18px;font-weight:900;">#</span>
+                          <div>
+                            <div id="gk-pb-chat-topic" style="font-size:9.5px;font-weight:800;color:#ff7aa8;">PRE-BETA ЖИВОЙ ДИАЛОГ</div>
+                            <div style="font-size:14px;font-weight:800;color:#fff;">прямая-связь-1-на-1</div>
                           </div>
-                          <span id="gk-pb-chat-timer" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;">⏱ 30:00</span>
                         </div>
-                        <div id="gk-pb-messages" data-testid="prebeta-messages" class="gk-cn-messages"></div>
+                        <span id="gk-pb-chat-timer" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;">⏱ 30:00</span>
                       </div>
+                      <div id="gk-pb-messages" data-testid="prebeta-messages" class="gk-cn-messages geek-chat-scroll"></div>
                       <div class="gk-cn-console">
                         <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:800;text-transform:uppercase;color:#63809b;margin-bottom:6px;">
                           <span>PRE-BETA КОНСОЛЬ // ЖИВОЙ ЭФИР</span>
@@ -1895,11 +1978,11 @@
                         </form>
                       </div>
                     </div>
-                    <aside id="gk-pb-members-panel" class="gk-cn-members" aria-label="Участники Pre-Beta диалога"></aside>
+                    <aside id="gk-pb-members-panel" class="gk-cn-members geek-chat-scroll" aria-label="Участники Pre-Beta диалога"></aside>
                   </div>
                 </div>
                 <aside id="gk-cn-demo-channels" class="gk-cn-channels">
-                  <div>
+                  <div class="geek-chat-scroll" style="flex:1 1 0%;min-height:0;overflow-y:auto;">
                     <div class="gk-cn-srv-head">
                       <div style="min-width:0;">
                         <div style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.06em;color:#00f0ff;">ОТКРЫТЫЙ СЕРВЕР</div>
@@ -1918,10 +2001,10 @@
                       <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#63809b;padding:6px 4px;">◈ ТЕКСТОВЫЕ КАНАЛЫ</div>
                       <div id="gk-cn-channel-list" role="tablist" aria-label="Текстовые каналы сервера" style="margin-bottom:10px;"></div>
                       <div style="font-size:10px;font-weight:800;text-transform:uppercase;color:#63809b;padding:6px 4px;">🔊 ГОЛОСОВЫЕ КАНАЛЫ</div>
-                      <div id="gk-cn-voice-row" class="gk-cn-voice-row is-active">
+                      <button type="button" id="gk-cn-voice-row" class="gk-cn-voice-row" aria-pressed="false">
                         <span id="gk-cn-voice-name">🔊 Ночной эфир</span>
-                        <span id="gk-cn-voice-live" style="font-size:9px;font-weight:800;color:#10b981;">LIVE</span>
-                      </div>
+                        <span id="gk-cn-voice-live" style="display:none;font-size:9px;font-weight:800;color:#10b981;">LIVE</span>
+                      </button>
                       <div id="gk-cn-voice-peers" style="padding-left:6px;margin-bottom:8px;"></div>
                     </div>
                   </div>
@@ -1929,10 +2012,10 @@
                     <div class="gk-cn-vdock">
                       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
                         <div style="min-width:0;">
-                          <div id="gk-cn-vdock-status" style="font-size:10px;font-weight:800;color:#10b981;text-transform:uppercase;">🟢 В ЭФИРЕ</div>
+                          <div id="gk-cn-vdock-status" style="font-size:10px;font-weight:800;color:#63809b;text-transform:uppercase;">📡 ГОЛОСОВОЙ КАНАЛ</div>
                           <div id="gk-cn-vdock-room" style="font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Ночной эфир</div>
                         </div>
-                        <button type="button" id="gk-cn-join-voice" class="gk-cn-vdock-btn is-in">ВЫЙТИ</button>
+                        <button type="button" id="gk-cn-join-voice" class="gk-cn-vdock-btn">ВОЙТИ</button>
                       </div>
                       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
                         <button type="button" id="gk-cn-cam" class="gk-cn-tool-btn" aria-pressed="false">📷 Камера</button>
@@ -1947,7 +2030,7 @@
                             <span style="font-size:11.5px;font-weight:800;color:#fff;white-space:nowrap;flex-shrink:0;">Вы (Гость)</span>
                             <span class="gk-cn-badge gk-cn-badge-set1" style="font-size:8px;padding:1px 4px;">🌙 LUCY NET</span>
                           </div>
-                          <div id="gk-vc-guest-status" style="font-size:10px;color:#00f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">В сети</div>
+                          <div id="gk-vc-guest-status" style="font-size:10px;color:#00f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Не в голосе</div>
                         </div>
                       </div>
                       <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
@@ -1958,35 +2041,41 @@
                   </div>
                 </aside>
                 <div id="gk-cn-demo-chat" class="gk-cn-chat">
-                  <div>
-                    <div class="gk-cn-streamhead">
-                      <div style="display:flex;align-items:center;gap:8px;min-width:0;">
-                        <span style="color:#00f0ff;font-size:18px;font-weight:900;">#</span>
-                        <div style="min-width:0;">
-                          <div id="gk-preview-ch-topic" style="font-size:9.5px;font-weight:800;text-transform:uppercase;color:#00f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">АКТИВНЫЙ ПОТОК // НОЧНОЙ КЛУБ</div>
-                          <div id="gk-preview-ch-name" style="font-size:14px;font-weight:800;color:#fff;">игровая-комната</div>
-                        </div>
-                      </div>
-                      <div id="gk-cn-eq" class="gk-cn-eq" aria-hidden="true">
-                        <span class="gk-cn-eq-bar" style="animation-delay:0s;"></span>
-                        <span class="gk-cn-eq-bar" style="animation-delay:0.2s;"></span>
-                        <span class="gk-cn-eq-bar" style="animation-delay:0.4s;"></span>
-                        <span class="gk-cn-eq-bar" style="animation-delay:0.1s;"></span>
-                        <span class="gk-cn-eq-bar" style="animation-delay:0.3s;"></span>
-                        <span class="gk-cn-eq-bar" style="animation-delay:0.5s;"></span>
-                        <span class="gk-cn-eq-bar" style="animation-delay:0.15s;"></span>
-                        <span class="gk-cn-eq-bar" style="animation-delay:0.35s;"></span>
+                  <div class="gk-cn-streamhead">
+                    <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+                      <span style="color:#00f0ff;font-size:18px;font-weight:900;">#</span>
+                      <div style="min-width:0;">
+                        <div id="gk-preview-ch-topic" style="font-size:9.5px;font-weight:800;text-transform:uppercase;color:#00f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">АКТИВНЫЙ ПОТОК // НОЧНОЙ КЛУБ</div>
+                        <div id="gk-preview-ch-name" style="font-size:14px;font-weight:800;color:#fff;">игровая-комната</div>
                       </div>
                     </div>
-                    <div class="gk-cn-messages" id="gk-preview-messages" data-testid="preview-messages"></div>
-                    <div id="gk-preview-typing" style="display:none;padding:0 16px 6px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#00f0ff;" aria-live="polite"></div>
+                    <div id="gk-cn-eq" class="gk-cn-eq" aria-hidden="true">
+                      <span class="gk-cn-eq-bar" style="animation-delay:0s;"></span>
+                      <span class="gk-cn-eq-bar" style="animation-delay:0.2s;"></span>
+                      <span class="gk-cn-eq-bar" style="animation-delay:0.4s;"></span>
+                      <span class="gk-cn-eq-bar" style="animation-delay:0.1s;"></span>
+                      <span class="gk-cn-eq-bar" style="animation-delay:0.3s;"></span>
+                      <span class="gk-cn-eq-bar" style="animation-delay:0.5s;"></span>
+                      <span class="gk-cn-eq-bar" style="animation-delay:0.15s;"></span>
+                      <span class="gk-cn-eq-bar" style="animation-delay:0.35s;"></span>
+                    </div>
                   </div>
+                  <div class="gk-cn-messages geek-chat-scroll" id="gk-preview-messages" data-testid="preview-messages"></div>
+                  <div id="gk-preview-typing" style="display:none;flex-shrink:0;padding:4px 14px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#00f0ff;" aria-live="polite"></div>
                   <div class="gk-cn-console">
-                    <div style="display:flex;justify-content:space-between;font-size:9px;font-weight:800;text-transform:uppercase;color:#63809b;margin-bottom:6px;">
-                      <span>ВОПРОС-ОТВЕТ // ЧАТ С УЧАСТНИКАМИ</span>
-                      <span id="gk-cn-console-tag">КАНАЛ #ИГРОВАЯ-КОМНАТА</span>
+                    <div id="gk-preview-qa-drawer" data-testid="preview-qa-drawer" class="gk-cn-qa-drawer" hidden>
+                      <div style="display:flex;align-items:center;justify-content:space-between;font-size:9.5px;font-weight:800;text-transform:uppercase;color:#00f0ff;margin-bottom:6px;">
+                        <span>БЫСТРЫЕ ВОПРОСЫ ДЛЯ ЧАТА</span>
+                        <button type="button" id="gk-preview-qa-hide" style="background:none;border:none;color:#63809b;font-size:9.5px;font-weight:800;cursor:pointer;">СКРЫТЬ ✕</button>
+                      </div>
+                      <div id="gk-preview-qa-chips" data-testid="preview-qa-chips" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
                     </div>
-                    <div id="gk-preview-qa-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;font-size:9px;font-weight:800;text-transform:uppercase;color:#63809b;margin-bottom:8px;">
+                      <span id="gk-cn-console-tag">КАНАЛ #ИГРОВАЯ-КОМНАТА // ЧАТ С УЧАСТНИКАМИ</span>
+                      <button type="button" id="gk-preview-qa-toggle" data-testid="preview-qa-toggle" class="gk-cn-qa-toggle" aria-expanded="false" aria-controls="gk-preview-qa-drawer">
+                        <span>? Быстрые вопросы (5) ▾</span>
+                      </button>
+                    </div>
                     <form id="gk-preview-form" style="display:flex;align-items:center;gap:8px;">
                       <span style="width:36px;height:36px;border-radius:6px;background:rgba(0,240,255,0.1);border:1px solid rgba(0,240,255,0.4);color:#00f0ff;display:flex;align-items:center;justify-content:center;flex-shrink:0;" aria-hidden="true">📎</span>
                       <input type="text" id="gk-preview-input" class="gk-fb-input" style="background:#050a12;border-radius:6px;padding:8px 12px;" placeholder="Задайте вопрос собеседникам в #игровая-комната..." aria-label="Сообщение в демо канал" />
@@ -1994,7 +2083,7 @@
                     </form>
                   </div>
                 </div>
-                <aside id="gk-cn-members" class="gk-cn-members" aria-label="Участники сервера"></aside>
+                <aside id="gk-cn-members" class="gk-cn-members geek-chat-scroll" aria-label="Участники сервера"></aside>
               </div>
             </div>
           </section>
@@ -2006,7 +2095,7 @@
                 <h2 id="gk-roadmap-title" class="gk-h2">Дорожная карта</h2>
               </div>
               <p style="font-size:14px;color:#94a3b8;max-width:420px;margin:0;">
-                Последовательно запускаем ключевые модули от текстового ядра до нативных клиентов и открытого API.
+                Последовательно запускаем ключевые модули от текстового ядра и P2P-голоса до нативных клиентов.
               </p>
             </div>
             <div class="gk-roadmap-grid">
@@ -2022,8 +2111,8 @@
               </article>
               <article class="gk-roadmap-card">
                 <div class="gk-roadmap-meta"><span>Этап 03</span><span style="color:#fcee0a;">Запланировано</span></div>
-                <h3>03. SDK для ботов и импорт</h3>
-                <p>Открытый API для ботов, вебхуки, кастомные темы оформления и быстрый перенос структуры серверов.</p>
+                <h3>03. Темы и перенос серверов</h3>
+                <p>Кастомные темы оформления, гибкие настройки ролей, профили участников и быстрый перенос структуры серверов.</p>
               </article>
               <article class="gk-roadmap-card">
                 <div class="gk-roadmap-meta"><span>Этап 04</span><span style="color:#fcee0a;">Скоро</span></div>
@@ -2066,10 +2155,10 @@
               </div>
               <div class="gk-faq-item">
                 <button type="button" class="gk-faq-btn" aria-expanded="false" data-gk-faq>
-                  <span><span style="color:#00f0ff;font-family:'Share Tech Mono',monospace;margin-right:10px;">04.</span>Можно ли будет переносить ботов и структуру серверов из Discord?</span>
+                  <span><span style="color:#00f0ff;font-family:'Share Tech Mono',monospace;margin-right:10px;">04.</span>Можно ли будет перенести структуру серверов и ролей из Discord?</span>
                   <span style="color:#00f0ff;">▾</span>
                 </button>
-                <div class="gk-faq-answer">На третьем этапе дорожной карты появится открытый SDK для разработчиков, поддержка вебхуков и инструмент быстрого импорта ролей, категорий и каналов.</div>
+                <div class="gk-faq-answer">На третьем этапе дорожной карты появится инструмент быстрого импорта категорий, текстовых и голосовых каналов, ролей и кастомных тем оформления.</div>
               </div>
               <div class="gk-faq-item">
                 <button type="button" class="gk-faq-btn" aria-expanded="false" data-gk-faq>
@@ -3392,7 +3481,7 @@
           var cnCustomMsgs = {};
           var cnTypingPeerName = null;
           var cnReplyTimers = [];
-          var cnInVoice = true;
+          var cnVoiceServerId = null;
           var cnMicMuted = false;
           var cnDeafened = false;
           var cnCam = false;
@@ -3402,6 +3491,10 @@
           var cnMsgsEl = document.getElementById('gk-preview-messages');
           var cnTypingEl = document.getElementById('gk-preview-typing');
           var cnQaChipsEl = document.getElementById('gk-preview-qa-chips');
+          var cnQaDrawerEl = document.getElementById('gk-preview-qa-drawer');
+          var cnQaToggleBtn = document.getElementById('gk-preview-qa-toggle');
+          var cnQaHideBtn = document.getElementById('gk-preview-qa-hide');
+          var cnQaOpen = false;
           var cnChNameEl = document.getElementById('gk-preview-ch-name');
           var cnChTopicEl = document.getElementById('gk-preview-ch-topic');
           var cnFormEl = document.getElementById('gk-preview-form');
@@ -3463,6 +3556,7 @@
               var sid = w.getAttribute('data-gk-srv-wrap');
               var act = sid === srv.id;
               w.classList.toggle('is-active', act);
+              w.classList.toggle('has-voice', cnVoiceServerId === sid);
               var btn = w.querySelector('[data-gk-server]');
               if (btn) btn.setAttribute('aria-pressed', act ? 'true' : 'false');
             });
@@ -3500,17 +3594,28 @@
               });
             }
 
+            var connectedVoiceSrv = cnVoiceServerId ? (cnServers[cnVoiceServerId] || null) : null;
+            var isInViewedVoice = cnVoiceServerId === srv.id;
+
             if (cnVoiceNameEl) cnVoiceNameEl.textContent = '🔊 ' + srv.voiceChannel;
-            if (cnVdockRoomEl) cnVdockRoomEl.textContent = srv.voiceChannel;
-            if (cnVoiceRowEl) cnVoiceRowEl.classList.toggle('is-active', cnInVoice);
-            if (cnVoiceLiveEl) cnVoiceLiveEl.style.display = cnInVoice ? 'inline' : 'none';
+            if (cnVdockRoomEl) cnVdockRoomEl.textContent = connectedVoiceSrv ? connectedVoiceSrv.voiceChannel : srv.voiceChannel;
+            if (cnVoiceRowEl) {
+              cnVoiceRowEl.classList.toggle('is-active', isInViewedVoice);
+              cnVoiceRowEl.setAttribute('aria-pressed', isInViewedVoice ? 'true' : 'false');
+            }
+            if (cnVoiceLiveEl) cnVoiceLiveEl.style.display = isInViewedVoice ? 'inline' : 'none';
             if (cnVdockStatusEl) {
-              cnVdockStatusEl.textContent = cnInVoice ? '🟢 В ЭФИРЕ' : '📡 ГОЛОСОВОЙ КАНАЛ';
-              cnVdockStatusEl.style.color = cnInVoice ? '#10b981' : '#63809b';
+              if (connectedVoiceSrv) {
+                cnVdockStatusEl.textContent = connectedVoiceSrv.id === srv.id ? '🟢 В ЭФИРЕ' : ('🟢 В ЭФИРЕ · ' + connectedVoiceSrv.name);
+                cnVdockStatusEl.style.color = '#10b981';
+              } else {
+                cnVdockStatusEl.textContent = '📡 ГОЛОСОВОЙ КАНАЛ';
+                cnVdockStatusEl.style.color = '#63809b';
+              }
             }
             if (cnJoinVoiceBtn) {
-              cnJoinVoiceBtn.classList.toggle('is-in', cnInVoice);
-              cnJoinVoiceBtn.textContent = cnInVoice ? 'ВЫЙТИ' : 'ВОЙТИ';
+              cnJoinVoiceBtn.classList.toggle('is-in', Boolean(connectedVoiceSrv));
+              cnJoinVoiceBtn.textContent = connectedVoiceSrv ? 'ВЫЙТИ' : 'ВОЙТИ';
             }
             if (cnCamBtn) {
               cnCamBtn.classList.toggle('is-cam', cnCam);
@@ -3521,13 +3626,13 @@
               cnScreenBtn.setAttribute('aria-pressed', cnScreen ? 'true' : 'false');
             }
             if (cnEqEl) {
-              cnEqEl.classList.toggle('is-paused', !cnInVoice || cnDeafened);
+              cnEqEl.classList.toggle('is-paused', !connectedVoiceSrv || cnDeafened);
             }
 
             if (cnVoicePeersEl) {
               cnVoicePeersEl.innerHTML = '';
               var peers = [];
-              if (cnInVoice) {
+              if (isInViewedVoice) {
                 peers.push({
                   nick: 'Вы (Гость)' + (cnCam ? ' 📷' : '') + (cnScreen ? ' 🖥️' : ''),
                   initials: 'ГО',
@@ -3583,7 +3688,7 @@
               vcDeafBtn.setAttribute('aria-label', cnDeafened ? 'Включить звук' : 'Отключить звук');
             }
             if (vcGuestStatus) {
-              vcGuestStatus.textContent = !cnInVoice ? 'Оффлайн в голосе' : cnDeafened ? 'Звук выкл' : cnMicMuted ? 'Микрофон выкл' : 'В сети';
+              vcGuestStatus.textContent = !cnVoiceServerId ? 'Не в голосе' : cnDeafened ? 'Звук выкл' : cnMicMuted ? 'Микрофон выкл' : 'В эфире';
             }
 
             if (cnMsgsEl) {
@@ -5026,9 +5131,9 @@
             } else if (/устройств|платформ|windows|mac|linux|ios|android|телефон|мобил|браузер|скачат|пк/.test(q)) {
               preferredAuthor = 'Sergo';
               answerText = 'Сначала откроемся прямо в браузере и в лёгком десктоп-клиенте для Windows, macOS и Linux, а следующим шагом выйдут нативные приложения для iOS и Android.';
-            } else if (/бот|sdk|api|вебхук|webhook|discord|дискорд|импорт|перенес/.test(q)) {
+            } else if (/discord|дискорд|импорт|перенес/.test(q)) {
               preferredAuthor = srv.id === 'hc-node' ? 'Sergo' : 'Max';
-              answerText = 'На третьем этапе дорожной карты добавим открытый SDK для ботов, вебхуки и инструмент быстрого переноса структуры серверов, ролей и каналов из Discord.';
+              answerText = 'На третьем этапе дорожной карты добавим инструмент быстрого переноса структуры серверов, ролей и каналов из Discord, а также кастомные темы оформления.';
             } else if (/секрет|пасхал|шифр|загад|подсказ|код\s*\d|четыре\s*цифр|ребус/.test(q)) {
               preferredAuthor = 'Sergo';
               answerText = 'В логах выше уже спрятаны зацепки — смотри внимательнее на строки Base64, двоичные сдвиги и шестнадцатеричные множители. Готовых цифр в чат мы не сливаем 😉';
@@ -5043,7 +5148,7 @@
               answerText = 'Привет! Добро пожаловать в #' + chId + '. Тут в сети L30nel, Sergo и Max — спрашивай про релиз, P2P-голос, Pre-Beta связь 1-на-1, платформы или нашу разработку.';
             } else {
               var snippet = clean.length > 52 ? clean.slice(0, 52) + '...' : clean;
-              answerText = 'По вопросу «' + snippet + '»: в #' + chId + ' мы как раз тестируем превью-клиент Geek. У нас команда из трёх разработчиков (L30nel, Sergo и Max), прямой P2P-голос, Pre-Beta звонки 1-на-1 по коду, Bot SDK в плане и бесплатный базовый доступ. Спроси подробнее про любую из этих тем!';
+              answerText = 'По вопросу «' + snippet + '»: в #' + chId + ' мы как раз тестируем превью-клиент Geek. У нас команда из трёх разработчиков (L30nel, Sergo и Max), прямой P2P-голос, Pre-Beta звонки 1-на-1 по коду, перенос серверов в плане и бесплатный базовый доступ. Спроси подробнее про любую из этих тем!';
             }
 
             var peer = cnPickPeer(srv, preferredAuthor, replyIndex);
@@ -5195,6 +5300,26 @@
               });
           }
 
+          function setQaDrawerOpen(nextOpen) {
+            cnQaOpen = Boolean(nextOpen);
+            if (cnQaDrawerEl) cnQaDrawerEl.hidden = !cnQaOpen;
+            if (cnQaToggleBtn) {
+              cnQaToggleBtn.setAttribute('aria-expanded', cnQaOpen ? 'true' : 'false');
+              cnQaToggleBtn.classList.toggle('is-open', cnQaOpen);
+              var label = cnQaToggleBtn.querySelector('span');
+              if (label) label.textContent = cnQaOpen ? '? Быстрые вопросы (5) ▴' : '? Быстрые вопросы (5) ▾';
+            }
+          }
+          if (cnQaToggleBtn) {
+            cnQaToggleBtn.addEventListener('click', function () {
+              setQaDrawerOpen(!cnQaOpen);
+            });
+          }
+          if (cnQaHideBtn) {
+            cnQaHideBtn.addEventListener('click', function () {
+              setQaDrawerOpen(false);
+            });
+          }
           if (cnQaChipsEl) {
             [
               'Когда релиз и бета?',
@@ -5223,11 +5348,29 @@
               cnSubmitPreviewQuestion(val);
             });
           }
-          if (cnJoinVoiceBtn) cnJoinVoiceBtn.addEventListener('click', function () { cnInVoice = !cnInVoice; renderCyberNet(); });
+          if (cnVoiceRowEl) {
+            cnVoiceRowEl.addEventListener('click', function () {
+              cnVoiceServerId = (cnVoiceServerId === cnActiveSrvId) ? null : cnActiveSrvId;
+              if (!cnVoiceServerId) { cnCam = false; cnScreen = false; }
+              renderCyberNet();
+            });
+          }
+          if (cnJoinVoiceBtn) {
+            cnJoinVoiceBtn.addEventListener('click', function () {
+              if (cnVoiceServerId) {
+                cnVoiceServerId = null;
+                cnCam = false;
+                cnScreen = false;
+              } else {
+                cnVoiceServerId = cnActiveSrvId;
+              }
+              renderCyberNet();
+            });
+          }
           if (vcMicBtn) vcMicBtn.addEventListener('click', function () { cnMicMuted = !cnMicMuted; renderCyberNet(); });
           if (vcDeafBtn) vcDeafBtn.addEventListener('click', function () { cnDeafened = !cnDeafened; renderCyberNet(); });
-          if (cnCamBtn) cnCamBtn.addEventListener('click', function () { cnCam = !cnCam; renderCyberNet(); });
-          if (cnScreenBtn) cnScreenBtn.addEventListener('click', function () { cnScreen = !cnScreen; renderCyberNet(); });
+          if (cnCamBtn) cnCamBtn.addEventListener('click', function () { if (!cnVoiceServerId) cnVoiceServerId = cnActiveSrvId; cnCam = !cnCam; renderCyberNet(); });
+          if (cnScreenBtn) cnScreenBtn.addEventListener('click', function () { if (!cnVoiceServerId) cnVoiceServerId = cnActiveSrvId; cnScreen = !cnScreen; renderCyberNet(); });
           if (cnToggleMembersBtn) cnToggleMembersBtn.addEventListener('click', function () { cnShowMembers = !cnShowMembers; if (pbActive) renderPreBeta(); else renderCyberNet(); });
           if (cnInviteBtn) {
             cnInviteBtn.addEventListener('click', function () {

@@ -1,11 +1,27 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Headphones, Mic, MicOff, Monitor, Paperclip, PhoneCall, Users, Video, Volume2, VolumeX, Zap } from 'lucide-react';
+import {
+  ChevronDown,
+  Headphones,
+  HelpCircle,
+  Mic,
+  MicOff,
+  Monitor,
+  Paperclip,
+  PhoneCall,
+  Users,
+  Video,
+  Volume2,
+  VolumeX,
+  Zap,
+} from 'lucide-react';
 import {
   BADGE_META,
   PREVIEW_QUICK_QUESTIONS,
   PREVIEW_SERVERS,
   createUserPreviewMessage,
   generatePreviewPeerReply,
+  getVoicePeersForServer,
+  toggleVoiceForViewedServer,
   type PreviewBadgeSet,
   type PreviewMessage,
   type PreviewServerId,
@@ -75,13 +91,14 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
   });
   const [customMessages, setCustomMessages] = useState<Record<string, PreviewMessage[]>>({});
   const [draft, setDraft] = useState('');
-  const [inVoice, setInVoice] = useState(true);
+  const [voiceServerId, setVoiceServerId] = useState<PreviewServerId | null>(null);
   const [micMuted, setMicMuted] = useState(false);
   const [deafened, setDeafened] = useState(false);
   const [camActive, setCamActive] = useState(false);
   const [screenActive, setScreenActive] = useState(false);
   const [showMembers, setShowMembers] = useState(true);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [showQuickQuestions, setShowQuickQuestions] = useState(false);
 const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
 
   const [unlockToken, setUnlockToken] = useState<string | null>(() => {
@@ -150,32 +167,33 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
 
   const onlineMembers = activeServer.members.filter((m) => m.online);
   const offlineMembers = activeServer.members.filter((m) => !m.online);
-  const voicePeers = [
-    ...(inVoice
-      ? [
-          {
-            id: 'guest-self',
-            nick: 'Вы (Гость)',
-            initials: 'ГО',
-            avatarColor: '#3b82f6',
-            speaking: !micMuted && !deafened,
-            inCam: camActive,
-            inScreen: screenActive,
-          },
-        ]
-      : []),
-    ...activeServer.members
-      .filter((m) => m.online && m.inVoice)
-      .map((m) => ({
-        id: m.id,
-        nick: m.nick,
-        initials: m.initials,
-        avatarColor: m.avatarColor,
-        speaking: Boolean(m.speaking),
-        inCam: false,
-        inScreen: false,
-      })),
-  ];
+  const connectedVoiceServer = voiceServerId
+    ? PREVIEW_SERVERS.find((srv) => srv.id === voiceServerId) ?? null
+    : null;
+  const isInActiveServerVoice = voiceServerId === activeServer.id;
+  const voicePeers = getVoicePeersForServer(activeServer, voiceServerId, {
+    micMuted,
+    deafened,
+    camActive,
+    screenActive,
+  });
+
+  const handleToggleVoiceChannel = (targetServerId: PreviewServerId) => {
+    setVoiceServerId((prev) => {
+      const next = toggleVoiceForViewedServer(prev, targetServerId);
+      if (next === null) {
+        setCamActive(false);
+        setScreenActive(false);
+      }
+      return next;
+    });
+  };
+
+  const handleLeaveVoice = () => {
+    setVoiceServerId(null);
+    setCamActive(false);
+    setScreenActive(false);
+  };
 
   const handleSelectServer = (srvId: PreviewServerId) => {
     setPreBetaMode(false);
@@ -515,7 +533,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
         </div>
 
         {/* Main 4-Pane Workspace */}
-        <div className="flex flex-col lg:flex-row min-h-[470px]">
+        <div className="flex flex-col lg:flex-row min-h-[470px] lg:h-[640px]">
           {/* 1. Left Hexagonal Servers Rail */}
           <div
             role="navigation"
@@ -533,6 +551,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
 
             {PREVIEW_SERVERS.map((srv) => {
               const isAct = !preBetaMode && srv.id === activeServer.id;
+              const hasVoiceHere = voiceServerId === srv.id;
               return (
                 <div key={srv.id} className="relative lg:w-full flex items-center justify-center shrink-0">
                   <span
@@ -545,7 +564,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                     onClick={() => handleSelectServer(srv.id)}
                     aria-label={`Сервер ${srv.name}`}
                     aria-pressed={isAct}
-                    title={srv.name}
+                    title={hasVoiceHere ? `${srv.name} (Вы в голосовом канале)` : srv.name}
                     className={`w-11 h-11 geek-hex font-extrabold text-xs flex items-center justify-center transition-all cursor-pointer ${
                       isAct
                         ? 'bg-[#00f0ff] text-[#031518] shadow-[0_0_14px_rgba(0,240,255,0.6)]'
@@ -554,6 +573,13 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                   >
                     {srv.icon}
                   </button>
+                  {hasVoiceHere && (
+                    <span
+                      data-testid={`rail-voice-dot-${srv.id}`}
+                      title={`Вы в голосовом канале: ${srv.voiceChannel}`}
+                      className="pointer-events-none absolute -top-0.5 right-1 lg:right-2 w-2.5 h-2.5 rounded-full bg-[#10b981] border border-[#04070d] shadow-[0_0_8px_#10b981]"
+                    />
+                  )}
                 </div>
               );
             })}
@@ -594,8 +620,8 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
             <>
 
           {/* 2. Channels Sidebar + Voice Dock + User Bar */}
-          <aside className="lg:w-[272px] bg-[#060b14]/92 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 flex flex-col justify-between shrink-0">
-            <div>
+          <aside className="lg:w-[272px] bg-[#060b14]/92 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 flex flex-col justify-between shrink-0 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto geek-chat-scroll">
               {/* Server Title Header */}
               <div className="px-3.5 py-2.5 border-b border-[#00f0ff]/15 flex items-center justify-between gap-2">
                 <div className="min-w-0">
@@ -651,22 +677,26 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                 <div className="text-[10px] font-extrabold uppercase text-[#63809b] px-1 py-1.5">
                   🔊 ГОЛОСОВЫЕ КАНАЛЫ
                 </div>
-                <div
-                  className={`px-2.5 py-1.5 rounded-md text-[13px] font-semibold flex items-center justify-between border mb-1.5 ${
-                    inVoice
+                <button
+                  type="button"
+                  onClick={() => handleToggleVoiceChannel(activeServer.id)}
+                  aria-pressed={isInActiveServerVoice}
+                  data-testid="preview-voice-channel-btn"
+                  className={`w-full px-2.5 py-1.5 rounded-md text-[13px] font-semibold flex items-center justify-between border mb-1.5 cursor-pointer transition-colors ${
+                    isInActiveServerVoice
                       ? 'bg-[#10b981]/15 border-[#10b981]/45 text-[#6ee7b7]'
-                      : 'border-transparent text-[#b4cde0]'
+                      : 'border-transparent text-[#b4cde0] hover:bg-[#00f0ff]/10 hover:text-white'
                   }`}
                 >
                   <span className="flex items-center gap-1.5 truncate">
                     <Volume2 className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{activeServer.voiceChannel}</span>
                   </span>
-                  {inVoice && <span className="text-[9px] font-extrabold text-[#10b981]">LIVE</span>}
-                </div>
+                  {isInActiveServerVoice && <span className="text-[9px] font-extrabold text-[#10b981]">LIVE</span>}
+                </button>
 
                 {/* Connected Voice Peers with Green Speaking Ring & Animated Bars */}
-                <div className="space-y-1 pl-2 mb-2">
+                <div data-testid="preview-voice-peers" className="space-y-1 pl-2 mb-2">
                   {voicePeers.map((vp) => (
                     <div
                       key={vp.id}
@@ -705,39 +735,57 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
               </div>
             </div>
 
-            <div>
+            <div className="shrink-0">
               {/* Voice Dock */}
               <div className="bg-[#06101a]/95 border-t border-[#00f0ff]/35 px-2.5 py-2 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div
-                      className={`text-[10px] font-extrabold uppercase ${
-                        inVoice ? 'text-[#10b981]' : 'text-[#63809b]'
+                      data-testid="preview-vdock-status"
+                      className={`text-[10px] font-extrabold uppercase truncate ${
+                        connectedVoiceServer ? 'text-[#10b981]' : 'text-[#63809b]'
                       }`}
                     >
-                      {inVoice ? '🟢 В ЭФИРЕ' : '📡 ГОЛОСОВОЙ КАНАЛ'}
+                      {connectedVoiceServer
+                        ? connectedVoiceServer.id === activeServer.id
+                          ? '🟢 В ЭФИРЕ'
+                          : `🟢 В ЭФИРЕ · ${connectedVoiceServer.name}`
+                        : '📡 ГОЛОСОВОЙ КАНАЛ'}
                     </div>
-                    <div className="text-xs font-bold text-white truncate">
-                      {activeServer.voiceChannel}
+                    <div
+                      data-testid="preview-vdock-room"
+                      className="text-xs font-bold text-white truncate"
+                    >
+                      {connectedVoiceServer
+                        ? connectedVoiceServer.voiceChannel
+                        : activeServer.voiceChannel}
                     </div>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setInVoice((prev) => !prev)}
-                    className={`px-2.5 py-1 rounded text-[10.5px] font-extrabold cursor-pointer transition-colors ${
-                      inVoice
+                    data-testid="preview-voice-dock-btn"
+                    onClick={() =>
+                      connectedVoiceServer
+                        ? handleLeaveVoice()
+                        : handleToggleVoiceChannel(activeServer.id)
+                    }
+                    className={`px-2.5 py-1 rounded text-[10.5px] font-extrabold cursor-pointer transition-colors shrink-0 ${
+                      connectedVoiceServer
                         ? 'bg-[#ff2a85]/25 border border-[#ff2a85] text-[#ff80a0]'
                         : 'bg-[#00f0ff] text-[#031518]'
                     }`}
                   >
-                    {inVoice ? 'ВЫЙТИ' : 'ВОЙТИ'}
+                    {connectedVoiceServer ? 'ВЫЙТИ' : 'ВОЙТИ'}
                   </button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setCamActive((prev) => !prev)}
+                    onClick={() => {
+                      if (!voiceServerId) setVoiceServerId(activeServer.id);
+                      setCamActive((prev) => !prev);
+                    }}
                     aria-pressed={camActive}
                     className={`py-1 px-2 rounded border text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
                       camActive
@@ -750,7 +798,10 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                   </button>
                   <button
                     type="button"
-                    onClick={() => setScreenActive((prev) => !prev)}
+                    onClick={() => {
+                      if (!voiceServerId) setVoiceServerId(activeServer.id);
+                      setScreenActive((prev) => !prev);
+                    }}
                     aria-pressed={screenActive}
                     className={`py-1 px-2 rounded border text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
                       screenActive
@@ -781,8 +832,17 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                         🌙 LUCY NET
                       </span>
                     </div>
-                    <div className="text-[10px] text-[#00f0ff] truncate">
-                      {!inVoice ? 'Оффлайн в голосе' : deafened ? 'Звук выкл' : micMuted ? 'Микрофон выкл' : 'В сети'}
+                    <div
+                      data-testid="preview-guest-status"
+                      className="text-[10px] text-[#00f0ff] truncate"
+                    >
+                      {!connectedVoiceServer
+                        ? 'Не в голосе'
+                        : deafened
+                          ? 'Звук выкл'
+                          : micMuted
+                            ? 'Микрофон выкл'
+                            : 'В эфире'}
                     </div>
                   </div>
                 </div>
@@ -818,129 +878,164 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
           </aside>
 
           {/* 3. Main Chat Stream & Console */}
-          <div className="flex-1 flex flex-col justify-between min-w-0 bg-[#08101c]/90">
-            <div>
-              {/* Audio Stream Header Card with Wave Equalizer */}
-              <div className="m-3 mb-1 px-3 py-2 rounded-[10px] bg-[#0a1320]/90 border border-[#00f0ff]/15 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[#00f0ff] text-lg font-black">#</span>
-                  <div className="min-w-0">
-                    <div className="text-[9.5px] font-extrabold uppercase text-[#00f0ff] truncate">
-                      АКТИВНЫЙ ПОТОК // {activeServer.name.toUpperCase()}
-                    </div>
-                    <div className="text-sm font-extrabold text-white truncate">
-                      {activeChannel.name}
-                    </div>
+          <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#08101c]/90">
+            {/* Audio Stream Header Card with Wave Equalizer */}
+            <div className="shrink-0 m-3 mb-0 px-3 py-2 rounded-[10px] bg-[#0a1320]/90 border border-[#00f0ff]/15 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[#00f0ff] text-lg font-black">#</span>
+                <div className="min-w-0">
+                  <div className="text-[9.5px] font-extrabold uppercase text-[#00f0ff] truncate">
+                    АКТИВНЫЙ ПОТОК // {activeServer.name.toUpperCase()}
                   </div>
-                </div>
-
-                {/* Equalizer wave */}
-                <div className="hidden sm:flex items-center justify-center gap-[3px] h-5" aria-hidden="true">
-                  {WAVE_DELAYS.map((delay, i) => (
-                    <span
-                      key={i}
-                      className={`w-[3px] h-full bg-[#00f0ff] rounded-sm ${
-                        inVoice && !deafened ? 'geek-eq-bar-live opacity-80' : 'opacity-30 scale-y-25'
-                      }`}
-                      style={inVoice && !deafened ? { animationDelay: delay } : undefined}
-                    />
-                  ))}
+                  <div className="text-sm font-extrabold text-white truncate">
+                    {activeChannel.name}
+                  </div>
                 </div>
               </div>
 
-              {/* Messages Container */}
-              <div
-                ref={messagesScrollRef}
-                className="px-3 py-2 space-y-2 max-h-[360px] overflow-y-auto"
-                data-testid="preview-messages"
-              >
-                {allMessages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className="flex gap-3 px-3 py-2.5 rounded-lg border bg-[#0a1320]/90 border-[#00f0ff]/15"
-                  >
-                    <HexAvatar
-                      initials={msg.initials}
-                      color={msg.avatarColor}
-                      sizeClass="w-10 h-10 text-xs mt-0.5"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[13.5px] font-extrabold text-[#00f0ff]">
-                          {msg.author}
-                        </span>
-                        <CyberBadge setKey={msg.badgeSet} />
-                        <span className="text-[10.5px] text-[#63809b] font-mono">{msg.time}</span>
-                      </div>
-                      <p className="text-[13.5px] text-[#e6f7ff] mt-1 leading-snug break-words whitespace-pre-wrap">
-                        {msg.text}
-                      </p>
-                    </div>
-                  </div>
+              {/* Equalizer wave */}
+              <div className="hidden sm:flex items-center justify-center gap-[3px] h-5" aria-hidden="true">
+                {WAVE_DELAYS.map((delay, i) => (
+                  <span
+                    key={i}
+                    className={`w-[3px] h-full bg-[#00f0ff] rounded-sm ${
+                      connectedVoiceServer && !deafened ? 'geek-eq-bar-live opacity-80' : 'opacity-30 scale-y-25'
+                    }`}
+                    style={connectedVoiceServer && !deafened ? { animationDelay: delay } : undefined}
+                  />
                 ))}
-                {typingPeerName && (
-                  <div
-                    data-testid="preview-typing-indicator"
-                    className="px-3 py-1.5 text-[11px] font-mono-tech text-[#00f0ff] flex items-center gap-2"
-                  >
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
-                    <span>{typingPeerName} печатает ответ...</span>
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* Bottom Console Input Box + Q&A Quick Prompts */}
-            <div className="px-3 pb-3 pt-1">
-              <div className="rounded-lg bg-[#0a1320]/95 border border-[#00f0ff]/40 px-2.5 py-2 space-y-1.5">
-                <div className="flex items-center justify-between text-[9px] font-extrabold uppercase text-[#63809b] gap-2 flex-wrap">
-                  <span>
-                    {unlockToken
-                      ? '🔓 СВОБОДНЫЙ РЕЖИМ АКТИВЕН (/lock — ВЫЙТИ)'
-                      : 'ВОПРОС-ОТВЕТ // ЧАТ С УЧАСТНИКАМИ'}
-                  </span>
-                  <span>КАНАЛ #{activeChannel.name.toUpperCase()}</span>
-                </div>
+            {/* Messages Container (stretches flush to input border) */}
+            <div
+              ref={messagesScrollRef}
+              className="flex-1 min-h-0 px-3 py-3 space-y-2 overflow-y-auto geek-chat-scroll max-h-[380px] lg:max-h-none"
+              data-testid="preview-messages"
+            >
+              {allMessages.map((msg) => (
                 <div
-                  data-testid="preview-qa-chips"
-                  className="flex flex-wrap items-center gap-1.5 pb-0.5"
+                  key={msg.id}
+                  className="flex gap-3 px-3 py-2.5 rounded-lg border bg-[#0a1320]/90 border-[#00f0ff]/15"
                 >
-                  {PREVIEW_QUICK_QUESTIONS.map((qText) => (
-                    <button
-                      key={qText}
-                      type="button"
-                      onClick={() => submitPreviewQuestion(qText)}
-                      className="text-[10.5px] font-semibold px-2 py-1 rounded bg-[#00f0ff]/10 border border-[#00f0ff]/25 text-[#9eeeff] hover:bg-[#00f0ff]/20 hover:border-[#00f0ff]/60 hover:text-white transition-colors cursor-pointer"
-                    >
-                      {qText}
-                    </button>
-                  ))}
-                </div>
-                <form onSubmit={handleSend} className="flex items-center gap-2">
-                  <span
-                    className="w-9 h-9 rounded-md bg-[#00f0ff]/10 border border-[#00f0ff]/40 text-[#00f0ff] flex items-center justify-center shrink-0"
-                    aria-hidden="true"
-                  >
-                    <Paperclip className="w-4 h-4" />
-                  </span>
-                  <input
-                    type="text"
-                    value={draft}
-                    onChange={(e) => setDraft(e.target.value)}
-                    placeholder={`Задайте вопрос собеседникам в #${activeChannel.name}...`}
-                    aria-label={`Сообщение в канал ${activeChannel.name}`}
-                    data-testid="preview-chat-input"
-                    className="flex-1 min-w-0 bg-[#050a12] border border-[#00f0ff]/20 focus:border-[#00f0ff] focus:outline-none rounded-md px-3 py-2 text-sm text-[#e6f7ff] placeholder:text-[#63809b]"
+                  <HexAvatar
+                    initials={msg.initials}
+                    color={msg.avatarColor}
+                    sizeClass="w-10 h-10 text-xs mt-0.5"
                   />
-                  <button
-                    type="submit"
-                    data-testid="preview-chat-send"
-                    className="bg-[#00f0ff] text-[#031518] px-3.5 py-2 rounded-md font-extrabold text-[11.5px] uppercase hover:brightness-110 transition-all cursor-pointer shrink-0"
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[13.5px] font-extrabold text-[#00f0ff]">
+                        {msg.author}
+                      </span>
+                      <CyberBadge setKey={msg.badgeSet} />
+                      <span className="text-[10.5px] text-[#63809b] font-mono">{msg.time}</span>
+                    </div>
+                    <p className="text-[13.5px] text-[#e6f7ff] mt-1 leading-snug break-words whitespace-pre-wrap">
+                      {msg.text}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              {typingPeerName && (
+                <div
+                  data-testid="preview-typing-indicator"
+                  className="px-3 py-1.5 text-[11px] font-mono-tech text-[#00f0ff] flex items-center gap-2"
+                >
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+                  <span>{typingPeerName} печатает ответ...</span>
+                </div>
+              )}
+            </div>
+
+            {/* Docked Bottom Input Area (flush against chat stream) + Collapsible Quick Questions */}
+            <div className="shrink-0 border-t border-[#00f0ff]/35 bg-[#060c16]/95 px-3 py-2.5 space-y-2">
+              {showQuickQuestions && (
+                <div
+                  id="preview-qa-drawer"
+                  data-testid="preview-qa-drawer"
+                  className="rounded-lg bg-[#091220] border border-[#00f0ff]/30 px-2.5 py-2 space-y-1.5"
+                >
+                  <div className="flex items-center justify-between text-[9.5px] font-extrabold uppercase text-[#00f0ff]">
+                    <span>БЫСТРЫЕ ВОПРОСЫ ДЛЯ ЧАТА</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowQuickQuestions(false)}
+                      className="text-[#63809b] hover:text-white cursor-pointer transition-colors"
+                    >
+                      СКРЫТЬ ✕
+                    </button>
+                  </div>
+                  <div
+                    data-testid="preview-qa-chips"
+                    className="flex flex-wrap items-center gap-1.5"
                   >
-                    ОТПРАВИТЬ
-                  </button>
-                </form>
+                    {PREVIEW_QUICK_QUESTIONS.map((qText) => (
+                      <button
+                        key={qText}
+                        type="button"
+                        onClick={() => submitPreviewQuestion(qText)}
+                        className="text-[10.5px] font-semibold px-2.5 py-1 rounded bg-[#00f0ff]/10 border border-[#00f0ff]/25 text-[#9eeeff] hover:bg-[#00f0ff]/20 hover:border-[#00f0ff]/60 hover:text-white transition-colors cursor-pointer"
+                      >
+                        {qText}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between text-[9px] font-extrabold uppercase text-[#63809b] gap-2 flex-wrap">
+                <span>
+                  {unlockToken
+                    ? '🔓 СВОБОДНЫЙ РЕЖИМ АКТИВЕН (/lock — ВЫЙТИ)'
+                    : `КАНАЛ #${activeChannel.name.toUpperCase()} // ЧАТ С УЧАСТНИКАМИ`}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowQuickQuestions((prev) => !prev)}
+                  aria-expanded={showQuickQuestions}
+                  aria-controls="preview-qa-drawer"
+                  data-testid="preview-qa-toggle"
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[9.5px] font-extrabold uppercase transition-colors cursor-pointer ${
+                    showQuickQuestions
+                      ? 'bg-[#00f0ff]/20 border-[#00f0ff] text-white'
+                      : 'bg-[#0a1320] border-[#00f0ff]/30 text-[#9eeeff] hover:border-[#00f0ff] hover:text-white'
+                  }`}
+                >
+                  <HelpCircle className="w-3 h-3 text-[#00f0ff]" />
+                  <span>Быстрые вопросы ({PREVIEW_QUICK_QUESTIONS.length})</span>
+                  <ChevronDown
+                    className={`w-3 h-3 transition-transform duration-150 ${
+                      showQuickQuestions ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
               </div>
+
+              <form onSubmit={handleSend} className="flex items-center gap-2">
+                <span
+                  className="w-9 h-9 rounded-md bg-[#00f0ff]/10 border border-[#00f0ff]/40 text-[#00f0ff] flex items-center justify-center shrink-0"
+                  aria-hidden="true"
+                >
+                  <Paperclip className="w-4 h-4" />
+                </span>
+                <input
+                  type="text"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  placeholder={`Задайте вопрос собеседникам в #${activeChannel.name}...`}
+                  aria-label={`Сообщение в канал ${activeChannel.name}`}
+                  data-testid="preview-chat-input"
+                  className="flex-1 min-w-0 bg-[#050a12] border border-[#00f0ff]/25 focus:border-[#00f0ff] focus:outline-none rounded-md px-3 py-2 text-sm text-[#e6f7ff] placeholder:text-[#63809b]"
+                />
+                <button
+                  type="submit"
+                  data-testid="preview-chat-send"
+                  className="bg-[#00f0ff] text-[#031518] px-3.5 py-2 rounded-md font-extrabold text-[11.5px] uppercase hover:brightness-110 transition-all cursor-pointer shrink-0"
+                >
+                  ОТПРАВИТЬ
+                </button>
+              </form>
             </div>
           </div>
 
@@ -948,7 +1043,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
           {showMembers && (
             <aside
               aria-label="Участники сервера"
-              className="lg:w-[225px] bg-[#060b14]/92 border-t lg:border-t-0 lg:border-l border-[#00f0ff]/15 px-2.5 py-3 shrink-0"
+              className="lg:w-[225px] bg-[#060b14]/92 border-t lg:border-t-0 lg:border-l border-[#00f0ff]/15 px-2.5 py-3 shrink-0 lg:overflow-y-auto geek-chat-scroll"
             >
               <div className="text-[10.5px] font-extrabold uppercase text-[#00f0ff] px-1.5 pb-1.5">
                 ⬢ В сети — {onlineMembers.length}
