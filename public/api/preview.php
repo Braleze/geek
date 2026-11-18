@@ -172,6 +172,7 @@ function extractVoiceUnlockCandidate(string $raw): string {
     if (preg_match('/^\/(?:voice|voicetest)\s+(.+)$/iu', $trimmed, $m)) {
         $trimmed = trim($m[1]);
     }
+    $trimmed = preg_replace('/[\x{2010}-\x{2015}\x{2212}]/u', '-', $trimmed) ?? $trimmed;
     $trimmed = trim($trimmed, " \t\n\r\0\x0B`'\"«»");
     return strtolower($trimmed);
 }

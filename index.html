@@ -756,6 +756,92 @@
         border-color: #ff2a85;
         color: #ffaec2;
       }
+      .gk-cn-tool-btn.is-echo {
+        background: rgba(0, 240, 255, 0.25);
+        border-color: #00f0ff;
+        color: #fff;
+      }
+      .gk-cn-live-btn {
+        width: 100%;
+        padding: 6px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border: 1px solid rgba(0, 240, 255, 0.35);
+        background: #081523;
+        color: #9eeeff;
+        margin-bottom: 6px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+      .gk-cn-live-btn:hover {
+        background: rgba(0, 240, 255, 0.15);
+        color: #fff;
+      }
+      .gk-cn-live-btn.is-active {
+        background: rgba(16, 185, 129, 0.2);
+        border-color: #10b981;
+        color: #6ee7b7;
+        box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+      }
+      .gk-cn-live-badge {
+        font-size: 9px;
+        font-weight: 800;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(16, 185, 129, 0.2);
+        color: #6ee7b7;
+        flex-shrink: 0;
+      }
+      .gk-cn-mic-meter {
+        height: 6px;
+        width: 100%;
+        border-radius: 9999px;
+        background: #03070e;
+        border: 1px solid rgba(0, 240, 255, 0.2);
+        overflow: hidden;
+      }
+      .gk-cn-mic-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #00f0ff, #10b981);
+        transition: width 75ms linear;
+      }
+      .gk-cn-video-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+        max-height: 144px;
+        overflow-y: auto;
+        margin-bottom: 8px;
+      }
+      .gk-cn-video-card {
+        position: relative;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid rgba(0, 240, 255, 0.35);
+        background: #03070e;
+        aspect-ratio: 16 / 9;
+      }
+      .gk-cn-video-card video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .gk-cn-video-lbl {
+        position: absolute;
+        bottom: 4px;
+        left: 4px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.72);
+        font-size: 9px;
+        font-weight: 700;
+        color: #00f0ff;
+      }
       .gk-cn-userbar {
         height: 54px;
         padding: 0 10px;
@@ -2064,20 +2150,49 @@
                         <span id="gk-cn-voice-live" style="display:none;font-size:9px;font-weight:800;color:#10b981;">LIVE</span>
                       </button>
                       <div id="gk-cn-voice-peers" style="padding-left:6px;margin-bottom:8px;"></div>
+                      <div id="gk-cn-live-voice-wrap" hidden style="margin-top:4px;">
+                        <button type="button" id="gk-cn-live-voice-btn" data-testid="preview-live-voice-btn" class="gk-cn-live-btn" aria-pressed="false">
+                          <span style="display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" style="flex-shrink:0;" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+                            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Live Голос (Тест)</span>
+                          </span>
+                          <span id="gk-cn-live-voice-badge" class="gk-cn-live-badge">LIVE</span>
+                        </button>
+                        <div id="gk-cn-live-voice-peers" data-testid="preview-live-voice-peers" hidden style="padding-left:6px;margin-bottom:8px;"></div>
+                      </div>
                     </div>
                   </div>
                   <div>
                     <div id="gk-cn-vdock" data-testid="preview-vdock" class="gk-cn-vdock" style="display:none;">
                       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;">
                         <div style="min-width:0;">
-                          <div id="gk-cn-vdock-status" style="font-size:10px;font-weight:800;color:#10b981;text-transform:uppercase;">🟢 В ЭФИРЕ</div>
-                          <div id="gk-cn-vdock-room" style="font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Ночной эфир</div>
+                          <div id="gk-cn-vdock-status" data-testid="preview-vdock-status" style="font-size:10px;font-weight:800;color:#10b981;text-transform:uppercase;">🟢 В ЭФИРЕ</div>
+                          <div id="gk-cn-vdock-room" data-testid="preview-vdock-room" style="font-size:12px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Ночной эфир</div>
                         </div>
                         <button type="button" id="gk-cn-join-voice" data-testid="preview-voice-dock-btn" class="gk-cn-vdock-btn is-in">ВЫЙТИ</button>
                       </div>
-                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                      <div id="gk-cn-vdock-demo-tools" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
                         <button type="button" id="gk-cn-cam" class="gk-cn-tool-btn" aria-pressed="false">📷 Камера</button>
                         <button type="button" id="gk-cn-screen" class="gk-cn-tool-btn" aria-pressed="false">🖥️ Экран</button>
+                      </div>
+                      <div id="gk-cn-vdock-live-tools" hidden>
+                        <div style="margin-bottom:8px;">
+                          <div style="display:flex;align-items:center;justify-content:space-between;font-family:'Share Tech Mono',monospace;font-size:9.5px;color:#9eeeff;margin-bottom:4px;">
+                            <span id="gk-cn-live-mic-label">Режим слушателя (нет мик)</span>
+                            <button type="button" id="gk-cn-live-retry-mic" hidden style="background:none;border:none;color:#00f0ff;font-size:9.5px;font-weight:700;cursor:pointer;padding:0;">+ Микрофон</button>
+                          </div>
+                          <div data-testid="preview-live-mic-meter" class="gk-cn-mic-meter">
+                            <div id="gk-cn-live-mic-fill" class="gk-cn-mic-fill" style="width:0%;"></div>
+                          </div>
+                        </div>
+                        <button type="button" id="gk-cn-live-unlock-audio" hidden style="width:100%;margin-bottom:8px;padding:4px 8px;border-radius:4px;background:rgba(252,238,10,0.15);border:1px solid rgba(252,238,10,0.6);color:#fcee0a;font-size:10.5px;font-weight:700;cursor:pointer;">🔊 Нажмите, чтобы разрешить звук</button>
+                        <div id="gk-cn-live-error" hidden style="font-size:10px;color:#ff7aa8;line-height:1.35;margin-bottom:8px;"></div>
+                        <div id="gk-cn-live-videos" class="gk-cn-video-grid" hidden></div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+                          <button type="button" id="gk-cn-live-cam" class="gk-cn-tool-btn" aria-pressed="false">📷 Камера</button>
+                          <button type="button" id="gk-cn-live-screen" class="gk-cn-tool-btn" aria-pressed="false">🖥️ Экран</button>
+                          <button type="button" id="gk-cn-live-echo" data-testid="preview-live-loopback-btn" class="gk-cn-tool-btn" aria-pressed="false" title="Услышать собственный микрофон (проверка в 1 вкладке)">📡 Эхо</button>
+                        </div>
                       </div>
                     </div>
                     <div class="gk-cn-userbar">
@@ -3659,6 +3774,21 @@
           var vcMicBtn = document.getElementById('gk-vc-mic');
           var vcDeafBtn = document.getElementById('gk-vc-deaf');
           var vcGuestStatus = document.getElementById('gk-vc-guest-status');
+          var cnLiveWrapEl = document.getElementById('gk-cn-live-voice-wrap');
+          var cnLiveBtnEl = document.getElementById('gk-cn-live-voice-btn');
+          var cnLiveBadgeEl = document.getElementById('gk-cn-live-voice-badge');
+          var cnLivePeersEl = document.getElementById('gk-cn-live-voice-peers');
+          var cnVdockDemoToolsEl = document.getElementById('gk-cn-vdock-demo-tools');
+          var cnVdockLiveToolsEl = document.getElementById('gk-cn-vdock-live-tools');
+          var cnLiveMicLabelEl = document.getElementById('gk-cn-live-mic-label');
+          var cnLiveRetryMicBtn = document.getElementById('gk-cn-live-retry-mic');
+          var cnLiveMicFillEl = document.getElementById('gk-cn-live-mic-fill');
+          var cnLiveUnlockAudioBtn = document.getElementById('gk-cn-live-unlock-audio');
+          var cnLiveErrorEl = document.getElementById('gk-cn-live-error');
+          var cnLiveVideosEl = document.getElementById('gk-cn-live-videos');
+          var cnLiveCamBtn = document.getElementById('gk-cn-live-cam');
+          var cnLiveScreenBtn = document.getElementById('gk-cn-live-screen');
+          var cnLiveEchoBtn = document.getElementById('gk-cn-live-echo');
 
           function setCnFullscreen(next) {
             cnFullscreen = Boolean(next);
@@ -3748,22 +3878,113 @@
 
             var connectedVoiceSrv = cnVoiceServerId ? (cnServers[cnVoiceServerId] || null) : null;
             var isInViewedVoice = cnVoiceServerId === srv.id;
+            var lvActive = Boolean(cnLv && (cnLv.connected || cnLv.connecting));
+            var lvInRoom = Boolean(cnLv && cnLv.connected);
+
+            if (cnLiveWrapEl) cnLiveWrapEl.hidden = !cnVoiceUnlockToken;
+            if (cnLiveBtnEl) {
+              cnLiveBtnEl.classList.toggle('is-active', lvInRoom);
+              cnLiveBtnEl.setAttribute('aria-pressed', lvInRoom ? 'true' : 'false');
+            }
+            if (cnLiveBadgeEl) {
+              cnLiveBadgeEl.textContent = (cnLv && cnLv.connecting) ? '...' : (lvInRoom ? ((cnLv.peers || []).length + '/8') : 'LIVE');
+            }
+            if (cnLivePeersEl) {
+              cnLivePeersEl.hidden = !lvInRoom;
+              cnLivePeersEl.innerHTML = '';
+              if (lvInRoom && cnLv && Array.isArray(cnLv.peers)) {
+                cnLv.peers.forEach(function (vp) {
+                  var row = document.createElement('div');
+                  row.className = 'gk-cn-vpeer' + (vp.speaking && !vp.micMuted ? ' is-speaking' : '');
+                  row.appendChild(makeHexAvatar(vp.initials || 'ГК', vp.avatarColor || '#00f0ff', 26, 9));
+                  var nm = document.createElement('span');
+                  nm.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                  nm.textContent = (vp.nick || 'Гость') + (vp.peerId === cnLv.myPeerId ? ' (Вы)' : '') + (vp.camActive ? ' 📷' : '') + (vp.screenActive ? ' 🖥️' : '');
+                  row.appendChild(nm);
+                  if (vp.micMuted) {
+                    var mBadge = document.createElement('span');
+                    mBadge.style.cssText = 'color:#ff2a85;font-size:10px;flex-shrink:0;';
+                    mBadge.textContent = '🔇';
+                    row.appendChild(mBadge);
+                  }
+                  if (vp.deafened) {
+                    var dBadge = document.createElement('span');
+                    dBadge.style.cssText = 'color:#ff2a85;font-size:10px;flex-shrink:0;';
+                    dBadge.textContent = '🔕';
+                    row.appendChild(dBadge);
+                  }
+                  if (vp.speaking && !vp.micMuted) {
+                    var bars = document.createElement('span');
+                    bars.className = 'gk-cn-speak-bars';
+                    bars.setAttribute('aria-hidden', 'true');
+                    ['0s', '0.15s', '0.3s'].forEach(function (d) {
+                      var b = document.createElement('span');
+                      b.className = 'gk-cn-speak-bar';
+                      b.style.animationDelay = d;
+                      bars.appendChild(b);
+                    });
+                    row.appendChild(bars);
+                  }
+                  cnLivePeersEl.appendChild(row);
+                });
+              }
+            }
 
             if (cnVoiceNameEl) cnVoiceNameEl.textContent = '🔊 ' + srv.voiceChannel;
-            if (cnVdockEl) cnVdockEl.style.display = connectedVoiceSrv ? 'block' : 'none';
-            if (cnVdockRoomEl && connectedVoiceSrv) cnVdockRoomEl.textContent = connectedVoiceSrv.voiceChannel;
+            if (cnVdockEl) cnVdockEl.style.display = (connectedVoiceSrv || lvInRoom) ? 'block' : 'none';
+            if (cnVdockDemoToolsEl) cnVdockDemoToolsEl.style.display = lvInRoom ? 'none' : 'grid';
+            if (cnVdockLiveToolsEl) cnVdockLiveToolsEl.hidden = !lvInRoom;
+            if (cnVdockRoomEl) {
+              if (lvInRoom && cnLv) cnVdockRoomEl.textContent = 'Live Голос (Тест) · ' + (cnLv.peers || []).length + '/8';
+              else if (connectedVoiceSrv) cnVdockRoomEl.textContent = connectedVoiceSrv.voiceChannel;
+            }
             if (cnVoiceRowEl) {
               cnVoiceRowEl.classList.toggle('is-active', isInViewedVoice);
               cnVoiceRowEl.setAttribute('aria-pressed', isInViewedVoice ? 'true' : 'false');
             }
             if (cnVoiceLiveEl) cnVoiceLiveEl.style.display = isInViewedVoice ? 'inline' : 'none';
-            if (cnVdockStatusEl && connectedVoiceSrv) {
-              cnVdockStatusEl.textContent = connectedVoiceSrv.id === srv.id ? '🟢 В ЭФИРЕ' : ('🟢 В ЭФИРЕ · ' + connectedVoiceSrv.name);
-              cnVdockStatusEl.style.color = '#10b981';
+            if (cnVdockStatusEl) {
+              if (lvInRoom && cnLv) {
+                cnVdockStatusEl.textContent = cnLv.audioMode === 'loopback'
+                  ? '🟢 ЭХО-ТЕСТ · ЛОКАЛЬНО'
+                  : cnLv.audioMode === 'webrtc'
+                    ? '🟢 В ЭФИРЕ · WebRTC P2P'
+                    : cnLv.audioMode === 'relay'
+                      ? '🟢 В ЭФИРЕ · WS RELAY'
+                      : '🟢 В ЭФИРЕ · ЖДЁМ УЧАСТНИКОВ';
+                cnVdockStatusEl.style.color = '#10b981';
+              } else if (connectedVoiceSrv) {
+                cnVdockStatusEl.textContent = connectedVoiceSrv.id === srv.id ? '🟢 В ЭФИРЕ' : ('🟢 В ЭФИРЕ · ' + connectedVoiceSrv.name);
+                cnVdockStatusEl.style.color = '#10b981';
+              }
             }
             if (cnJoinVoiceBtn) {
-              cnJoinVoiceBtn.classList.toggle('is-in', Boolean(connectedVoiceSrv));
+              cnJoinVoiceBtn.classList.toggle('is-in', Boolean(connectedVoiceSrv || lvInRoom));
               cnJoinVoiceBtn.textContent = 'ВЫЙТИ';
+            }
+            if (cnLiveMicLabelEl && cnLv) {
+              cnLiveMicLabelEl.textContent = cnLv.hasMicAudio
+                ? (cnLv.micMuted ? 'Микрофон заглушён' : ('Уровень мик: ' + cnLv.micLevel + '%'))
+                : 'Режим слушателя (нет мик)';
+            }
+            if (cnLiveRetryMicBtn && cnLv) cnLiveRetryMicBtn.hidden = cnLv.hasMicAudio;
+            if (cnLiveMicFillEl && cnLv) cnLiveMicFillEl.style.width = (cnLv.micMuted ? 0 : cnLv.micLevel) + '%';
+            if (cnLiveUnlockAudioBtn && cnLv) cnLiveUnlockAudioBtn.hidden = !cnLv.audioUnlockNeeded;
+            if (cnLiveErrorEl && cnLv) {
+              cnLiveErrorEl.hidden = !cnLv.error;
+              cnLiveErrorEl.textContent = cnLv.error || '';
+            }
+            if (cnLiveCamBtn && cnLv) {
+              cnLiveCamBtn.classList.toggle('is-cam', cnLv.camActive);
+              cnLiveCamBtn.setAttribute('aria-pressed', cnLv.camActive ? 'true' : 'false');
+            }
+            if (cnLiveScreenBtn && cnLv) {
+              cnLiveScreenBtn.classList.toggle('is-screen', cnLv.screenActive);
+              cnLiveScreenBtn.setAttribute('aria-pressed', cnLv.screenActive ? 'true' : 'false');
+            }
+            if (cnLiveEchoBtn && cnLv) {
+              cnLiveEchoBtn.classList.toggle('is-echo', cnLv.loopbackActive);
+              cnLiveEchoBtn.setAttribute('aria-pressed', cnLv.loopbackActive ? 'true' : 'false');
             }
             if (cnCamBtn) {
               cnCamBtn.classList.toggle('is-cam', cnCam);
@@ -3774,7 +3995,8 @@
               cnScreenBtn.setAttribute('aria-pressed', cnScreen ? 'true' : 'false');
             }
             if (cnEqEl) {
-              cnEqEl.classList.toggle('is-paused', !connectedVoiceSrv || cnDeafened);
+              var anyPaused = lvInRoom ? Boolean(cnLv && cnLv.deafened) : (!connectedVoiceSrv || cnDeafened);
+              cnEqEl.classList.toggle('is-paused', anyPaused);
             }
 
             if (cnVoicePeersEl) {
@@ -3825,18 +4047,30 @@
               });
             }
 
+            var effMicMuted = lvInRoom && cnLv ? cnLv.micMuted : cnMicMuted;
+            var effDeafened = lvInRoom && cnLv ? cnLv.deafened : cnDeafened;
             if (vcMicBtn) {
-              vcMicBtn.classList.toggle('is-muted', cnMicMuted);
-              vcMicBtn.setAttribute('aria-pressed', cnMicMuted ? 'true' : 'false');
-              vcMicBtn.setAttribute('aria-label', cnMicMuted ? 'Включить микрофон' : 'Выключить микрофон');
+              vcMicBtn.classList.toggle('is-muted', effMicMuted);
+              vcMicBtn.setAttribute('aria-pressed', effMicMuted ? 'true' : 'false');
+              vcMicBtn.setAttribute('aria-label', effMicMuted ? 'Включить микрофон' : 'Выключить микрофон');
             }
             if (vcDeafBtn) {
-              vcDeafBtn.classList.toggle('is-muted', cnDeafened);
-              vcDeafBtn.setAttribute('aria-pressed', cnDeafened ? 'true' : 'false');
-              vcDeafBtn.setAttribute('aria-label', cnDeafened ? 'Включить звук' : 'Отключить звук');
+              vcDeafBtn.classList.toggle('is-muted', effDeafened);
+              vcDeafBtn.setAttribute('aria-pressed', effDeafened ? 'true' : 'false');
+              vcDeafBtn.setAttribute('aria-label', effDeafened ? 'Включить звук' : 'Отключить звук');
             }
             if (vcGuestStatus) {
-              vcGuestStatus.textContent = !cnVoiceServerId ? 'Не в голосе' : cnDeafened ? 'Звук выкл' : cnMicMuted ? 'Микрофон выкл' : 'В эфире';
+              if (lvActive && cnLv) {
+                vcGuestStatus.textContent = cnLv.deafened
+                  ? 'Звук выкл'
+                  : cnLv.micMuted
+                    ? 'Микрофон выкл'
+                    : cnLv.loopbackActive
+                      ? 'Эхо-тест'
+                      : (lvInRoom ? 'Live в эфире' : 'Подключение...');
+              } else {
+                vcGuestStatus.textContent = !cnVoiceServerId ? 'Не в голосе' : cnDeafened ? 'Звук выкл' : cnMicMuted ? 'Микрофон выкл' : 'В эфире';
+              }
             }
             syncL30nelVoiceAudio();
 
@@ -5048,6 +5282,23 @@
             pbStopMedia();
             if (pbWs) { try { pbWs.close(); } catch (e) {} pbWs = null; }
             if (pbLocalCh) { try { pbLocalCh.close(); } catch (e) {} pbLocalCh = null; }
+            if (typeof cnReplyTimers !== 'undefined' && Array.isArray(cnReplyTimers)) {
+              cnReplyTimers.forEach(function (tid) { clearTimeout(tid); });
+              cnReplyTimers = [];
+            }
+            if (cnLv && typeof cnLv.leave === 'function') {
+              cnLv.leave();
+            }
+            if (typeof stopL30nelVoiceAudio === 'function') {
+              stopL30nelVoiceAudio();
+            }
+            if (typeof cnOnKeyDownHandler === 'function') {
+              window.removeEventListener('keydown', cnOnKeyDownHandler);
+            }
+            if (typeof gkSecretKeyHandler === 'function') {
+              window.removeEventListener('keydown', gkSecretKeyHandler);
+            }
+            document.body.style.overflow = '';
           };
 
           if (pbTabDemo) pbTabDemo.addEventListener('click', function () { pbActive = false; renderPreBeta(); renderCyberNet(); });
@@ -5234,6 +5485,702 @@
           }
 
           var cnLiveReplyUrl = null;
+          var cnVoiceUnlockUrl = './api/preview/voice-unlock';
+          var cnVoiceBackend = 'local';
+          var cnVoiceUnlockStorageKey = 'geek_preview_voice_unlock_token';
+          var cnVoiceUnlockToken = null;
+          try {
+            cnVoiceUnlockToken = window.sessionStorage.getItem(cnVoiceUnlockStorageKey) || null;
+          } catch (e) {}
+
+          function cnSetVoiceUnlockToken(nextToken) {
+            cnVoiceUnlockToken = nextToken || null;
+            try {
+              if (cnVoiceUnlockToken) {
+                window.sessionStorage.setItem(cnVoiceUnlockStorageKey, cnVoiceUnlockToken);
+              } else {
+                window.sessionStorage.removeItem(cnVoiceUnlockStorageKey);
+              }
+            } catch (e) {}
+          }
+
+          var CN_VOICE_UNLOCK_DIGEST = '74f2eeeb6697b4fe';
+          function cnNormalizeVoiceCandidate(rawInput) {
+            var withoutZw = String(rawInput || '').replace(/[\u200B-\u200D\uFEFF]/g, '');
+            var trimmed = withoutZw.trim();
+            var cmdMatch = /^\/(?:voice|voicetest)\s+(.+)$/i.exec(trimmed);
+            if (cmdMatch) trimmed = cmdMatch[1].trim();
+            return trimmed
+              .replace(/[\u2010-\u2015\u2212]/g, '-')
+              .replace(/^[`'"«»\s]+|[`'"«»\s]+$/g, '')
+              .toLowerCase();
+          }
+          function cnHashLocalVoiceCode(input) {
+            var salted = 'gk::voice-test::' + String(input || '').trim().toLowerCase() + '::node7';
+            var h1 = 0x811c9dc5;
+            var h2 = 0x9e3779b9;
+            for (var i = 0; i < salted.length; i += 1) {
+              var c = salted.charCodeAt(i);
+              h1 = Math.imul(h1 ^ c, 0x01000193);
+              h2 = Math.imul(h2 ^ (c + i * 17), 0x85ebca6b);
+            }
+            h1 ^= h1 >>> 16;
+            h1 = Math.imul(h1, 0x85ebca6b);
+            h1 ^= h1 >>> 13;
+            h2 ^= h2 >>> 15;
+            h2 = Math.imul(h2, 0xc2b2ae35);
+            h2 ^= h2 >>> 16;
+            return (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
+          }
+          function cnMatchesLocalVoiceUnlockCode(rawInput) {
+            var cand = cnNormalizeVoiceCandidate(rawInput);
+            if (!cand) return false;
+            return cnHashLocalVoiceCode(cand) === CN_VOICE_UNLOCK_DIGEST;
+          }
+          function cnBuildLocalVoiceUnlockMsg(nowDate) {
+            var d = nowDate || new Date();
+            return {
+              author: 'СИСТЕМА GEEK',
+              initials: 'СГ',
+              color: '#10b981',
+              badge: 'set1',
+              time: String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'),
+              text: '🎙️ Тестовый живой голосовой канал «🔊 Live Голос (Тест)» открыт в списке голосовых каналов! Подключайтесь для проверки WebRTC / аудио, камеры, экрана и Эхо-теста. Чтобы снова скрыть канал, отправьте /voice-lock.'
+            };
+          }
+
+          var cnLv = (function () {
+            var LV_PEERS_KEY = 'geek_live_voice_peers_v1';
+            var LV_IPC_CH = 'geek_live_voice_ipc_v1';
+            var LV_STALE_MS = 12000;
+            var state = {
+              connected: false,
+              connecting: false,
+              myPeerId: null,
+              peers: [],
+              micMuted: false,
+              deafened: false,
+              hasMicAudio: false,
+              camActive: false,
+              screenActive: false,
+              loopbackActive: false,
+              speaking: false,
+              micLevel: 0,
+              audioMode: 'idle',
+              audioUnlockNeeded: false,
+              error: null,
+              localCamStream: null,
+              localScreenStream: null,
+              remoteVideoPeers: []
+            };
+            var tokenRef = null;
+            var transport = null;
+            var ws = null;
+            var pollTimer = null;
+            var hbTimer = null;
+            var localIpc = null;
+            var localMicStream = null;
+            var localLoopAudio = null;
+            var meterCtx = null;
+            var meterRaf = 0;
+            var pcs = {};
+            var pendingIce = {};
+            var remoteAudios = {};
+            var remoteStreams = {};
+            var lastSpk = false;
+
+            function initialsOf(nick) {
+              var parts = String(nick || '').trim().split(/\s+/).filter(Boolean);
+              if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+              var cleaned = String(nick || '').replace(/[^\p{L}\p{N}]/gu, '');
+              return (cleaned.slice(0, 2) || 'ГК').toUpperCase();
+            }
+            function pickColor(seed) {
+              var pal = ['#00f0ff', '#ff2a85', '#3b82f6', '#10b981', '#b829ff', '#f59e0b'];
+              var h = 0;
+              for (var i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+              return pal[h % pal.length];
+            }
+            function syncVideosDom() {
+              if (!cnLiveVideosEl) return;
+              var items = [];
+              if (state.localCamStream) items.push({ stream: state.localCamStream, label: 'Вы · Камера' });
+              if (state.localScreenStream) items.push({ stream: state.localScreenStream, label: 'Вы · Экран' });
+              state.remoteVideoPeers.forEach(function (rv) {
+                var p = state.peers.find(function (x) { return x.peerId === rv.peerId; });
+                items.push({ stream: rv.stream, label: (p && p.nick) || 'Участник' });
+              });
+              cnLiveVideosEl.hidden = items.length === 0;
+              cnLiveVideosEl.innerHTML = '';
+              items.forEach(function (it) {
+                var card = document.createElement('div');
+                card.className = 'gk-cn-video-card';
+                var v = document.createElement('video');
+                v.autoplay = true;
+                v.playsInline = true;
+                v.muted = true;
+                v.srcObject = it.stream;
+                var lbl = document.createElement('span');
+                lbl.className = 'gk-cn-video-lbl';
+                lbl.textContent = it.label;
+                card.appendChild(v);
+                card.appendChild(lbl);
+                cnLiveVideosEl.appendChild(card);
+              });
+            }
+            function notifyRender() {
+              syncVideosDom();
+              renderCyberNet();
+            }
+            function stopMicMeter() {
+              if (meterRaf) { cancelAnimationFrame(meterRaf); meterRaf = 0; }
+              if (meterCtx) { try { meterCtx.close(); } catch (e) {} meterCtx = null; }
+              state.micLevel = 0;
+            }
+            function startMicMeter(stream) {
+              stopMicMeter();
+              var AC = window.AudioContext || window.webkitAudioContext;
+              if (!AC || !stream || !stream.getAudioTracks().length) return;
+              try {
+                var ctx = new AC();
+                meterCtx = ctx;
+                if (ctx.state === 'suspended') ctx.resume().catch(function () {});
+                var src = ctx.createMediaStreamSource(stream);
+                var analyser = ctx.createAnalyser();
+                analyser.fftSize = 256;
+                src.connect(analyser);
+                var data = new Uint8Array(analyser.frequencyBinCount);
+                var lastTick = 0;
+                function tick(now) {
+                  if (!meterCtx) return;
+                  if (now - lastTick >= 80) {
+                    lastTick = now;
+                    analyser.getByteTimeDomainData(data);
+                    var peak = 0;
+                    for (var i = 0; i < data.length; i++) {
+                      var v = Math.abs(data[i] - 128) / 128;
+                      if (v > peak) peak = v;
+                    }
+                    var lvl = state.micMuted ? 0 : Math.min(100, Math.round(peak * 220));
+                    var spk = !state.micMuted && !state.deafened && peak > 0.04;
+                    if (lvl !== state.micLevel) {
+                      state.micLevel = lvl;
+                      if (cnLiveMicFillEl) cnLiveMicFillEl.style.width = lvl + '%';
+                      if (cnLiveMicLabelEl && state.hasMicAudio && !state.micMuted) {
+                        cnLiveMicLabelEl.textContent = 'Уровень мик: ' + lvl + '%';
+                      }
+                    }
+                    if (spk !== lastSpk) {
+                      lastSpk = spk;
+                      state.speaking = spk;
+                      sendUpdate({ speaking: spk });
+                    }
+                  }
+                  meterRaf = requestAnimationFrame(tick);
+                }
+                meterRaf = requestAnimationFrame(tick);
+              } catch (e) {}
+            }
+            function readLocalMap() {
+              try {
+                var raw = localStorage.getItem(LV_PEERS_KEY);
+                var parsed = raw ? JSON.parse(raw) : null;
+                if (!parsed || typeof parsed !== 'object') return {};
+                var now = Date.now();
+                var out = {};
+                Object.keys(parsed).forEach(function (k) {
+                  var p = parsed[k];
+                  if (p && typeof p.lastSeenAt === 'number' && now - p.lastSeenAt <= LV_STALE_MS) out[k] = p;
+                });
+                return out;
+              } catch (e) { return {}; }
+            }
+            function writeLocalMap(m) {
+              try { localStorage.setItem(LV_PEERS_KEY, JSON.stringify(m)); } catch (e) {}
+            }
+            function snapshotLocalPeers() {
+              var m = readLocalMap();
+              return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) {
+                return (a.joinedAt || 0) - (b.joinedAt || 0);
+              }).map(function (p) {
+                return {
+                  peerId: p.peerId, nick: p.nick, initials: p.initials, avatarColor: p.avatarColor,
+                  micMuted: !!p.micMuted, deafened: !!p.deafened, hasAudio: !!p.hasAudio,
+                  camActive: !!p.camActive, screenActive: !!p.screenActive, speaking: !!p.speaking && !p.micMuted && !p.deafened
+                };
+              });
+            }
+            function postLocalIpc(msg) {
+              if (!localIpc) return;
+              try { localIpc.postMessage(msg); } catch (e) {}
+            }
+            function sendUpdate(patch) {
+              if (!state.connected || !state.myPeerId) return;
+              if (patch.micMuted !== undefined) state.micMuted = patch.micMuted;
+              if (patch.deafened !== undefined) state.deafened = patch.deafened;
+              if (patch.hasAudio !== undefined) state.hasMicAudio = patch.hasAudio;
+              if (patch.camActive !== undefined) state.camActive = patch.camActive;
+              if (patch.screenActive !== undefined) state.screenActive = patch.screenActive;
+              if (patch.speaking !== undefined) state.speaking = patch.speaking;
+              state.peers = state.peers.map(function (p) {
+                return p.peerId === state.myPeerId ? Object.assign({}, p, patch) : p;
+              });
+              if (transport === 'local') {
+                var m = readLocalMap();
+                if (m[state.myPeerId]) {
+                  m[state.myPeerId] = Object.assign({}, m[state.myPeerId], patch, { lastSeenAt: Date.now() });
+                  writeLocalMap(m);
+                  postLocalIpc({ type: 'peers:sync', peers: snapshotLocalPeers() });
+                }
+                return;
+              }
+              if (transport === 'node-ws' && ws && ws.readyState === 1) {
+                ws.send(JSON.stringify(Object.assign({ type: 'voice:update' }, patch)));
+                return;
+              }
+              var updUrl = transport === 'php-http' ? './api/voice.php?action=update' : './api/voice/update';
+              fetch(updUrl, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.assign({ token: tokenRef, peerId: state.myPeerId }, patch))
+              }).catch(function () {});
+            }
+            function sendSignal(toPeerId, signalType, payload) {
+              if (!state.myPeerId) return;
+              if (transport === 'local') {
+                postLocalIpc({ type: 'signal', fromPeerId: state.myPeerId, toPeerId: toPeerId, signalType: signalType, payload: payload });
+                return;
+              }
+              if (transport === 'node-ws' && ws && ws.readyState === 1) {
+                ws.send(JSON.stringify({ type: 'voice:signal', toPeerId: toPeerId, signalType: signalType, payload: payload }));
+                return;
+              }
+              var sigUrl = transport === 'php-http' ? './api/voice.php?action=signal' : './api/voice/signal';
+              fetch(sigUrl, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: tokenRef, peerId: state.myPeerId, toPeerId: toPeerId, signalType: signalType, payload: payload })
+              }).catch(function () {});
+            }
+            function closePeer(remoteId) {
+              var pc = pcs[remoteId];
+              if (pc) { pc.onicecandidate = null; pc.ontrack = null; try { pc.close(); } catch (e) {} delete pcs[remoteId]; }
+              delete pendingIce[remoteId];
+              if (remoteAudios[remoteId]) { try { remoteAudios[remoteId].pause(); } catch (e) {} remoteAudios[remoteId].srcObject = null; delete remoteAudios[remoteId]; }
+              delete remoteStreams[remoteId];
+              state.remoteVideoPeers = state.remoteVideoPeers.filter(function (rv) { return rv.peerId !== remoteId; });
+            }
+            function ensurePc(remoteId) {
+              if (pcs[remoteId] && pcs[remoteId].connectionState !== 'closed') return pcs[remoteId];
+              if (typeof RTCPeerConnection === 'undefined') return null;
+              var pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }] });
+              pcs[remoteId] = pc;
+              if (localMicStream) localMicStream.getAudioTracks().forEach(function (t) { pc.addTrack(t, localMicStream); });
+              if (state.localCamStream) state.localCamStream.getVideoTracks().forEach(function (t) { pc.addTrack(t, state.localCamStream); });
+              if (state.localScreenStream) state.localScreenStream.getVideoTracks().forEach(function (t) { pc.addTrack(t, state.localScreenStream); });
+              pc.onicecandidate = function (ev) {
+                if (ev.candidate) sendSignal(remoteId, 'ice', ev.candidate.toJSON ? ev.candidate.toJSON() : ev.candidate);
+              };
+              pc.ontrack = function (ev) {
+                var stream = (ev.streams && ev.streams[0]) || new MediaStream([ev.track]);
+                if (ev.track.kind === 'audio') {
+                  remoteStreams[remoteId] = stream;
+                  var a = remoteAudios[remoteId] || new Audio();
+                  a.autoplay = true;
+                  a.srcObject = stream;
+                  a.muted = state.deafened;
+                  remoteAudios[remoteId] = a;
+                  var pr = a.play();
+                  if (pr && pr.then) pr.then(function () { state.audioUnlockNeeded = false; if (!state.loopbackActive) state.audioMode = 'webrtc'; notifyRender(); }).catch(function () { state.audioUnlockNeeded = true; notifyRender(); });
+                } else if (ev.track.kind === 'video') {
+                  if (!state.remoteVideoPeers.some(function (x) { return x.peerId === remoteId; })) {
+                    state.remoteVideoPeers = state.remoteVideoPeers.concat([{ peerId: remoteId, stream: stream }]);
+                  }
+                  ev.track.onended = function () {
+                    state.remoteVideoPeers = state.remoteVideoPeers.filter(function (x) { return x.peerId !== remoteId; });
+                    notifyRender();
+                  };
+                  notifyRender();
+                }
+              };
+              pc.onconnectionstatechange = function () {
+                if (pc.connectionState === 'connected' && !state.loopbackActive) {
+                  state.audioMode = 'webrtc';
+                  notifyRender();
+                }
+              };
+              return pc;
+            }
+            function handleSignal(pkt) {
+              if (!pkt) return;
+              if (pkt.type === 'voice:peer-left' && pkt.peerId) { closePeer(pkt.peerId); notifyRender(); return; }
+              if (pkt.type === 'voice:rtc-initiate' && pkt.targetPeerId) {
+                var pc = ensurePc(pkt.targetPeerId);
+                if (!pc) return;
+                pc.createOffer().then(function (o) { return pc.setLocalDescription(o).then(function () { sendSignal(pkt.targetPeerId, 'offer', o); }); }).catch(function () {});
+                return;
+              }
+              if (pkt.type === 'voice:signal' && pkt.fromPeerId) {
+                var pc2 = ensurePc(pkt.fromPeerId);
+                if (!pc2) return;
+                if (pkt.signalType === 'offer' && pkt.payload) {
+                  var prep = pc2.signalingState !== 'stable' ? pc2.setLocalDescription({ type: 'rollback' }).catch(function () {}) : Promise.resolve();
+                  prep.then(function () { return pc2.setRemoteDescription(new RTCSessionDescription(pkt.payload)); })
+                    .then(function () {
+                      var q = pendingIce[pkt.fromPeerId] || [];
+                      pendingIce[pkt.fromPeerId] = [];
+                      return q.reduce(function (p, c) { return p.then(function () { return pc2.addIceCandidate(new RTCIceCandidate(c)).catch(function () {}); }); }, Promise.resolve());
+                    })
+                    .then(function () { return pc2.createAnswer(); })
+                    .then(function (ans) { return pc2.setLocalDescription(ans).then(function () { sendSignal(pkt.fromPeerId, 'answer', ans); }); })
+                    .catch(function () {});
+                } else if (pkt.signalType === 'answer' && pkt.payload) {
+                  if (pc2.signalingState === 'have-local-offer') {
+                    pc2.setRemoteDescription(new RTCSessionDescription(pkt.payload)).then(function () {
+                      var q = pendingIce[pkt.fromPeerId] || [];
+                      pendingIce[pkt.fromPeerId] = [];
+                      return q.reduce(function (p, c) { return p.then(function () { return pc2.addIceCandidate(new RTCIceCandidate(c)).catch(function () {}); }); }, Promise.resolve());
+                    }).catch(function () {});
+                  }
+                } else if (pkt.signalType === 'ice' && pkt.payload) {
+                  if (!pc2.remoteDescription) {
+                    pendingIce[pkt.fromPeerId] = (pendingIce[pkt.fromPeerId] || []).concat([pkt.payload]);
+                  } else {
+                    pc2.addIceCandidate(new RTCIceCandidate(pkt.payload)).catch(function () {});
+                  }
+                }
+              }
+            }
+            function resetRoom() {
+              if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+              if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
+              if (ws) { try { ws.close(); } catch (e) {} ws = null; }
+              if (localIpc) {
+                if (transport === 'local' && state.myPeerId) {
+                  var m = readLocalMap();
+                  if (m[state.myPeerId]) {
+                    delete m[state.myPeerId];
+                    writeLocalMap(m);
+                    postLocalIpc({ type: 'peer:left', peerId: state.myPeerId });
+                    postLocalIpc({ type: 'peers:sync', peers: snapshotLocalPeers() });
+                  }
+                }
+                try { localIpc.close(); } catch (e) {}
+                localIpc = null;
+              }
+              Object.keys(pcs).forEach(closePeer);
+              stopMicMeter();
+              if (localLoopAudio) { try { localLoopAudio.pause(); } catch (e) {} localLoopAudio.srcObject = null; localLoopAudio = null; }
+              if (localMicStream) { localMicStream.getTracks().forEach(function (t) { t.stop(); }); localMicStream = null; }
+              if (state.localCamStream) { state.localCamStream.getTracks().forEach(function (t) { t.stop(); }); state.localCamStream = null; }
+              if (state.localScreenStream) { state.localScreenStream.getTracks().forEach(function (t) { t.stop(); }); state.localScreenStream = null; }
+              state.connected = false; state.connecting = false; state.myPeerId = null; state.peers = [];
+              state.micMuted = false; state.deafened = false; state.hasMicAudio = false;
+              state.camActive = false; state.screenActive = false; state.loopbackActive = false;
+              state.speaking = false; state.audioMode = 'idle'; state.audioUnlockNeeded = false;
+              state.remoteVideoPeers = [];
+              lastSpk = false;
+            }
+            function enterLocalFallback(nick) {
+              var pid = 'locv-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
+              transport = 'local';
+              state.myPeerId = pid;
+              state.connected = true;
+              state.connecting = false;
+              state.audioMode = state.loopbackActive ? 'loopback' : 'idle';
+              var entry = {
+                peerId: pid, nick: nick, initials: initialsOf(nick), avatarColor: pickColor(pid),
+                micMuted: false, deafened: false, hasAudio: state.hasMicAudio,
+                camActive: false, screenActive: false, speaking: false,
+                joinedAt: Date.now(), lastSeenAt: Date.now()
+              };
+              var m = readLocalMap();
+              m[pid] = entry;
+              writeLocalMap(m);
+              state.peers = snapshotLocalPeers();
+              if (typeof BroadcastChannel !== 'undefined') {
+                try {
+                  localIpc = new BroadcastChannel(LV_IPC_CH);
+                  localIpc.onmessage = function (ev) {
+                    var msg = ev.data;
+                    if (!msg) return;
+                    if (msg.type === 'peers:sync' && Array.isArray(msg.peers)) { state.peers = msg.peers; notifyRender(); }
+                    else if (msg.type === 'peer:left' && msg.peerId) { closePeer(msg.peerId); state.peers = snapshotLocalPeers(); notifyRender(); }
+                    else if (msg.type === 'signal' && msg.toPeerId === pid && msg.fromPeerId) {
+                      handleSignal({ type: 'voice:signal', fromPeerId: msg.fromPeerId, signalType: msg.signalType, payload: msg.payload });
+                    }
+                  };
+                  postLocalIpc({ type: 'peers:sync', peers: state.peers });
+                  Object.keys(m).forEach(function (otherId) {
+                    if (otherId !== pid && pid < otherId) {
+                      handleSignal({ type: 'voice:rtc-initiate', targetPeerId: otherId });
+                    }
+                  });
+                } catch (e) {}
+              }
+              hbTimer = setInterval(function () {
+                var cur = readLocalMap();
+                if (!cur[pid]) return;
+                cur[pid].lastSeenAt = Date.now();
+                writeLocalMap(cur);
+                state.peers = snapshotLocalPeers();
+                notifyRender();
+              }, 3500);
+              notifyRender();
+            }
+            function startHttpPoll(mode) {
+              if (pollTimer) clearInterval(pollTimer);
+              var url = mode === 'php-http' ? './api/voice.php?action=poll' : './api/voice/poll';
+              pollTimer = setInterval(function () {
+                if (!state.myPeerId) return;
+                fetch(url, {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ token: tokenRef, peerId: state.myPeerId })
+                }).then(function (r) {
+                  var ct = (r.headers.get('content-type') || '').toLowerCase();
+                  if (ct.indexOf('application/json') === -1) return null;
+                  return r.json();
+                }).then(function (d) {
+                  if (!d) return;
+                  if (!d.ok) {
+                    if (d.reason === 'UNAUTHORIZED' && tokenRef && tokenRef.indexOf('local-') !== 0) {
+                      cnSetVoiceUnlockToken(null);
+                      resetRoom();
+                      state.error = d.message || 'Доступ запрещён.';
+                      notifyRender();
+                    }
+                    return;
+                  }
+                  if (Array.isArray(d.peers)) state.peers = d.peers;
+                  (d.signals || []).forEach(handleSignal);
+                  notifyRender();
+                }).catch(function () {});
+              }, 1200);
+            }
+            function join(tok, nick) {
+              if (!tok || state.connecting || state.connected) return;
+              resetRoom();
+              tokenRef = tok;
+              state.connecting = true;
+              state.error = null;
+              notifyRender();
+              var cleanNick = String(nick || 'Вы (Гость)').trim() || 'Вы (Гость)';
+              var getMic = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
+                ? navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false })
+                    .then(function (s) { localMicStream = s; state.hasMicAudio = true; startMicMeter(s); return true; })
+                    .catch(function () { state.hasMicAudio = false; return false; })
+                : Promise.resolve(false);
+              getMic.then(function (gotMic) {
+                if (tok.indexOf('local-') === 0 || cnVoiceBackend === 'local') {
+                  enterLocalFallback(cleanNick);
+                  return;
+                }
+                var joinMode = cnVoiceBackend === 'php' ? 'php-http' : 'node-http';
+                var joinUrl = joinMode === 'php-http' ? './api/voice.php?action=join' : './api/voice/join';
+                fetch(joinUrl, {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ token: tok, nick: cleanNick, hasAudio: gotMic, micMuted: false, deafened: false, camActive: false, screenActive: false })
+                }).then(function (r) {
+                  var ct = (r.headers.get('content-type') || '').toLowerCase();
+                  if (ct.indexOf('application/json') === -1) throw new Error('NON_JSON');
+                  return r.json().then(function (d) { return { status: r.status, data: d }; });
+                }).then(function (res) {
+                  var d = res.data;
+                  if (!d || !d.ok || !d.peerId) {
+                    if (d && d.reason === 'UNAUTHORIZED' && tok.indexOf('local-') !== 0) {
+                      cnSetVoiceUnlockToken(null);
+                      state.connecting = false;
+                      state.error = d.message || 'Доступ запрещён.';
+                      notifyRender();
+                      return;
+                    }
+                    if (d && d.reason === 'ROOM_FULL') {
+                      state.connecting = false;
+                      state.error = d.message || 'Комната заполнена.';
+                      notifyRender();
+                      return;
+                    }
+                    enterLocalFallback(cleanNick);
+                    return;
+                  }
+                  transport = joinMode;
+                  state.myPeerId = d.peerId;
+                  state.peers = d.peers || [];
+                  state.connected = true;
+                  state.connecting = false;
+                  (d.signals || []).forEach(handleSignal);
+                  startHttpPoll(joinMode);
+                  notifyRender();
+                }).catch(function () {
+                  if (joinMode === 'node-http') {
+                    fetch('./api/voice.php?action=join', {
+                      method: 'POST', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ token: tok, nick: cleanNick, hasAudio: gotMic, micMuted: false, deafened: false, camActive: false, screenActive: false })
+                    }).then(function (r) {
+                      var ct = (r.headers.get('content-type') || '').toLowerCase();
+                      if (ct.indexOf('application/json') === -1) throw new Error('NON_JSON');
+                      return r.json();
+                    }).then(function (d) {
+                      if (d && d.ok && d.peerId) {
+                        transport = 'php-http';
+                        state.myPeerId = d.peerId;
+                        state.peers = d.peers || [];
+                        state.connected = true;
+                        state.connecting = false;
+                        (d.signals || []).forEach(handleSignal);
+                        startHttpPoll('php-http');
+                        notifyRender();
+                      } else {
+                        enterLocalFallback(cleanNick);
+                      }
+                    }).catch(function () { enterLocalFallback(cleanNick); });
+                  } else {
+                    enterLocalFallback(cleanNick);
+                  }
+                });
+              });
+            }
+            function leave() {
+              var oldId = state.myPeerId;
+              var oldTrans = transport;
+              var oldTok = tokenRef;
+              resetRoom();
+              if (oldId && oldTrans && oldTrans !== 'local') {
+                var lUrl = oldTrans === 'php-http' ? './api/voice.php?action=leave' : './api/voice/leave';
+                fetch(lUrl, {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ token: oldTok, peerId: oldId })
+                }).catch(function () {});
+              }
+              notifyRender();
+            }
+            function toggleMic() {
+              var next = !state.micMuted;
+              if (localMicStream) localMicStream.getAudioTracks().forEach(function (t) { t.enabled = !next; });
+              sendUpdate({ micMuted: next, speaking: false });
+              notifyRender();
+            }
+            function toggleDeafen() {
+              var next = !state.deafened;
+              Object.keys(remoteAudios).forEach(function (k) { remoteAudios[k].muted = next; });
+              if (localLoopAudio) localLoopAudio.muted = next;
+              sendUpdate({ deafened: next });
+              notifyRender();
+            }
+            function toggleLoopback() {
+              if (state.loopbackActive) {
+                if (localLoopAudio) { try { localLoopAudio.pause(); } catch (e) {} localLoopAudio.srcObject = null; localLoopAudio = null; }
+                state.loopbackActive = false;
+                state.audioMode = 'idle';
+                notifyRender();
+                return;
+              }
+              if (!localMicStream) {
+                state.error = 'Микрофон не подключён для Эхо-теста.';
+                notifyRender();
+                return;
+              }
+              var a = new Audio();
+              a.srcObject = localMicStream;
+              a.muted = state.deafened;
+              localLoopAudio = a;
+              state.loopbackActive = true;
+              state.audioMode = 'loopback';
+              state.error = null;
+              a.play().catch(function () {});
+              notifyRender();
+            }
+            function toggleCam() {
+              if (state.camActive) {
+                if (state.localCamStream) { state.localCamStream.getTracks().forEach(function (t) { t.stop(); }); state.localCamStream = null; }
+                state.camActive = false;
+                sendUpdate({ camActive: false });
+                notifyRender();
+                return;
+              }
+              if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                state.error = 'Камера недоступна в этом браузере.';
+                notifyRender();
+                return;
+              }
+              navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then(function (s) {
+                state.localCamStream = s;
+                state.camActive = true;
+                state.error = null;
+                sendUpdate({ camActive: true });
+                notifyRender();
+              }).catch(function () {
+                state.error = 'Браузер не выдал доступ к камере.';
+                notifyRender();
+              });
+            }
+            function toggleScreen() {
+              if (state.screenActive) {
+                if (state.localScreenStream) { state.localScreenStream.getTracks().forEach(function (t) { t.stop(); }); state.localScreenStream = null; }
+                state.screenActive = false;
+                sendUpdate({ screenActive: false });
+                notifyRender();
+                return;
+              }
+              if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+                state.error = 'Демонстрация экрана не поддерживается.';
+                notifyRender();
+                return;
+              }
+              navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }).then(function (s) {
+                state.localScreenStream = s;
+                state.screenActive = true;
+                state.error = null;
+                var vt = s.getVideoTracks()[0];
+                if (vt) {
+                  vt.onended = function () {
+                    state.localScreenStream = null;
+                    state.screenActive = false;
+                    sendUpdate({ screenActive: false });
+                    notifyRender();
+                  };
+                }
+                sendUpdate({ screenActive: true });
+                notifyRender();
+              }).catch(function () {
+                state.error = 'Не удалось запустить демонстрацию экрана.';
+                notifyRender();
+              });
+            }
+            function retryMic() {
+              if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+              navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false })
+                .then(function (s) {
+                  localMicStream = s;
+                  state.hasMicAudio = true;
+                  state.error = null;
+                  startMicMeter(s);
+                  sendUpdate({ hasAudio: true });
+                  notifyRender();
+                }).catch(function () {
+                  state.error = 'Браузер не дал доступ к микрофону.';
+                  notifyRender();
+                });
+            }
+            function unlockRemoteAudio() {
+              state.audioUnlockNeeded = false;
+              Object.keys(remoteAudios).forEach(function (k) {
+                var a = remoteAudios[k];
+                a.muted = state.deafened;
+                a.play().catch(function () {});
+              });
+              notifyRender();
+            }
+            state.join = join;
+            state.leave = leave;
+            state.toggleMic = toggleMic;
+            state.toggleDeafen = toggleDeafen;
+            state.toggleLoopback = toggleLoopback;
+            state.toggleCam = toggleCam;
+            state.toggleScreen = toggleScreen;
+            state.retryMic = retryMic;
+            state.unlockRemoteAudio = unlockRemoteAudio;
+            return state;
+          })();
+
           if (typeof fetch === 'function') {
             var cnFetchJson = function (url) {
               return fetch(url).then(function (r) {
@@ -5245,10 +6192,16 @@
             cnFetchJson('./api/preview/status').then(function (d) {
               if (d && d.ok) {
                 if (d.liveEnabled) cnLiveReplyUrl = './api/preview/reply';
+                cnVoiceUnlockUrl = './api/preview/voice-unlock';
+                cnVoiceBackend = 'node';
                 return null;
               }
               return cnFetchJson('./api/preview.php?action=status').then(function (pd) {
-                if (pd && pd.ok && pd.liveEnabled) cnLiveReplyUrl = './api/preview.php?action=reply';
+                if (pd && pd.ok) {
+                  if (pd.liveEnabled) cnLiveReplyUrl = './api/preview.php?action=reply';
+                  cnVoiceUnlockUrl = './api/preview.php?action=voice-unlock';
+                  cnVoiceBackend = 'php';
+                }
               });
             }).catch(function () {});
           }
@@ -5377,9 +6330,27 @@
               return;
             }
 
+            if (val.toLowerCase() === '/voice-lock') {
+              if (cnLv && (cnLv.connected || cnLv.connecting)) {
+                cnLv.leave();
+              }
+              cnSetVoiceUnlockToken(null);
+              arr.push({
+                author: 'СИСТЕМА GEEK',
+                initials: 'СГ',
+                color: '#00f0ff',
+                badge: 'set1',
+                time: hh + ':' + mm,
+                text: '🔒 Тестовый живой голосовой канал скрыт. Чтобы открыть его снова, введите секретный код.'
+              });
+              cnCustomMsgs[key] = arr.slice(-30);
+              renderCyberNet();
+              return;
+            }
+
             var historyPool = cnUnlockToken ? arr : ch.messages.concat(arr);
             var history = historyPool.filter(function (m) {
-              return m.text !== '🔐 [Код доступа принят]' && m.text.indexOf('🔓 ') !== 0 && m.text.indexOf('🔒 ') !== 0;
+              return m.text !== '🔐 [Код доступа принят]' && m.text.indexOf('🔓 ') !== 0 && m.text.indexOf('🔒 ') !== 0 && m.text.indexOf('🎙️ ') !== 0;
             }).slice(-8).map(function (m) {
               return { author: m.author, text: m.text };
             });
@@ -5396,8 +6367,71 @@
             arr.push(userMsg);
             cnCustomMsgs[key] = arr.slice(-30);
 
+            function cnApplyVoiceUnlock(nextTok, sysReply) {
+              cnSetVoiceUnlockToken(nextTok);
+              var curList = cnCustomMsgs[key] || [];
+              curList = curList.map(function (item) {
+                return item.id === userMsg.id ? Object.assign({}, item, { text: '🔐 [Код доступа принят]' }) : item;
+              });
+              curList.push({
+                author: sysReply.author || 'СИСТЕМА GEEK',
+                initials: sysReply.initials || 'СГ',
+                color: sysReply.avatarColor || sysReply.color || '#10b981',
+                badge: sysReply.badgeSet || sysReply.badge || 'set1',
+                time: sysReply.time || (hh + ':' + mm),
+                text: sysReply.text
+              });
+              cnCustomMsgs[key] = curList.slice(-30);
+              cnTypingPeerName = null;
+              renderCyberNet();
+            }
+
+            function cnTryLocalVoiceUnlockFallback() {
+              if (!cnMatchesLocalVoiceUnlockCode(val)) return false;
+              cnApplyVoiceUnlock('local-voice-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), cnBuildLocalVoiceUnlockMsg(new Date()));
+              return true;
+            }
+
             if (!cnLiveReplyUrl || typeof fetch !== 'function') {
-              cnScheduleFallbackReply(val, srv, chId, key, now, arr.length);
+              if (!cnVoiceUnlockUrl || typeof fetch !== 'function') {
+                if (cnTryLocalVoiceUnlockFallback()) return;
+                cnScheduleFallbackReply(val, srv, chId, key, now, arr.length);
+                return;
+              }
+              var postVoiceUnlock = function (u) {
+                return fetch(u, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ code: val.slice(0, 220) })
+                }).then(function (r) {
+                  var ct = (r.headers && r.headers.get && r.headers.get('content-type')) || '';
+                  if (!r.ok || ct.toLowerCase().indexOf('application/json') === -1) return null;
+                  return r.json();
+                }).catch(function () { return null; });
+              };
+              postVoiceUnlock(cnVoiceUnlockUrl).then(function (d) {
+                if (d) return d;
+                if (cnVoiceUnlockUrl === './api/preview/voice-unlock') {
+                  return postVoiceUnlock('./api/preview.php?action=voice-unlock').then(function (pd) {
+                    if (pd) {
+                      cnVoiceUnlockUrl = './api/preview.php?action=voice-unlock';
+                      cnVoiceBackend = 'php';
+                    }
+                    return pd;
+                  });
+                }
+                return null;
+              }).then(function (d) {
+                if (d && d.ok && d.matched && d.voiceUnlockToken && d.reply) {
+                  cnApplyVoiceUnlock(d.voiceUnlockToken, d.reply);
+                  return;
+                }
+                if (cnTryLocalVoiceUnlockFallback()) return;
+                cnScheduleFallbackReply(val, srv, chId, key, now, arr.length);
+              }).catch(function () {
+                if (cnTryLocalVoiceUnlockFallback()) return;
+                cnScheduleFallbackReply(val, srv, chId, key, now, arr.length);
+              });
               return;
             }
 
@@ -5423,6 +6457,11 @@
               })
               .then(function (data) {
                 if (!data || !data.ok || !data.reply) throw new Error('Invalid reply');
+                if (data.voiceUnlocked && data.voiceUnlockToken) {
+                  cnApplyVoiceUnlock(data.voiceUnlockToken, data.reply);
+                  return;
+                }
+                if (cnTryLocalVoiceUnlockFallback()) return;
                 if (data.unlocked && data.unlockToken) {
                   cnSetUnlockToken(data.unlockToken);
                 }
@@ -5446,6 +6485,7 @@
                 renderCyberNet();
               })
               .catch(function () {
+                if (cnTryLocalVoiceUnlockFallback()) return;
                 cnScheduleFallbackReply(val, srv, chId, key, now, arr.length);
               });
           }
@@ -5500,23 +6540,44 @@
           }
           if (cnVoiceRowEl) {
             cnVoiceRowEl.addEventListener('click', function () {
+              if (cnLv && (cnLv.connected || cnLv.connecting)) cnLv.leave();
               cnVoiceServerId = (cnVoiceServerId === cnActiveSrvId) ? null : cnActiveSrvId;
               if (!cnVoiceServerId) { cnCam = false; cnScreen = false; }
               renderCyberNet();
             });
           }
+          if (cnLiveBtnEl) {
+            cnLiveBtnEl.addEventListener('click', function () {
+              if (!cnVoiceUnlockToken || !cnLv) return;
+              if (cnLv.connected || cnLv.connecting) { cnLv.leave(); return; }
+              cnVoiceServerId = null; cnCam = false; cnScreen = false;
+              cnLv.join(cnVoiceUnlockToken, 'Вы (Гость)');
+            });
+          }
           if (cnJoinVoiceBtn) {
             cnJoinVoiceBtn.addEventListener('click', function () {
+              if (cnLv && (cnLv.connected || cnLv.connecting)) { cnLv.leave(); return; }
               cnVoiceServerId = null;
               cnCam = false;
               cnScreen = false;
               renderCyberNet();
             });
           }
-          if (vcMicBtn) vcMicBtn.addEventListener('click', function () { cnMicMuted = !cnMicMuted; renderCyberNet(); });
-          if (vcDeafBtn) vcDeafBtn.addEventListener('click', function () { cnDeafened = !cnDeafened; renderCyberNet(); });
+          if (vcMicBtn) vcMicBtn.addEventListener('click', function () {
+            if (cnLv && cnLv.connected) cnLv.toggleMic();
+            else { cnMicMuted = !cnMicMuted; renderCyberNet(); }
+          });
+          if (vcDeafBtn) vcDeafBtn.addEventListener('click', function () {
+            if (cnLv && cnLv.connected) cnLv.toggleDeafen();
+            else { cnDeafened = !cnDeafened; renderCyberNet(); }
+          });
           if (cnCamBtn) cnCamBtn.addEventListener('click', function () { cnCam = !cnCam; renderCyberNet(); });
           if (cnScreenBtn) cnScreenBtn.addEventListener('click', function () { cnScreen = !cnScreen; renderCyberNet(); });
+          if (cnLiveCamBtn) cnLiveCamBtn.addEventListener('click', function () { if (cnLv) cnLv.toggleCam(); });
+          if (cnLiveScreenBtn) cnLiveScreenBtn.addEventListener('click', function () { if (cnLv) cnLv.toggleScreen(); });
+          if (cnLiveEchoBtn) cnLiveEchoBtn.addEventListener('click', function () { if (cnLv) cnLv.toggleLoopback(); });
+          if (cnLiveRetryMicBtn) cnLiveRetryMicBtn.addEventListener('click', function () { if (cnLv) cnLv.retryMic(); });
+          if (cnLiveUnlockAudioBtn) cnLiveUnlockAudioBtn.addEventListener('click', function () { if (cnLv) cnLv.unlockRemoteAudio(); });
           if (cnToggleMembersBtn) cnToggleMembersBtn.addEventListener('click', function () { cnShowMembers = !cnShowMembers; if (pbActive) renderPreBeta(); else renderCyberNet(); });
           if (cnInviteBtn) {
             cnInviteBtn.addEventListener('click', function () {
@@ -5532,7 +6593,7 @@
           }
           if (cnFsBtn) cnFsBtn.addEventListener('click', function () { setCnFullscreen(!cnFullscreen); });
           if (cnBannerFsBtn) cnBannerFsBtn.addEventListener('click', function () { setCnFullscreen(true); });
-          window.addEventListener('keydown', function (e) {
+          var cnOnKeyDownHandler = function (e) {
             var tg = e.target;
             var editable = tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.tagName === 'SELECT' || tg.isContentEditable);
             if (e.key === 'Escape' && cnFullscreen) {
@@ -5544,10 +6605,22 @@
             var code = e.code || '';
             var lk = (e.key || '').toLowerCase();
             if (code === 'KeyF' || lk === 'f' || lk === 'а') { e.preventDefault(); setCnFullscreen(!cnFullscreen); }
-            else if (code === 'KeyM' || lk === 'm' || lk === 'ь') { e.preventDefault(); cnMicMuted = !cnMicMuted; renderCyberNet(); }
-            else if (code === 'KeyD' || lk === 'd' || lk === 'в') { e.preventDefault(); cnDeafened = !cnDeafened; renderCyberNet(); }
-            else if ((code === 'KeyC' || lk === 'c' || lk === 'с') && cnVoiceServerId) { e.preventDefault(); cnCam = !cnCam; renderCyberNet(); }
-          });
+            else if (code === 'KeyM' || lk === 'm' || lk === 'ь') {
+              e.preventDefault();
+              if (cnLv && cnLv.connected) cnLv.toggleMic();
+              else { cnMicMuted = !cnMicMuted; renderCyberNet(); }
+            }
+            else if (code === 'KeyD' || lk === 'd' || lk === 'в') {
+              e.preventDefault();
+              if (cnLv && cnLv.connected) cnLv.toggleDeafen();
+              else { cnDeafened = !cnDeafened; renderCyberNet(); }
+            }
+            else if (code === 'KeyC' || lk === 'c' || lk === 'с') {
+              if (cnLv && cnLv.connected) { e.preventDefault(); cnLv.toggleCam(); }
+              else if (cnVoiceServerId) { e.preventDefault(); cnCam = !cnCam; renderCyberNet(); }
+            }
+          };
+          window.addEventListener('keydown', cnOnKeyDownHandler);
           renderCyberNet();
           renderPreBeta();
 
@@ -5717,7 +6790,7 @@
             fbSuccess.classList.remove('is-visible');
             fbForm.classList.remove('is-hidden');
           });
-          window.addEventListener('keydown', function (e) {
+          var gkSecretKeyHandler = function (e) {
             if (e.shiftKey && e.key.toLowerCase() === 'g') {
               e.preventDefault();
               openModal();
@@ -5731,7 +6804,8 @@
               digits = digits.slice(0, -1);
               renderSlots(false);
             } else if (!isUnlocked && e.key === 'Enter') checkCode();
-          });
+          };
+          window.addEventListener('keydown', gkSecretKeyHandler);
         };
 
         document.addEventListener('click', function (e) {
@@ -5751,7 +6825,7 @@
             if (!window.__GEEK_REACT_MOUNTED__) {
               window.__GEEK_INIT_STATIC__();
             }
-          }, 250);
+          }, 1400);
         });
       })();
     </script>

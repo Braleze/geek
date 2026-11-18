@@ -110,7 +110,10 @@ export function extractVoiceUnlockCodeCandidate(rawInput: string): string {
   if (cmdMatch) {
     trimmed = cmdMatch[1].trim();
   }
-  return trimmed.replace(/^[`'"«»\s]+|[`'"«»\s]+$/g, '').toLowerCase();
+  return trimmed
+    .replace(/[\u2010-\u2015\u2212]/g, '-')
+    .replace(/^[`'"«»\s]+|[`'"«»\s]+$/g, '')
+    .toLowerCase();
 }
 
 export function isValidPreviewVoiceUnlockAttempt(rawInput: string, expectedCode: string): boolean {

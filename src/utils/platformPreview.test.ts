@@ -203,6 +203,7 @@ test('matchesLocalVoiceUnlockCode accepts exact, pasted, quoted, uppercase, and 
   assert.equal(matchesLocalVoiceUnlockCode(`  «"${validCode}\u200B"»  `), true);
   assert.equal(matchesLocalVoiceUnlockCode(`/voice ${validCode}`), true);
   assert.equal(matchesLocalVoiceUnlockCode(`/voicetest "${validCode}"`), true);
+  assert.equal(matchesLocalVoiceUnlockCode(['gk', 'voice', '7714', 'test'].join('—')), true);
   assert.equal(normalizeLocalVoiceCandidate(`/voice \`${validCode.toUpperCase()}\``), validCode);
 
   assert.equal(matchesLocalVoiceUnlockCode(''), false);
