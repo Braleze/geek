@@ -13,6 +13,7 @@ export const MAX_PREVIEW_REPLY_CHARS = 320;
 export const MAX_PREVIEW_HISTORY_ITEMS = 8;
 
 export const DEFAULT_PREVIEW_UNLOCK_CODE = 'gk-cyber-9472-unlock';
+export const DEFAULT_PREVIEW_VOICE_CODE = 'gk-voice-7714-test';
 export const MAX_UNLOCKED_QUESTION_CHARS = 2000;
 export const MAX_UNLOCKED_REPLY_CHARS = 4000;
 export const UNLOCK_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -90,6 +91,29 @@ export function extractUnlockCodeCandidate(rawInput: string): string {
 
 export function isValidPreviewUnlockAttempt(rawInput: string, expectedCode: string): boolean {
   const candidate = extractUnlockCodeCandidate(rawInput);
+  const expected = String(expectedCode ?? '').trim();
+  if (!candidate || !expected) return false;
+  const candidateDigest = crypto.createHash('sha256').update(candidate, 'utf8').digest();
+  const expectedDigest = crypto.createHash('sha256').update(expected, 'utf8').digest();
+  return crypto.timingSafeEqual(candidateDigest, expectedDigest);
+}
+
+export function getConfiguredPreviewVoiceCode(envOverride?: string): string {
+  const cleaned = typeof envOverride === 'string' ? envOverride.trim() : '';
+  return cleaned || DEFAULT_PREVIEW_VOICE_CODE;
+}
+
+export function extractVoiceUnlockCodeCandidate(rawInput: string): string {
+  const trimmed = String(rawInput ?? '').trim();
+  const cmdMatch = /^\/(?:voice|voicetest)\s+(.+)$/i.exec(trimmed);
+  if (cmdMatch) {
+    return cmdMatch[1].trim();
+  }
+  return trimmed;
+}
+
+export function isValidPreviewVoiceUnlockAttempt(rawInput: string, expectedCode: string): boolean {
+  const candidate = extractVoiceUnlockCodeCandidate(rawInput);
   const expected = String(expectedCode ?? '').trim();
   if (!candidate || !expected) return false;
   const candidateDigest = crypto.createHash('sha256').update(candidate, 'utf8').digest();
@@ -342,6 +366,18 @@ export function buildUnlockActivatedMessage(now: Date = new Date()): PreviewMess
     badgeSet: 'set1',
     time: formatMsgTime(now),
     text: '🔓 Свободный режим активирован для текущей сессии: тематические, ролевые и текстовые ограничения превью-чата сняты. Чтобы вернуться в обычный режим с L30nel, Sergo и Max, отправьте /lock.',
+  };
+}
+
+export function buildVoiceUnlockActivatedMessage(now: Date = new Date()): PreviewMessage {
+  return {
+    id: `voice-unlock-${now.getTime()}-${Math.random().toString(36).slice(2, 6)}`,
+    author: 'СИСТЕМА GEEK',
+    initials: 'СГ',
+    avatarColor: '#10b981',
+    badgeSet: 'set1',
+    time: formatMsgTime(now),
+    text: '🎙️ Тестовый живой голосовой канал «🔊 Live Голос (Тест)» открыт в списке голосовых каналов! Подключайтесь для проверки WebRTC / WS-голоса, камеры, экрана и Эхо-теста. Чтобы снова скрыть канал, отправьте /voice-lock.',
   };
 }
 

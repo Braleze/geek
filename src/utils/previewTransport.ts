@@ -1,6 +1,7 @@
 export interface PreviewEndpointConfig {
   liveEnabled: boolean;
   replyUrl: string | null;
+  voiceUnlockUrl: string | null;
   transport: 'node' | 'php' | 'local';
 }
 
@@ -38,9 +39,11 @@ export async function probePreviewBackend(): Promise<PreviewEndpointConfig> {
   const nodeRes = await fetchJsonSafe('./api/preview/status');
   if (nodeRes.ok && nodeRes.data && nodeRes.data.ok === true) {
     const liveEnabled = Boolean(nodeRes.data.liveEnabled);
+    const voiceUnlockEnabled = Boolean(nodeRes.data.voiceUnlockEnabled);
     return {
       liveEnabled,
       replyUrl: liveEnabled ? './api/preview/reply' : null,
+      voiceUnlockUrl: voiceUnlockEnabled ? './api/preview/voice-unlock' : null,
       transport: liveEnabled ? 'node' : 'local',
     };
   }
@@ -52,6 +55,7 @@ export async function probePreviewBackend(): Promise<PreviewEndpointConfig> {
     return {
       liveEnabled,
       replyUrl: liveEnabled ? './api/preview.php?action=reply' : null,
+      voiceUnlockUrl: null,
       transport: liveEnabled ? 'php' : 'local',
     };
   }
@@ -59,6 +63,7 @@ export async function probePreviewBackend(): Promise<PreviewEndpointConfig> {
   return {
     liveEnabled: false,
     replyUrl: null,
+    voiceUnlockUrl: null,
     transport: 'local',
   };
 }

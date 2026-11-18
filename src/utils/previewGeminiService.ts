@@ -10,9 +10,12 @@ import {
   buildUnlockedGeminiSystemInstruction,
   buildUnlockedPromptContents,
   buildUnlockedReplyMessage,
+  buildVoiceUnlockActivatedMessage,
   getConfiguredPreviewUnlockCode,
+  getConfiguredPreviewVoiceCode,
   isPromptInjectionOrOffTopic,
   isValidPreviewUnlockAttempt,
+  isValidPreviewVoiceUnlockAttempt,
   resolveSafeOffTopicReply,
   sanitizeMultilineUserPrompt,
   sanitizePreviewHistory,
@@ -28,6 +31,28 @@ let cachedKey: string | null = null;
 
 export function isPreviewGeminiConfigured(): boolean {
   return Boolean(process.env.GEMINI_API_KEY?.trim());
+}
+
+export function getVoiceUnlockHmacSecret(): string {
+  const apiKey = process.env.GEMINI_API_KEY?.trim() ?? '';
+  const voiceCode = getConfiguredPreviewVoiceCode(process.env.PREVIEW_VOICE_UNLOCK_CODE);
+  const sessionSecret =
+    process.env.PREVIEW_VOICE_HMAC_SECRET?.trim() ?? 'geek-live-voice-session-key';
+  return `${apiKey}::${voiceCode}::${sessionSecret}`;
+}
+
+export function tryVerifyVoiceUnlockCode(
+  rawInput: string,
+): { matched: true; voiceUnlockToken: string; reply: PreviewMessage } | { matched: false } {
+  const voiceCode = getConfiguredPreviewVoiceCode(process.env.PREVIEW_VOICE_UNLOCK_CODE);
+  if (!isValidPreviewVoiceUnlockAttempt(rawInput, voiceCode)) {
+    return { matched: false };
+  }
+  return {
+    matched: true,
+    voiceUnlockToken: signPreviewUnlockToken(getVoiceUnlockHmacSecret()),
+    reply: buildVoiceUnlockActivatedMessage(new Date()),
+  };
 }
 
 function getGeminiClient(): GoogleGenAI {
@@ -62,9 +87,29 @@ export const PREVIEW_GEMINI_MODEL = 'gemini-3.1-flash-lite';
 export async function generateLivePreviewPeerReply(
   input: PreviewGeminiRequest,
 ): Promise<
-  | { ok: true; reply: PreviewMessage; guarded: boolean; unlocked?: boolean; unlockToken?: string }
+  | {
+      ok: true;
+      reply: PreviewMessage;
+      guarded: boolean;
+      unlocked?: boolean;
+      unlockToken?: string;
+      voiceUnlocked?: boolean;
+      voiceUnlockToken?: string;
+    }
   | { ok: false; status: number; reason: string; message: string }
 > {
+  const rawQuestion = typeof input.question === 'string' ? input.question : '';
+  const voiceCheck = tryVerifyVoiceUnlockCode(rawQuestion);
+  if (voiceCheck.matched) {
+    return {
+      ok: true,
+      reply: voiceCheck.reply,
+      guarded: false,
+      voiceUnlocked: true,
+      voiceUnlockToken: voiceCheck.voiceUnlockToken,
+    };
+  }
+
   if (!isPreviewGeminiConfigured()) {
     return {
       ok: false,
@@ -74,7 +119,6 @@ export async function generateLivePreviewPeerReply(
     };
   }
 
-  const rawQuestion = typeof input.question === 'string' ? input.question : '';
   const apiKey = process.env.GEMINI_API_KEY?.trim() ?? '';
   const unlockCode = getConfiguredPreviewUnlockCode(process.env.PREVIEW_UNLOCK_CODE);
   const hmacSecret = `${apiKey}::${unlockCode}`;

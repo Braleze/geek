@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   DEFAULT_PREVIEW_UNLOCK_CODE,
+  DEFAULT_PREVIEW_VOICE_CODE,
   MAX_PREVIEW_QUESTION_CHARS,
   MAX_PREVIEW_REPLY_CHARS,
   MAX_UNLOCKED_REPLY_CHARS,
@@ -11,10 +12,14 @@ import {
   buildUnlockActivatedMessage,
   buildUnlockedGeminiSystemInstruction,
   buildUnlockedReplyMessage,
+  buildVoiceUnlockActivatedMessage,
   containsForbiddenReplyContent,
+  extractVoiceUnlockCodeCandidate,
   getConfiguredPreviewUnlockCode,
+  getConfiguredPreviewVoiceCode,
   isPromptInjectionOrOffTopic,
   isValidPreviewUnlockAttempt,
+  isValidPreviewVoiceUnlockAttempt,
   normalizePeerNick,
   resolveSafeOffTopicReply,
   sanitizePreviewHistory,
@@ -24,7 +29,7 @@ import {
   validateAndNormalizeGeminiReply,
   verifyPreviewUnlockToken,
 } from './previewChatGuard';
-import { PREVIEW_GEMINI_MODEL } from './previewGeminiService';
+import { PREVIEW_GEMINI_MODEL, tryVerifyVoiceUnlockCode } from './previewGeminiService';
 
 test('PREVIEW_GEMINI_MODEL uses lighter fast-response gemini-3.1-flash-lite model', () => {
   assert.equal(PREVIEW_GEMINI_MODEL, 'gemini-3.1-flash-lite');
@@ -145,4 +150,33 @@ test('preview unlock passphrase and HMAC session tokens validate securely withou
   assert.ok(longReply.length <= MAX_UNLOCKED_REPLY_CHARS);
   const freeMsg = buildUnlockedReplyMessage('Готово', new Date(now));
   assert.equal(freeMsg.author, 'Geek Core');
+});
+
+test('preview voice unlock secret code and token issuance work cleanly without Gemini API key', () => {
+  const code = getConfiguredPreviewVoiceCode(undefined);
+  assert.equal(code, DEFAULT_PREVIEW_VOICE_CODE);
+  assert.equal(getConfiguredPreviewVoiceCode('  custom-voice  '), 'custom-voice');
+
+  assert.equal(extractVoiceUnlockCodeCandidate(code), code);
+  assert.equal(extractVoiceUnlockCodeCandidate(`/voice ${code}`), code);
+  assert.equal(extractVoiceUnlockCodeCandidate(`/voicetest   ${code} `), code);
+
+  assert.equal(isValidPreviewVoiceUnlockAttempt(code, code), true);
+  assert.equal(isValidPreviewVoiceUnlockAttempt(`/voice ${code}`, code), true);
+  assert.equal(isValidPreviewVoiceUnlockAttempt(`/voicetest ${code}`, code), true);
+  assert.equal(isValidPreviewVoiceUnlockAttempt('/voice wrong-code', code), false);
+  assert.equal(isValidPreviewVoiceUnlockAttempt('', code), false);
+
+  const msg = buildVoiceUnlockActivatedMessage(new Date(1_700_000_000_000));
+  assert.equal(msg.author, 'СИСТЕМА GEEK');
+  assert.match(msg.text, /Live Голос \(Тест\)/);
+  assert.match(msg.text, /\/voice-lock/);
+
+  const verified = tryVerifyVoiceUnlockCode(`/voice ${code}`);
+  assert.equal(verified.matched, true);
+  if (verified.matched) {
+    assert.ok(verified.voiceUnlockToken.includes('.'));
+  }
+  const rejected = tryVerifyVoiceUnlockCode('Привет всем!');
+  assert.equal(rejected.matched, false);
 });

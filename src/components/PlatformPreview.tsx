@@ -10,6 +10,7 @@ import {
   Monitor,
   Paperclip,
   PhoneCall,
+  Radio,
   Users,
   Video,
   Volume2,
@@ -32,11 +33,36 @@ import {
 } from '../utils/platformPreview';
 import { TrackAudioPlayer } from '../utils/audioTracks';
 import { usePreBetaCall } from '../hooks/usePreBetaCall';
+import { useLiveVoiceRoom } from '../hooks/useLiveVoiceRoom';
 import { PreBetaWorkspace } from './PreBetaWorkspace';
 import { formatCountdownMs, normalizePreBetaCode } from '../utils/preBetaSession';
 import { probePreviewBackend } from '../utils/previewTransport';
 
 const WAVE_DELAYS = ['0s', '.2s', '.4s', '.1s', '.3s', '.5s', '.15s', '.35s', '.05s', '.25s', '.45s', '.12s'];
+
+function StreamVideoPreview({ stream, label }: { stream: MediaStream; label: string }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  useEffect(() => {
+    const el = videoRef.current;
+    if (el && el.srcObject !== stream) {
+      el.srcObject = stream;
+    }
+  }, [stream]);
+  return (
+    <div className="relative rounded overflow-hidden border border-[#00f0ff]/35 bg-[#03070e] aspect-video">
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        muted
+        className="w-full h-full object-cover"
+      />
+      <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-bold text-[#00f0ff]">
+        {label}
+      </span>
+    </div>
+  );
+}
 
 function HexAvatar({
   initials,
@@ -111,11 +137,19 @@ export function PlatformPreview({
   const [showMembers, setShowMembers] = useState(true);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [showQuickQuestions, setShowQuickQuestions] = useState(false);
-const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
+  const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
+  const VOICE_UNLOCK_STORAGE_KEY = 'geek_preview_voice_unlock_token';
 
   const [unlockToken, setUnlockToken] = useState<string | null>(() => {
     try {
       return window.sessionStorage.getItem(UNLOCK_STORAGE_KEY) || null;
+    } catch {
+      return null;
+    }
+  });
+  const [voiceUnlockToken, setVoiceUnlockToken] = useState<string | null>(() => {
+    try {
+      return window.sessionStorage.getItem(VOICE_UNLOCK_STORAGE_KEY) || null;
     } catch {
       return null;
     }
@@ -125,8 +159,28 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
   const replyCountRef = useRef<number>(0);
   const replyTimersRef = useRef<number[]>([]);
   const liveReplyUrlRef = useRef<string | null>(null);
+  const voiceUnlockUrlRef = useRef<string | null>('./api/preview/voice-unlock');
   const isMountedRef = useRef<boolean>(true);
   const l30nelAudioPlayerRef = useRef<TrackAudioPlayer | null>(null);
+
+  const persistVoiceUnlockToken = (nextToken: string | null) => {
+    setVoiceUnlockToken(nextToken);
+    try {
+      if (nextToken) {
+        window.sessionStorage.setItem(VOICE_UNLOCK_STORAGE_KEY, nextToken);
+      } else {
+        window.sessionStorage.removeItem(VOICE_UNLOCK_STORAGE_KEY);
+      }
+    } catch {
+      // Ignore storage restrictions
+    }
+  };
+
+  const liveVoice = useLiveVoiceRoom({
+    onUnauthorized: () => {
+      persistVoiceUnlockToken(null);
+    },
+  });
 
   const syncL30nelVoiceAudio = (
     targetVoiceServerId: PreviewServerId | null,
@@ -209,6 +263,9 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
   });
 
   const handleToggleVoiceChannel = (targetServerId: PreviewServerId) => {
+    if (liveVoice.connected || liveVoice.connecting) {
+      liveVoice.leave();
+    }
     const next = toggleVoiceForViewedServer(voiceServerId, targetServerId);
     setVoiceServerId(next);
     if (next === null) {
@@ -223,6 +280,18 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
     setCamActive(false);
     setScreenActive(false);
     syncL30nelVoiceAudio(null, preBetaMode, deafened);
+  };
+
+  const handleToggleLiveVoice = () => {
+    if (!voiceUnlockToken) return;
+    if (liveVoice.connected || liveVoice.connecting) {
+      liveVoice.leave();
+      return;
+    }
+    if (voiceServerId !== null) {
+      handleLeaveVoice();
+    }
+    void liveVoice.join(voiceUnlockToken, 'Вы (Гость)');
   };
 
   useEffect(() => {
@@ -267,16 +336,28 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
       } else if (action === 'fullscreen') {
         setIsFullscreen((prev) => !prev);
       } else if (action === 'mic') {
-        setMicMuted((prev) => !prev);
+        if (liveVoice.connected) {
+          liveVoice.toggleMicMute();
+        } else {
+          setMicMuted((prev) => !prev);
+        }
       } else if (action === 'deafen') {
-        setDeafened((prev) => !prev);
-      } else if (action === 'cam' && voiceServerId !== null) {
-        setCamActive((prev) => !prev);
+        if (liveVoice.connected) {
+          liveVoice.toggleDeafen();
+        } else {
+          setDeafened((prev) => !prev);
+        }
+      } else if (action === 'cam') {
+        if (liveVoice.connected) {
+          void liveVoice.toggleCamera();
+        } else if (voiceServerId !== null) {
+          setCamActive((prev) => !prev);
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isFullscreen, voiceServerId]);
+  }, [isFullscreen, liveVoice, voiceServerId]);
 
   const handleSelectServer = (srvId: PreviewServerId) => {
     setPreBetaMode(false);
@@ -300,9 +381,11 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
   useEffect(() => {
     isMountedRef.current = true;
     void probePreviewBackend().then((cfg) => {
-      if (isMountedRef.current && cfg.liveEnabled && cfg.replyUrl) {
+      if (!isMountedRef.current) return;
+      if (cfg.liveEnabled && cfg.replyUrl) {
         liveReplyUrlRef.current = cfg.replyUrl;
       }
+      voiceUnlockUrlRef.current = cfg.voiceUnlockUrl;
     });
 
     return () => {
@@ -388,6 +471,31 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
       return;
     }
 
+    if (trimmedRaw.toLowerCase() === '/voice-lock') {
+      if (liveVoice.connected || liveVoice.connecting) {
+        liveVoice.leave();
+      }
+      persistVoiceUnlockToken(null);
+      setDraft('');
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const lockMsg: PreviewMessage = {
+        id: `voice-lock-${now.getTime()}`,
+        author: 'СИСТЕМА GEEK',
+        initials: 'СГ',
+        avatarColor: '#00f0ff',
+        badgeSet: 'set1',
+        time: `${hh}:${mm}`,
+        text: '🔒 Тестовый живой голосовой канал скрыт. Чтобы открыть его снова, введите секретный код.',
+      };
+      setCustomMessages((prev) => ({
+        ...prev,
+        [targetKey]: [...(prev[targetKey] ?? []), lockMsg].slice(-30),
+      }));
+      return;
+    }
+
     const activeToken = unlockToken;
     const newMsg = createUserPreviewMessage(trimmedRaw, new Date(), activeToken ? 2000 : 220);
     if (!newMsg) return;
@@ -396,7 +504,13 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
     replyCountRef.current += 1;
     const historyPool = activeToken ? (customMessages[targetKey] ?? []) : allMessages;
     const recentHistory = historyPool
-      .filter((m) => m.text !== '🔐 [Код доступа принят]' && !m.text.startsWith('🔓 ') && !m.text.startsWith('🔒 '))
+      .filter(
+        (m) =>
+          m.text !== '🔐 [Код доступа принят]' &&
+          !m.text.startsWith('🔓 ') &&
+          !m.text.startsWith('🔒 ') &&
+          !m.text.startsWith('🎙️ '),
+      )
       .slice(-8)
       .map((m) => ({
         author: m.author,
@@ -409,9 +523,54 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
     }));
     setDraft('');
 
+    const applyVoiceUnlockResult = (nextVoiceToken: string, sysReply: PreviewMessage) => {
+      persistVoiceUnlockToken(nextVoiceToken);
+      setCustomMessages((prev) => {
+        const list = prev[targetKey] ?? [];
+        const redacted = list.map((item) =>
+          item.id === newMsg.id ? { ...item, text: '🔐 [Код доступа принят]' } : item,
+        );
+        return {
+          ...prev,
+          [targetKey]: [...redacted, sysReply].slice(-30),
+        };
+      });
+      setTypingPeerName(null);
+    };
+
     const replyUrl = liveReplyUrlRef.current;
     if (!replyUrl) {
-      scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
+      const voiceUnlockUrl = voiceUnlockUrlRef.current;
+      if (!voiceUnlockUrl) {
+        scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
+        return;
+      }
+      void fetch(voiceUnlockUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: trimmedRaw.slice(0, 220) }),
+      })
+        .then(async (res) => {
+          if (!res.ok) return null;
+          return (await res.json()) as {
+            ok?: boolean;
+            matched?: boolean;
+            voiceUnlockToken?: string;
+            reply?: PreviewMessage;
+          };
+        })
+        .then((data) => {
+          if (!isMountedRef.current) return;
+          if (data?.ok && data.matched && data.voiceUnlockToken && data.reply) {
+            applyVoiceUnlockResult(data.voiceUnlockToken, data.reply);
+            return;
+          }
+          scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
+        })
+        .catch(() => {
+          if (!isMountedRef.current) return;
+          scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
+        });
       return;
     }
 
@@ -434,9 +593,15 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
           reply?: PreviewMessage;
           unlocked?: boolean;
           unlockToken?: string;
+          voiceUnlocked?: boolean;
+          voiceUnlockToken?: string;
         };
         if (!data.ok || !data.reply) throw new Error('Invalid reply');
         if (!isMountedRef.current) return;
+        if (data.voiceUnlocked && data.voiceUnlockToken) {
+          applyVoiceUnlockResult(data.voiceUnlockToken, data.reply);
+          return;
+        }
         if (data.unlocked && data.unlockToken) {
           persistUnlockToken(data.unlockToken);
         }
@@ -865,71 +1030,292 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                     </div>
                   ))}
                 </div>
+
+                {/* Secret-Unlocked Multi-User Live Voice Channel (hidden until secret code entered in chat) */}
+                {voiceUnlockToken && (
+                  <div className="mt-1">
+                    <button
+                      type="button"
+                      onClick={handleToggleLiveVoice}
+                      aria-pressed={liveVoice.connected}
+                      data-testid="preview-live-voice-btn"
+                      className={`w-full px-2.5 py-1.5 rounded-md text-[13px] font-semibold flex items-center justify-between border mb-1.5 cursor-pointer transition-colors ${
+                        liveVoice.connected
+                          ? 'bg-[#10b981]/20 border-[#10b981] text-[#6ee7b7] shadow-[0_0_12px_rgba(16,185,129,0.25)]'
+                          : 'bg-[#081523] border-[#00f0ff]/35 text-[#9eeeff] hover:bg-[#00f0ff]/15 hover:text-white'
+                      }`}
+                    >
+                      <span className="flex items-center gap-1.5 truncate">
+                        <Radio className="w-3.5 h-3.5 shrink-0 text-[#10b981]" />
+                        <span className="truncate">Live Голос (Тест)</span>
+                      </span>
+                      <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-[#10b981]/20 text-[#6ee7b7] shrink-0">
+                        {liveVoice.connecting
+                          ? '...'
+                          : liveVoice.connected
+                            ? `${liveVoice.peers.length}/8`
+                            : 'LIVE'}
+                      </span>
+                    </button>
+
+                    {liveVoice.connected && (
+                      <div data-testid="preview-live-voice-peers" className="space-y-1 pl-2 mb-2">
+                        {liveVoice.peers.map((vp) => (
+                          <div
+                            key={vp.peerId}
+                            className={`flex items-center gap-2 px-2 py-1 rounded-md text-xs border transition-colors ${
+                              vp.speaking
+                                ? 'bg-[#10b981]/15 border-[#10b981]/50 text-white'
+                                : 'border-transparent text-[#b4cde0]'
+                            }`}
+                          >
+                            <HexAvatar
+                              initials={vp.initials}
+                              color={vp.avatarColor}
+                              sizeClass="w-7 h-7 text-[9px]"
+                            />
+                            <span className="truncate flex-1">
+                              {vp.nick}
+                              {vp.peerId === liveVoice.myPeerId ? ' (Вы)' : ''}
+                              {vp.camActive ? ' 📷' : ''}
+                              {vp.screenActive ? ' 🖥️' : ''}
+                            </span>
+                            {vp.micMuted && <MicOff className="w-3 h-3 text-[#ff2a85] shrink-0" />}
+                            {vp.deafened && <VolumeX className="w-3 h-3 text-[#ff2a85] shrink-0" />}
+                            {vp.speaking && !vp.micMuted && (
+                              <span className="inline-flex items-center gap-[2px] h-3 shrink-0" aria-hidden="true">
+                                <span className="geek-speak-bar w-[2.5px] h-2.5 bg-[#10b981] rounded-full" />
+                                <span
+                                  className="geek-speak-bar w-[2.5px] h-3 bg-[#10b981] rounded-full"
+                                  style={{ animationDelay: '0.15s' }}
+                                />
+                                <span
+                                  className="geek-speak-bar w-[2.5px] h-2 bg-[#10b981] rounded-full"
+                                  style={{ animationDelay: '0.3s' }}
+                                />
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="shrink-0">
               {/* Voice Dock (visible only while connected to a voice channel) */}
-              {connectedVoiceServer && (
+              {(connectedVoiceServer || liveVoice.connected) && (
                 <div
                   data-testid="preview-vdock"
                   className="bg-[#06101a]/95 border-t border-[#00f0ff]/35 px-2.5 py-2 space-y-2"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <div
-                        data-testid="preview-vdock-status"
-                        className="text-[10px] font-extrabold uppercase truncate text-[#10b981]"
-                      >
-                        {connectedVoiceServer.id === activeServer.id
-                          ? '🟢 В ЭФИРЕ'
-                          : `🟢 В ЭФИРЕ · ${connectedVoiceServer.name}`}
+                  {liveVoice.connected ? (
+                    <>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div
+                            data-testid="preview-vdock-status"
+                            className="text-[10px] font-extrabold uppercase truncate text-[#10b981]"
+                          >
+                            {liveVoice.audioMode === 'loopback'
+                              ? '🟢 ЭХО-ТЕСТ · ЛОКАЛЬНО'
+                              : liveVoice.audioMode === 'webrtc'
+                                ? '🟢 В ЭФИРЕ · WebRTC P2P'
+                                : liveVoice.audioMode === 'relay'
+                                  ? '🟢 В ЭФИРЕ · WS RELAY'
+                                  : '🟢 В ЭФИРЕ · ЖДЁМ УЧАСТНИКОВ'}
+                          </div>
+                          <div
+                            data-testid="preview-vdock-room"
+                            className="text-xs font-bold text-white truncate"
+                          >
+                            Live Голос (Тест) · {liveVoice.peers.length}/8
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          data-testid="preview-voice-dock-btn"
+                          onClick={liveVoice.leave}
+                          className="px-2.5 py-1 rounded text-[10.5px] font-extrabold cursor-pointer transition-colors shrink-0 bg-[#ff2a85]/25 border border-[#ff2a85] text-[#ff80a0] hover:bg-[#ff2a85] hover:text-white"
+                        >
+                          ВЫЙТИ
+                        </button>
                       </div>
-                      <div
-                        data-testid="preview-vdock-room"
-                        className="text-xs font-bold text-white truncate"
-                      >
-                        {connectedVoiceServer.voiceChannel}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      data-testid="preview-voice-dock-btn"
-                      onClick={handleLeaveVoice}
-                      className="px-2.5 py-1 rounded text-[10.5px] font-extrabold cursor-pointer transition-colors shrink-0 bg-[#ff2a85]/25 border border-[#ff2a85] text-[#ff80a0] hover:bg-[#ff2a85] hover:text-white"
-                    >
-                      ВЫЙТИ
-                    </button>
-                  </div>
 
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setCamActive((prev) => !prev)}
-                      aria-pressed={camActive}
-                      className={`py-1 px-2 rounded border text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
-                        camActive
-                          ? 'bg-[#10b981]/25 border-[#10b981] text-[#6ee7b7]'
-                          : 'bg-[#0d1829] border-[#00f0ff]/15 text-[#b4cde0] hover:text-white'
-                      }`}
-                    >
-                      <Video className="w-3 h-3" />
-                      <span>Камера</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setScreenActive((prev) => !prev)}
-                      aria-pressed={screenActive}
-                      className={`py-1 px-2 rounded border text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
-                        screenActive
-                          ? 'bg-[#ff2a85]/25 border-[#ff2a85] text-[#ffaec2]'
-                          : 'bg-[#0d1829] border-[#00f0ff]/15 text-[#b4cde0] hover:text-white'
-                      }`}
-                    >
-                      <Monitor className="w-3 h-3" />
-                      <span>Экран</span>
-                    </button>
-                  </div>
+                      {/* Real mic signal level & diagnostic actions */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[9.5px] font-mono-tech text-[#9eeeff]">
+                          <span>
+                            {liveVoice.hasMicAudio
+                              ? liveVoice.micMuted
+                                ? 'Микрофон заглушён'
+                                : `Уровень мик: ${liveVoice.micLevel}%`
+                              : 'Режим слушателя (нет мик)'}
+                          </span>
+                          {!liveVoice.hasMicAudio && (
+                            <button
+                              type="button"
+                              onClick={() => void liveVoice.retryMicPermission()}
+                              className="text-[#00f0ff] hover:underline cursor-pointer font-bold"
+                            >
+                              + Микрофон
+                            </button>
+                          )}
+                        </div>
+                        <div
+                          data-testid="preview-live-mic-meter"
+                          className="h-1.5 w-full rounded-full bg-[#03070e] border border-[#00f0ff]/20 overflow-hidden"
+                        >
+                          <div
+                            className="h-full bg-gradient-to-r from-[#00f0ff] to-[#10b981] transition-all duration-75"
+                            style={{ width: `${liveVoice.micMuted ? 0 : liveVoice.micLevel}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {liveVoice.audioUnlockNeeded && (
+                        <button
+                          type="button"
+                          onClick={liveVoice.unlockRemoteAudio}
+                          className="w-full py-1 px-2 rounded bg-[#fcee0a]/15 border border-[#fcee0a]/60 text-[#fcee0a] text-[10.5px] font-bold cursor-pointer hover:bg-[#fcee0a]/25"
+                        >
+                          🔊 Нажмите, чтобы разрешить звук
+                        </button>
+                      )}
+
+                      {liveVoice.error && (
+                        <div className="text-[10px] text-[#ff7aa8] leading-tight">
+                          {liveVoice.error}
+                        </div>
+                      )}
+
+                      {(liveVoice.localCamStream ||
+                        liveVoice.localScreenStream ||
+                        liveVoice.remoteVideoPeers.length > 0) && (
+                        <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto geek-chat-scroll">
+                          {liveVoice.localCamStream && (
+                            <StreamVideoPreview stream={liveVoice.localCamStream} label="Вы · Камера" />
+                          )}
+                          {liveVoice.localScreenStream && (
+                            <StreamVideoPreview stream={liveVoice.localScreenStream} label="Вы · Экран" />
+                          )}
+                          {liveVoice.remoteVideoPeers.map((rv) => (
+                            <StreamVideoPreview
+                              key={rv.peerId}
+                              stream={rv.stream}
+                              label={
+                                liveVoice.peers.find((p) => p.peerId === rv.peerId)?.nick ?? 'Участник'
+                              }
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-3 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => void liveVoice.toggleCamera()}
+                          aria-pressed={liveVoice.camActive}
+                          className={`py-1 px-1.5 rounded border text-[10.5px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
+                            liveVoice.camActive
+                              ? 'bg-[#10b981]/25 border-[#10b981] text-[#6ee7b7]'
+                              : 'bg-[#0d1829] border-[#00f0ff]/15 text-[#b4cde0] hover:text-white'
+                          }`}
+                        >
+                          <Video className="w-3 h-3 shrink-0" />
+                          <span className="truncate">Камера</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void liveVoice.toggleScreen()}
+                          aria-pressed={liveVoice.screenActive}
+                          className={`py-1 px-1.5 rounded border text-[10.5px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
+                            liveVoice.screenActive
+                              ? 'bg-[#ff2a85]/25 border-[#ff2a85] text-[#ffaec2]'
+                              : 'bg-[#0d1829] border-[#00f0ff]/15 text-[#b4cde0] hover:text-white'
+                          }`}
+                        >
+                          <Monitor className="w-3 h-3 shrink-0" />
+                          <span className="truncate">Экран</span>
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="preview-live-loopback-btn"
+                          onClick={() => void liveVoice.toggleLoopback()}
+                          aria-pressed={liveVoice.loopbackActive}
+                          title="Услышать собственный микрофон (проверка в 1 вкладке)"
+                          className={`py-1 px-1.5 rounded border text-[10.5px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
+                            liveVoice.loopbackActive
+                              ? 'bg-[#00f0ff]/25 border-[#00f0ff] text-white'
+                              : 'bg-[#0d1829] border-[#00f0ff]/15 text-[#b4cde0] hover:text-white'
+                          }`}
+                        >
+                          <Radio className="w-3 h-3 shrink-0" />
+                          <span className="truncate">Эхо</span>
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div
+                            data-testid="preview-vdock-status"
+                            className="text-[10px] font-extrabold uppercase truncate text-[#10b981]"
+                          >
+                            {connectedVoiceServer?.id === activeServer.id
+                              ? '🟢 В ЭФИРЕ'
+                              : `🟢 В ЭФИРЕ · ${connectedVoiceServer?.name}`}
+                          </div>
+                          <div
+                            data-testid="preview-vdock-room"
+                            className="text-xs font-bold text-white truncate"
+                          >
+                            {connectedVoiceServer?.voiceChannel}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          data-testid="preview-voice-dock-btn"
+                          onClick={handleLeaveVoice}
+                          className="px-2.5 py-1 rounded text-[10.5px] font-extrabold cursor-pointer transition-colors shrink-0 bg-[#ff2a85]/25 border border-[#ff2a85] text-[#ff80a0] hover:bg-[#ff2a85] hover:text-white"
+                        >
+                          ВЫЙТИ
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setCamActive((prev) => !prev)}
+                          aria-pressed={camActive}
+                          className={`py-1 px-2 rounded border text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
+                            camActive
+                              ? 'bg-[#10b981]/25 border-[#10b981] text-[#6ee7b7]'
+                              : 'bg-[#0d1829] border-[#00f0ff]/15 text-[#b4cde0] hover:text-white'
+                          }`}
+                        >
+                          <Video className="w-3 h-3" />
+                          <span>Камера</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setScreenActive((prev) => !prev)}
+                          aria-pressed={screenActive}
+                          className={`py-1 px-2 rounded border text-[11px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
+                            screenActive
+                              ? 'bg-[#ff2a85]/25 border-[#ff2a85] text-[#ffaec2]'
+                              : 'bg-[#0d1829] border-[#00f0ff]/15 text-[#b4cde0] hover:text-white'
+                          }`}
+                        >
+                          <Monitor className="w-3 h-3" />
+                          <span>Экран</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -940,7 +1326,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                     initials="ГО"
                     color="#3b82f6"
                     sizeClass="w-8 h-8 text-[10px]"
-                    online={!deafened}
+                    online={liveVoice.connected ? !liveVoice.deafened : !deafened}
                     showDot
                   />
                   <div className="min-w-0 flex-1 overflow-hidden">
@@ -954,13 +1340,21 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                       data-testid="preview-guest-status"
                       className="text-[10px] text-[#00f0ff] truncate"
                     >
-                      {!connectedVoiceServer
-                        ? 'Не в голосе'
-                        : deafened
+                      {liveVoice.connected
+                        ? liveVoice.deafened
                           ? 'Звук выкл'
-                          : micMuted
+                          : liveVoice.micMuted
                             ? 'Микрофон выкл'
-                            : 'В эфире'}
+                            : liveVoice.loopbackActive
+                              ? 'Эхо-тест'
+                              : 'Live в эфире'
+                        : !connectedVoiceServer
+                          ? 'Не в голосе'
+                          : deafened
+                            ? 'Звук выкл'
+                            : micMuted
+                              ? 'Микрофон выкл'
+                              : 'В эфире'}
                     </div>
                   </div>
                 </div>
@@ -968,27 +1362,51 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                 <div className="flex items-center gap-1 shrink-0">
                   <button
                     type="button"
-                    onClick={() => setMicMuted((prev) => !prev)}
-                    aria-pressed={micMuted}
-                    aria-label={micMuted ? 'Включить микрофон' : 'Выключить микрофон'}
-                    title={micMuted ? 'Включить микрофон' : 'Выключить микрофон'}
+                    onClick={() => {
+                      if (liveVoice.connected) {
+                        liveVoice.toggleMicMute();
+                      } else {
+                        setMicMuted((prev) => !prev);
+                      }
+                    }}
+                    aria-pressed={liveVoice.connected ? liveVoice.micMuted : micMuted}
+                    aria-label={(liveVoice.connected ? liveVoice.micMuted : micMuted) ? 'Включить микрофон' : 'Выключить микрофон'}
+                    title={(liveVoice.connected ? liveVoice.micMuted : micMuted) ? 'Включить микрофон' : 'Выключить микрофон'}
                     className={`w-8 h-8 geek-hex flex items-center justify-center cursor-pointer transition-colors ${
-                      micMuted ? 'bg-[#ff2a85]/25 text-[#ff2a85]' : 'bg-[#0d1829] text-[#00f0ff]'
+                      (liveVoice.connected ? liveVoice.micMuted : micMuted)
+                        ? 'bg-[#ff2a85]/25 text-[#ff2a85]'
+                        : 'bg-[#0d1829] text-[#00f0ff]'
                     }`}
                   >
-                    {micMuted ? <MicOff className="w-3.5 h-3.5" /> : <Mic className="w-3.5 h-3.5" />}
+                    {(liveVoice.connected ? liveVoice.micMuted : micMuted) ? (
+                      <MicOff className="w-3.5 h-3.5" />
+                    ) : (
+                      <Mic className="w-3.5 h-3.5" />
+                    )}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setDeafened((prev) => !prev)}
-                    aria-pressed={deafened}
-                    aria-label={deafened ? 'Включить звук' : 'Отключить звук'}
-                    title={deafened ? 'Включить звук' : 'Отключить звук'}
+                    onClick={() => {
+                      if (liveVoice.connected) {
+                        liveVoice.toggleDeafen();
+                      } else {
+                        setDeafened((prev) => !prev);
+                      }
+                    }}
+                    aria-pressed={liveVoice.connected ? liveVoice.deafened : deafened}
+                    aria-label={(liveVoice.connected ? liveVoice.deafened : deafened) ? 'Включить звук' : 'Отключить звук'}
+                    title={(liveVoice.connected ? liveVoice.deafened : deafened) ? 'Включить звук' : 'Отключить звук'}
                     className={`w-8 h-8 geek-hex flex items-center justify-center cursor-pointer transition-colors ${
-                      deafened ? 'bg-[#ff2a85]/25 text-[#ff2a85]' : 'bg-[#0d1829] text-[#00f0ff]'
+                      (liveVoice.connected ? liveVoice.deafened : deafened)
+                        ? 'bg-[#ff2a85]/25 text-[#ff2a85]'
+                        : 'bg-[#0d1829] text-[#00f0ff]'
                     }`}
                   >
-                    {deafened ? <VolumeX className="w-3.5 h-3.5" /> : <Headphones className="w-3.5 h-3.5" />}
+                    {(liveVoice.connected ? liveVoice.deafened : deafened) ? (
+                      <VolumeX className="w-3.5 h-3.5" />
+                    ) : (
+                      <Headphones className="w-3.5 h-3.5" />
+                    )}
                   </button>
                 </div>
               </div>
@@ -1013,15 +1431,20 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
 
               {/* Equalizer wave */}
               <div className="hidden sm:flex items-center justify-center gap-[3px] h-5" aria-hidden="true">
-                {WAVE_DELAYS.map((delay, i) => (
-                  <span
-                    key={i}
-                    className={`w-[3px] h-full bg-[#00f0ff] rounded-sm ${
-                      connectedVoiceServer && !deafened ? 'geek-eq-bar-live opacity-80' : 'opacity-30 scale-y-25'
-                    }`}
-                    style={connectedVoiceServer && !deafened ? { animationDelay: delay } : undefined}
-                  />
-                ))}
+                {WAVE_DELAYS.map((delay, i) => {
+                  const isLiveAudioWave =
+                    (connectedVoiceServer && !deafened) ||
+                    (liveVoice.connected && !liveVoice.deafened);
+                  return (
+                    <span
+                      key={i}
+                      className={`w-[3px] h-full bg-[#00f0ff] rounded-sm ${
+                        isLiveAudioWave ? 'geek-eq-bar-live opacity-80' : 'opacity-30 scale-y-25'
+                      }`}
+                      style={isLiveAudioWave ? { animationDelay: delay } : undefined}
+                    />
+                  );
+                })}
               </div>
             </div>
 
