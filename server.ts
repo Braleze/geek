@@ -239,6 +239,7 @@ async function startServer(): Promise<void> {
       serverId: body.serverId,
       channelId: body.channelId,
       history: body.history,
+      unlockToken: body.unlockToken,
     });
     if (!result.ok) {
       res.status(result.status).json({
@@ -251,6 +252,7 @@ async function startServer(): Promise<void> {
     res.json({
       ok: true,
       reply: result.reply,
+      ...(result.unlocked ? { unlocked: true, unlockToken: result.unlockToken } : {}),
     });
   });
 

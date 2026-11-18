@@ -82,6 +82,15 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
   const [screenActive, setScreenActive] = useState(false);
   const [showMembers, setShowMembers] = useState(true);
   const [inviteCopied, setInviteCopied] = useState(false);
+const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
+
+  const [unlockToken, setUnlockToken] = useState<string | null>(() => {
+    try {
+      return window.sessionStorage.getItem(UNLOCK_STORAGE_KEY) || null;
+    } catch {
+      return null;
+    }
+  });
   const [typingPeerName, setTypingPeerName] = useState<string | null>(null);
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const replyCountRef = useRef<number>(0);
@@ -235,19 +244,63 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
     replyTimersRef.current.push(timerId);
   };
 
+  const persistUnlockToken = (nextToken: string | null) => {
+    setUnlockToken(nextToken);
+    try {
+      if (nextToken) {
+        window.sessionStorage.setItem(UNLOCK_STORAGE_KEY, nextToken);
+      } else {
+        window.sessionStorage.removeItem(UNLOCK_STORAGE_KEY);
+      }
+    } catch {
+      // Ignore storage restrictions
+    }
+  };
+
   const submitPreviewQuestion = (questionText: string) => {
-    const newMsg = createUserPreviewMessage(questionText);
-    if (!newMsg) return;
+    const trimmedRaw = questionText.trim();
+    if (!trimmedRaw) return;
 
     const targetServerId = activeServer.id;
     const targetChannelId = activeChannel.id;
     const targetKey = `${targetServerId}:${targetChannelId}`;
+
+    if (trimmedRaw.toLowerCase() === '/lock') {
+      persistUnlockToken(null);
+      setDraft('');
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2, '0');
+      const mm = String(now.getMinutes()).padStart(2, '0');
+      const lockMsg: PreviewMessage = {
+        id: `lock-${now.getTime()}`,
+        author: 'СИСТЕМА GEEK',
+        initials: 'СГ',
+        avatarColor: '#00f0ff',
+        badgeSet: 'set1',
+        time: `${hh}:${mm}`,
+        text: '🔒 Свободный режим отключён. Чат снова работает в обычном режиме с L30nel, Sergo и Max.',
+      };
+      setCustomMessages((prev) => ({
+        ...prev,
+        [targetKey]: [...(prev[targetKey] ?? []), lockMsg].slice(-30),
+      }));
+      return;
+    }
+
+    const activeToken = unlockToken;
+    const newMsg = createUserPreviewMessage(trimmedRaw, new Date(), activeToken ? 2000 : 220);
+    if (!newMsg) return;
+
     const replyIdx = replyCountRef.current;
     replyCountRef.current += 1;
-    const recentHistory = allMessages.slice(-8).map((m) => ({
-      author: m.author,
-      text: m.text,
-    }));
+    const historyPool = activeToken ? (customMessages[targetKey] ?? []) : allMessages;
+    const recentHistory = historyPool
+      .filter((m) => m.text !== '🔐 [Код доступа принят]' && !m.text.startsWith('🔓 ') && !m.text.startsWith('🔒 '))
+      .slice(-8)
+      .map((m) => ({
+        author: m.author,
+        text: m.text,
+      }));
 
     setCustomMessages((prev) => ({
       ...prev,
@@ -261,27 +314,45 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
       return;
     }
 
-    setTypingPeerName('Участник сервера');
+    setTypingPeerName(activeToken ? 'Geek Core' : 'Участник сервера');
     void fetch(replyUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        question: newMsg.text,
+        question: trimmedRaw.slice(0, 2000),
         serverId: targetServerId,
         channelId: targetChannelId,
         history: recentHistory,
+        ...(activeToken ? { unlockToken: activeToken } : {}),
       }),
     })
       .then(async (res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = (await res.json()) as { ok?: boolean; reply?: PreviewMessage };
+        const data = (await res.json()) as {
+          ok?: boolean;
+          reply?: PreviewMessage;
+          unlocked?: boolean;
+          unlockToken?: string;
+        };
         if (!data.ok || !data.reply) throw new Error('Invalid reply');
         if (!isMountedRef.current) return;
+        if (data.unlocked && data.unlockToken) {
+          persistUnlockToken(data.unlockToken);
+        }
         const liveReply = data.reply;
-        setCustomMessages((prev) => ({
-          ...prev,
-          [targetKey]: [...(prev[targetKey] ?? []), liveReply].slice(-30),
-        }));
+        setCustomMessages((prev) => {
+          const list = prev[targetKey] ?? [];
+          const redacted =
+            data.unlocked === true
+              ? list.map((item) =>
+                  item.id === newMsg.id ? { ...item, text: '🔐 [Код доступа принят]' } : item,
+                )
+              : list;
+          return {
+            ...prev,
+            [targetKey]: [...redacted, liveReply].slice(-30),
+          };
+        });
         setTypingPeerName(null);
       })
       .catch(() => {
@@ -801,7 +872,7 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
                         <CyberBadge setKey={msg.badgeSet} />
                         <span className="text-[10.5px] text-[#63809b] font-mono">{msg.time}</span>
                       </div>
-                      <p className="text-[13.5px] text-[#e6f7ff] mt-1 leading-snug break-words">
+                      <p className="text-[13.5px] text-[#e6f7ff] mt-1 leading-snug break-words whitespace-pre-wrap">
                         {msg.text}
                       </p>
                     </div>
@@ -822,8 +893,12 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
             {/* Bottom Console Input Box + Q&A Quick Prompts */}
             <div className="px-3 pb-3 pt-1">
               <div className="rounded-lg bg-[#0a1320]/95 border border-[#00f0ff]/40 px-2.5 py-2 space-y-1.5">
-                <div className="flex items-center justify-between text-[9px] font-extrabold uppercase text-[#63809b]">
-                  <span>ВОПРОС-ОТВЕТ // ЧАТ С УЧАСТНИКАМИ</span>
+                <div className="flex items-center justify-between text-[9px] font-extrabold uppercase text-[#63809b] gap-2 flex-wrap">
+                  <span>
+                    {unlockToken
+                      ? '🔓 СВОБОДНЫЙ РЕЖИМ АКТИВЕН (/lock — ВЫЙТИ)'
+                      : 'ВОПРОС-ОТВЕТ // ЧАТ С УЧАСТНИКАМИ'}
+                  </span>
                   <span>КАНАЛ #{activeChannel.name.toUpperCase()}</span>
                 </div>
                 <div

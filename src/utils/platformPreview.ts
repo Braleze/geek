@@ -371,6 +371,7 @@ export function formatMsgTime(now: Date): string {
 export function createUserPreviewMessage(
   rawText: string,
   now: Date = new Date(),
+  maxChars: number = 220,
 ): PreviewMessage | null {
   const text = rawText.trim();
   if (!text) return null;
@@ -382,7 +383,7 @@ export function createUserPreviewMessage(
     avatarColor: '#3b82f6',
     badgeSet: 'set1',
     time: formatMsgTime(now),
-    text: text.slice(0, 220),
+    text: text.slice(0, maxChars),
   };
 }
 

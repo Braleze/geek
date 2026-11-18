@@ -1,18 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  DEFAULT_PREVIEW_UNLOCK_CODE,
   MAX_PREVIEW_QUESTION_CHARS,
   MAX_PREVIEW_REPLY_CHARS,
+  MAX_UNLOCKED_REPLY_CHARS,
   buildPeerPreviewMessage,
   buildPreviewGeminiPromptContents,
   buildPreviewGeminiSystemInstruction,
+  buildUnlockActivatedMessage,
+  buildUnlockedGeminiSystemInstruction,
+  buildUnlockedReplyMessage,
   containsForbiddenReplyContent,
+  getConfiguredPreviewUnlockCode,
   isPromptInjectionOrOffTopic,
+  isValidPreviewUnlockAttempt,
   normalizePeerNick,
   resolveSafeOffTopicReply,
   sanitizePreviewHistory,
   sanitizeUserQuestion,
+  signPreviewUnlockToken,
+  truncateUnlockedReply,
   validateAndNormalizeGeminiReply,
+  verifyPreviewUnlockToken,
 } from './previewChatGuard';
 import { PREVIEW_GEMINI_MODEL } from './previewGeminiService';
 
@@ -104,4 +114,35 @@ test('normalizePeerNick, history sanitization, system prompt, and safe fallback 
   const msg = buildPeerPreviewMessage(fallback.author, fallback.text);
   assert.equal(msg.initials, 'SE');
   assert.equal(msg.badgeSet, 'set2');
+});
+
+test('preview unlock passphrase and HMAC session tokens validate securely without leaking secret', () => {
+  const code = getConfiguredPreviewUnlockCode(undefined);
+  assert.equal(code, DEFAULT_PREVIEW_UNLOCK_CODE);
+  assert.equal(getConfiguredPreviewUnlockCode('  custom-pass  '), 'custom-pass');
+
+  assert.equal(isValidPreviewUnlockAttempt(code, code), true);
+  assert.equal(isValidPreviewUnlockAttempt(`/unlock ${code}`, code), true);
+  assert.equal(isValidPreviewUnlockAttempt('/unlock wrong-pass', code), false);
+  assert.equal(isValidPreviewUnlockAttempt('', code), false);
+
+  const secret = 'key-abc::' + code;
+  const now = 1_700_000_000_000;
+  const token = signPreviewUnlockToken(secret, now, 60_000);
+  assert.equal(verifyPreviewUnlockToken(token, secret, now + 1000), true);
+  assert.equal(verifyPreviewUnlockToken(token, secret, now + 70_000), false);
+  assert.equal(verifyPreviewUnlockToken(token, 'wrong-secret', now + 1000), false);
+  assert.equal(verifyPreviewUnlockToken('tampered.0000', secret, now + 1000), false);
+
+  const sys = buildUnlockedGeminiSystemInstruction();
+  assert.match(sys, /свободный режим/i);
+
+  const activated = buildUnlockActivatedMessage(new Date(now));
+  assert.equal(activated.author, 'СИСТЕМА GEEK');
+  assert.match(activated.text, /\/lock/);
+
+  const longReply = truncateUnlockedReply('Строка\n'.repeat(1000));
+  assert.ok(longReply.length <= MAX_UNLOCKED_REPLY_CHARS);
+  const freeMsg = buildUnlockedReplyMessage('Готово', new Date(now));
+  assert.equal(freeMsg.author, 'Geek Core');
 });

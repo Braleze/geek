@@ -1,14 +1,26 @@
 import { GoogleGenAI, ThinkingLevel, Type } from '@google/genai';
 import { PREVIEW_SERVERS, type PreviewMessage, type PreviewServerId } from './platformPreview.ts';
 import {
+  MAX_UNLOCKED_QUESTION_CHARS,
+  MAX_UNLOCKED_REPLY_CHARS,
   buildPeerPreviewMessage,
   buildPreviewGeminiPromptContents,
   buildPreviewGeminiSystemInstruction,
+  buildUnlockActivatedMessage,
+  buildUnlockedGeminiSystemInstruction,
+  buildUnlockedPromptContents,
+  buildUnlockedReplyMessage,
+  getConfiguredPreviewUnlockCode,
   isPromptInjectionOrOffTopic,
+  isValidPreviewUnlockAttempt,
   resolveSafeOffTopicReply,
+  sanitizeMultilineUserPrompt,
   sanitizePreviewHistory,
   sanitizeUserQuestion,
+  signPreviewUnlockToken,
+  truncateUnlockedReply,
   validateAndNormalizeGeminiReply,
+  verifyPreviewUnlockToken,
 } from './previewChatGuard.ts';
 
 let cachedClient: GoogleGenAI | null = null;
@@ -42,29 +54,101 @@ export interface PreviewGeminiRequest {
   serverId: unknown;
   channelId: unknown;
   history: unknown;
+  unlockToken?: unknown;
 }
 
 export const PREVIEW_GEMINI_MODEL = 'gemini-3.1-flash-lite';
 
 export async function generateLivePreviewPeerReply(
   input: PreviewGeminiRequest,
-): Promise<{ ok: true; reply: PreviewMessage; guarded: boolean } | { ok: false; status: number; reason: string; message: string }> {
-  const cleanQuestion = sanitizeUserQuestion(typeof input.question === 'string' ? input.question : '');
-  if (!cleanQuestion) {
-    return {
-      ok: false,
-      status: 400,
-      reason: 'EMPTY_QUESTION',
-      message: 'Сообщение не должно быть пустым.',
-    };
-  }
-
+): Promise<
+  | { ok: true; reply: PreviewMessage; guarded: boolean; unlocked?: boolean; unlockToken?: string }
+  | { ok: false; status: number; reason: string; message: string }
+> {
   if (!isPreviewGeminiConfigured()) {
     return {
       ok: false,
       status: 503,
       reason: 'GEMINI_NOT_CONFIGURED',
       message: 'Gemini API key is not configured on the server.',
+    };
+  }
+
+  const rawQuestion = typeof input.question === 'string' ? input.question : '';
+  const apiKey = process.env.GEMINI_API_KEY?.trim() ?? '';
+  const unlockCode = getConfiguredPreviewUnlockCode(process.env.PREVIEW_UNLOCK_CODE);
+  const hmacSecret = `${apiKey}::${unlockCode}`;
+
+  if (isValidPreviewUnlockAttempt(rawQuestion, unlockCode)) {
+    const unlockToken = signPreviewUnlockToken(hmacSecret);
+    return {
+      ok: true,
+      reply: buildUnlockActivatedMessage(new Date()),
+      guarded: false,
+      unlocked: true,
+      unlockToken,
+    };
+  }
+
+  const isUnlocked = verifyPreviewUnlockToken(input.unlockToken, hmacSecret);
+  if (isUnlocked) {
+    const cleanPrompt = sanitizeMultilineUserPrompt(rawQuestion, MAX_UNLOCKED_QUESTION_CHARS);
+    if (!cleanPrompt) {
+      return {
+        ok: false,
+        status: 400,
+        reason: 'EMPTY_QUESTION',
+        message: 'Сообщение не должно быть пустым.',
+      };
+    }
+
+    const history = sanitizePreviewHistory(input.history, MAX_UNLOCKED_QUESTION_CHARS);
+    const contents = buildUnlockedPromptContents(cleanPrompt, history);
+    const ai = getGeminiClient();
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const response = await ai.models.generateContent({
+          model: PREVIEW_GEMINI_MODEL,
+          contents,
+          config: {
+            systemInstruction: buildUnlockedGeminiSystemInstruction(),
+            thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
+          },
+        });
+        const text = truncateUnlockedReply(response.text ?? '', MAX_UNLOCKED_REPLY_CHARS);
+        if (text) {
+          return {
+            ok: true,
+            reply: buildUnlockedReplyMessage(text, new Date()),
+            guarded: false,
+          };
+        }
+      } catch (error) {
+        lastError = error;
+        if (attempt === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+      }
+    }
+
+    const errMsg = lastError instanceof Error ? lastError.message : 'Upstream Gemini request failed.';
+    return {
+      ok: false,
+      status: 502,
+      reason: 'GEMINI_UPSTREAM_ERROR',
+      message: errMsg,
+    };
+  }
+
+  const cleanQuestion = sanitizeUserQuestion(rawQuestion);
+  if (!cleanQuestion) {
+    return {
+      ok: false,
+      status: 400,
+      reason: 'EMPTY_QUESTION',
+      message: 'Сообщение не должно быть пустым.',
     };
   }
 

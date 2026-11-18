@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import {
   PREVIEW_PEER_PROFILES,
   formatMsgTime,
@@ -10,6 +11,11 @@ export const PREVIEW_ALLOWED_PEERS: readonly PreviewPeerNick[] = ['L30nel', 'Ser
 export const MAX_PREVIEW_QUESTION_CHARS = 220;
 export const MAX_PREVIEW_REPLY_CHARS = 320;
 export const MAX_PREVIEW_HISTORY_ITEMS = 8;
+
+export const DEFAULT_PREVIEW_UNLOCK_CODE = 'gk-cyber-9472-unlock';
+export const MAX_UNLOCKED_QUESTION_CHARS = 2000;
+export const MAX_UNLOCKED_REPLY_CHARS = 4000;
+export const UNLOCK_TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 export interface PreviewHistoryItem {
   author: string;
@@ -30,26 +36,101 @@ const FORBIDDEN_SECRET_PATTERNS: RegExp[] = [
 const INJECTION_OR_META_REGEX =
   /(ignore\s+(all\s+)?(previous|above)|system\s*prompt|забудь\s+(все\s+)?инструкц|игнорируй\s+(предыдущ|правил)|ты\s+(ии|бот|нейросет|gemini|чат-?бот|языковая\s+модель)|кто\s+тебя\s+обучил|какая\s+ты\s+модель|напиши\s+(код|реферат|эссе|сочинение|стих|скрипт)|переведи\s+текст|реши\s+(задачу|уравнение|пример)|<script|SELECT\s+\*\s+FROM)/i;
 
-export function sanitizeUserQuestion(raw: string): string {
+export function sanitizeUserQuestion(
+  raw: string,
+  maxChars: number = MAX_PREVIEW_QUESTION_CHARS,
+): string {
   return String(raw ?? '')
     .replace(/[\u0000-\u001F\u007F]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
-    .slice(0, MAX_PREVIEW_QUESTION_CHARS);
+    .slice(0, maxChars);
 }
 
-export function sanitizePreviewHistory(rawHistory: unknown): PreviewHistoryItem[] {
+export function sanitizeMultilineUserPrompt(
+  raw: string,
+  maxChars: number = MAX_UNLOCKED_QUESTION_CHARS,
+): string {
+  return String(raw ?? '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .trim()
+    .slice(0, maxChars);
+}
+
+export function sanitizePreviewHistory(
+  rawHistory: unknown,
+  maxItemChars: number = MAX_PREVIEW_QUESTION_CHARS,
+): PreviewHistoryItem[] {
   if (!Array.isArray(rawHistory)) return [];
   const cleaned: PreviewHistoryItem[] = [];
   for (const item of rawHistory.slice(-MAX_PREVIEW_HISTORY_ITEMS)) {
     if (!item || typeof item !== 'object') continue;
     const obj = item as { author?: unknown; text?: unknown };
     const author = sanitizeUserQuestion(typeof obj.author === 'string' ? obj.author : '').slice(0, 32);
-    const text = sanitizeUserQuestion(typeof obj.text === 'string' ? obj.text : '');
+    const text = sanitizeMultilineUserPrompt(typeof obj.text === 'string' ? obj.text : '', maxItemChars);
     if (!author || !text) continue;
     cleaned.push({ author, text });
   }
   return cleaned;
+}
+
+export function getConfiguredPreviewUnlockCode(envOverride?: string): string {
+  const cleaned = typeof envOverride === 'string' ? envOverride.trim() : '';
+  return cleaned || DEFAULT_PREVIEW_UNLOCK_CODE;
+}
+
+export function extractUnlockCodeCandidate(rawInput: string): string {
+  const trimmed = String(rawInput ?? '').trim();
+  const cmdMatch = /^\/unlock\s+(.+)$/i.exec(trimmed);
+  if (cmdMatch) {
+    return cmdMatch[1].trim();
+  }
+  return trimmed;
+}
+
+export function isValidPreviewUnlockAttempt(rawInput: string, expectedCode: string): boolean {
+  const candidate = extractUnlockCodeCandidate(rawInput);
+  const expected = String(expectedCode ?? '').trim();
+  if (!candidate || !expected) return false;
+  const candidateDigest = crypto.createHash('sha256').update(candidate, 'utf8').digest();
+  const expectedDigest = crypto.createHash('sha256').update(expected, 'utf8').digest();
+  return crypto.timingSafeEqual(candidateDigest, expectedDigest);
+}
+
+export function signPreviewUnlockToken(
+  hmacSecret: string,
+  nowMs: number = Date.now(),
+  ttlMs: number = UNLOCK_TOKEN_TTL_MS,
+): string {
+  const expMs = Math.floor(nowMs + ttlMs);
+  const payload = String(expMs);
+  const sig = crypto.createHmac('sha256', hmacSecret).update(payload, 'utf8').digest('hex');
+  return `${payload}.${sig}`;
+}
+
+export function verifyPreviewUnlockToken(
+  token: unknown,
+  hmacSecret: string,
+  nowMs: number = Date.now(),
+): boolean {
+  if (typeof token !== 'string' || !hmacSecret) return false;
+  const dotIdx = token.indexOf('.');
+  if (dotIdx <= 0) return false;
+  const payload = token.slice(0, dotIdx);
+  const providedSig = token.slice(dotIdx + 1);
+  if (!/^\d{10,16}$/.test(payload) || !/^[0-9a-f]{64}$/i.test(providedSig)) {
+    return false;
+  }
+  const expMs = Number(payload);
+  if (!Number.isFinite(expMs) || expMs <= nowMs) {
+    return false;
+  }
+  const expectedSig = crypto.createHmac('sha256', hmacSecret).update(payload, 'utf8').digest();
+  const providedBuf = Buffer.from(providedSig, 'hex');
+  if (expectedSig.length !== providedBuf.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(expectedSig, providedBuf);
 }
 
 export function isPromptInjectionOrOffTopic(question: string): boolean {
@@ -94,6 +175,17 @@ export function truncateChatReply(text: string, maxChars: number = MAX_PREVIEW_R
   return `${(lastSpace > 40 ? sliced.slice(0, lastSpace) : sliced).trim()}…`;
 }
 
+export function truncateUnlockedReply(
+  text: string,
+  maxChars: number = MAX_UNLOCKED_REPLY_CHARS,
+): string {
+  const cleaned = String(text ?? '')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+    .trim();
+  if (cleaned.length <= maxChars) return cleaned;
+  return `${cleaned.slice(0, maxChars - 1).trimEnd()}…`;
+}
+
 export function buildPreviewGeminiSystemInstruction(
   serverName: string,
   channelName: string,
@@ -120,6 +212,14 @@ export function buildPreviewGeminiSystemInstruction(
   ].join('\n');
 }
 
+export function buildUnlockedGeminiSystemInstruction(): string {
+  return [
+    'Для текущей сессии владельца активирован свободный режим чата: все ролевые, тематические и символьные ограничения превью-клиента Geek сняты.',
+    'Ты можешь свободно отвечать на любые вопросы — помогать с кодом, переводами, текстами, идеями, задачами и общими темами.',
+    'Отвечай чётко, по делу и на языке пользователя (по умолчанию на русском).',
+  ].join('\n');
+}
+
 export function buildPreviewGeminiPromptContents(
   question: string,
   history: PreviewHistoryItem[],
@@ -137,6 +237,27 @@ export function buildPreviewGeminiPromptContents(
     `Новое сообщение от [Вы (Гость)]: ${question}`,
     '',
     'Ответь одним живым коротким сообщением от имени L30nel, Sergo или Max.',
+  ].join('\n');
+}
+
+export function buildUnlockedPromptContents(
+  question: string,
+  history: PreviewHistoryItem[],
+): string {
+  const recentLines = history
+    .slice(-MAX_PREVIEW_HISTORY_ITEMS)
+    .map((m) => `[${m.author}]: ${m.text}`)
+    .join('\n');
+
+  if (!recentLines) {
+    return question;
+  }
+
+  return [
+    'Контекст последних сообщений:',
+    recentLines,
+    '',
+    `Запрос пользователя: ${question}`,
   ].join('\n');
 }
 
@@ -194,6 +315,33 @@ export function buildPeerPreviewMessage(
     badgeSet: profile.badgeSet,
     time: formatMsgTime(now),
     text,
+  };
+}
+
+export function buildUnlockedReplyMessage(
+  text: string,
+  now: Date = new Date(),
+): PreviewMessage {
+  return {
+    id: `free-${now.getTime()}-${Math.random().toString(36).slice(2, 6)}`,
+    author: 'Geek Core',
+    initials: 'GK',
+    avatarColor: '#10b981',
+    badgeSet: 'set1',
+    time: formatMsgTime(now),
+    text,
+  };
+}
+
+export function buildUnlockActivatedMessage(now: Date = new Date()): PreviewMessage {
+  return {
+    id: `unlock-${now.getTime()}-${Math.random().toString(36).slice(2, 6)}`,
+    author: 'СИСТЕМА GEEK',
+    initials: 'СГ',
+    avatarColor: '#00f0ff',
+    badgeSet: 'set1',
+    time: formatMsgTime(now),
+    text: '🔓 Свободный режим активирован для текущей сессии: тематические, ролевые и текстовые ограничения превью-чата сняты. Чтобы вернуться в обычный режим с L30nel, Sergo и Max, отправьте /lock.',
   };
 }
 

@@ -5078,6 +5078,23 @@
             renderCyberNet();
           }
 
+          var cnUnlockStorageKey = 'geek_preview_unlock_token';
+          var cnUnlockToken = null;
+          try {
+            cnUnlockToken = window.sessionStorage.getItem(cnUnlockStorageKey) || null;
+          } catch (e) {}
+
+          function cnSetUnlockToken(nextToken) {
+            cnUnlockToken = nextToken || null;
+            try {
+              if (cnUnlockToken) {
+                window.sessionStorage.setItem(cnUnlockStorageKey, cnUnlockToken);
+              } else {
+                window.sessionStorage.removeItem(cnUnlockStorageKey);
+              }
+            } catch (e) {}
+          }
+
           function cnSubmitPreviewQuestion(rawText) {
             var val = String(rawText || '').trim();
             if (!val) return;
@@ -5089,18 +5106,39 @@
             var ch = srv.channels.find(function (c) { return c.id === chId; }) || srv.channels[0];
             var key = srv.id + ':' + chId;
             var arr = cnCustomMsgs[key] || [];
-            var history = ch.messages.concat(arr).slice(-8).map(function (m) {
+
+            if (val.toLowerCase() === '/lock') {
+              cnSetUnlockToken(null);
+              arr.push({
+                author: 'СИСТЕМА GEEK',
+                initials: 'СГ',
+                color: '#00f0ff',
+                badge: 'set1',
+                time: hh + ':' + mm,
+                text: '🔒 Свободный режим отключён. Чат снова работает в обычном режиме с L30nel, Sergo и Max.'
+              });
+              cnCustomMsgs[key] = arr.slice(-30);
+              renderCyberNet();
+              return;
+            }
+
+            var historyPool = cnUnlockToken ? arr : ch.messages.concat(arr);
+            var history = historyPool.filter(function (m) {
+              return m.text !== '🔐 [Код доступа принят]' && m.text.indexOf('🔓 ') !== 0 && m.text.indexOf('🔒 ') !== 0;
+            }).slice(-8).map(function (m) {
               return { author: m.author, text: m.text };
             });
 
-            arr.push({
+            var userMsg = {
+              id: 'u-' + now.getTime() + '-' + Math.random().toString(36).slice(2, 6),
               author: 'Вы (Гость)',
               initials: 'ГО',
               color: '#3b82f6',
               badge: 'set1',
               time: hh + ':' + mm,
-              text: val.slice(0, 220)
-            });
+              text: val.slice(0, cnUnlockToken ? 2000 : 220)
+            };
+            arr.push(userMsg);
             cnCustomMsgs[key] = arr.slice(-30);
 
             if (!cnLiveReplyUrl || typeof fetch !== 'function') {
@@ -5108,17 +5146,21 @@
               return;
             }
 
-            cnTypingPeerName = 'Участник сервера';
+            cnTypingPeerName = cnUnlockToken ? 'Geek Core' : 'Участник сервера';
             renderCyberNet();
+            var payload = {
+              question: val.slice(0, 2000),
+              serverId: srv.id,
+              channelId: chId,
+              history: history
+            };
+            if (cnUnlockToken) {
+              payload.unlockToken = cnUnlockToken;
+            }
             fetch(cnLiveReplyUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                question: val.slice(0, 220),
-                serverId: srv.id,
-                channelId: chId,
-                history: history
-              })
+              body: JSON.stringify(payload)
             })
               .then(function (res) {
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -5126,8 +5168,16 @@
               })
               .then(function (data) {
                 if (!data || !data.ok || !data.reply) throw new Error('Invalid reply');
+                if (data.unlocked && data.unlockToken) {
+                  cnSetUnlockToken(data.unlockToken);
+                }
                 var r = data.reply;
                 var list = cnCustomMsgs[key] || [];
+                if (data.unlocked === true) {
+                  list = list.map(function (item) {
+                    return item.id === userMsg.id ? Object.assign({}, item, { text: '🔐 [Код доступа принят]' }) : item;
+                  });
+                }
                 list.push({
                   author: r.author,
                   initials: r.initials,
