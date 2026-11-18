@@ -1,8 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  PREVIEW_QUICK_QUESTIONS,
   PREVIEW_SERVERS,
   createUserPreviewMessage,
+  generatePreviewPeerReply,
 } from './platformPreview';
 
 test('PREVIEW_SERVERS defines 3 CYBER.NET servers with channels and members', () => {
@@ -26,6 +28,32 @@ test('createUserPreviewMessage ignores blank strings and trims valid input', () 
   assert.equal(msg.initials, 'ГО');
   assert.equal(msg.text, 'Привет команде Geek!');
   assert.equal(msg.time, '21:05');
+});
+
+test('generatePreviewPeerReply answers user questions in-character from server peers', () => {
+  assert.ok(PREVIEW_QUICK_QUESTIONS.length >= 4);
+  const fixed = new Date('2026-11-18T12:15:00');
+
+  const teamReply = generatePreviewPeerReply('Сколько разработчиков делают проект?', 'cy-4371', 'игровая-комната', fixed, 0);
+  assert.ok(teamReply);
+  assert.equal(teamReply.author, 'Kira');
+  assert.match(teamReply.text, /трёх разработчиков/i);
+  assert.equal(/двух\s+разработчик/i.test(teamReply.text), false);
+
+  const voiceReply = generatePreviewPeerReply('Как работает P2P-голос?', 'hc-node', 'код-и-архитектура', fixed, 1);
+  assert.ok(voiceReply);
+  assert.equal(voiceReply.author, 'DevCore');
+  assert.match(voiceReply.text, /WebRTC P2P/i);
+
+  const preBetaReply = generatePreviewPeerReply('Как позвонить другу 1-на-1?', 'cy-4371', 'общий', fixed, 2);
+  assert.ok(preBetaReply);
+  assert.equal(preBetaReply.author, 'Niko');
+  assert.match(preBetaReply.text, /GK-XXXX-XXXX/);
+
+  const customReply = generatePreviewPeerReply('Есть ли поддержка кастомных тем?', 'ma-club', 'идеи-комьюнити', fixed, 3);
+  assert.ok(customReply);
+  assert.equal(customReply.author, 'Muse');
+  assert.ok(customReply.text.length > 20);
 });
 
 test('user messages embed hard cipher clues for codes 1 and 2 without key 3, terminal instructions, or raw codes', () => {

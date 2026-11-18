@@ -1,9 +1,11 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Headphones, Mic, MicOff, Monitor, Paperclip, PhoneCall, Users, Video, Volume2, VolumeX, Zap } from 'lucide-react';
 import {
   BADGE_META,
+  PREVIEW_QUICK_QUESTIONS,
   PREVIEW_SERVERS,
   createUserPreviewMessage,
+  generatePreviewPeerReply,
   type PreviewBadgeSet,
   type PreviewMessage,
   type PreviewServerId,
@@ -79,6 +81,10 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
   const [screenActive, setScreenActive] = useState(false);
   const [showMembers, setShowMembers] = useState(true);
   const [inviteCopied, setInviteCopied] = useState(false);
+  const [typingPeerName, setTypingPeerName] = useState<string | null>(null);
+  const messagesScrollRef = useRef<HTMLDivElement | null>(null);
+  const replyCountRef = useRef<number>(0);
+  const replyTimersRef = useRef<number[]>([]);
 
   const preBeta = usePreBetaCall();
 
@@ -171,15 +177,61 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
     }));
   };
 
-  const handleSend = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const newMsg = createUserPreviewMessage(draft);
+  useEffect(() => {
+    const el = messagesScrollRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [allMessages.length, typingPeerName, messageKey]);
+
+  useEffect(() => {
+    return () => {
+      for (const timerId of replyTimersRef.current) {
+        window.clearTimeout(timerId);
+      }
+      replyTimersRef.current = [];
+    };
+  }, []);
+
+  const submitPreviewQuestion = (questionText: string) => {
+    const newMsg = createUserPreviewMessage(questionText);
     if (!newMsg) return;
+
+    const targetServerId = activeServer.id;
+    const targetChannelId = activeChannel.id;
+    const targetKey = `${targetServerId}:${targetChannelId}`;
+    const replyIdx = replyCountRef.current;
+    replyCountRef.current += 1;
+
     setCustomMessages((prev) => ({
       ...prev,
-      [messageKey]: [...(prev[messageKey] ?? []), newMsg].slice(-6),
+      [targetKey]: [...(prev[targetKey] ?? []), newMsg].slice(-30),
     }));
     setDraft('');
+
+    const reply = generatePreviewPeerReply(
+      newMsg.text,
+      targetServerId,
+      targetChannelId,
+      new Date(),
+      replyIdx,
+    );
+    if (!reply) return;
+
+    setTypingPeerName(reply.author);
+    const timerId = window.setTimeout(() => {
+      setCustomMessages((prev) => ({
+        ...prev,
+        [targetKey]: [...(prev[targetKey] ?? []), reply].slice(-30),
+      }));
+      setTypingPeerName((cur) => (cur === reply.author ? null : cur));
+    }, 450);
+    replyTimersRef.current.push(timerId);
+  };
+
+  const handleSend = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    submitPreviewQuestion(draft);
   };
 
   const handleCopyInvite = async () => {
@@ -666,6 +718,7 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
 
               {/* Messages Container */}
               <div
+                ref={messagesScrollRef}
                 className="px-3 py-2 space-y-2 max-h-[360px] overflow-y-auto"
                 data-testid="preview-messages"
               >
@@ -693,15 +746,39 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
                     </div>
                   </div>
                 ))}
+                {typingPeerName && (
+                  <div
+                    data-testid="preview-typing-indicator"
+                    className="px-3 py-1.5 text-[11px] font-mono-tech text-[#00f0ff] flex items-center gap-2"
+                  >
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+                    <span>{typingPeerName} печатает ответ...</span>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Bottom Console Input Box */}
+            {/* Bottom Console Input Box + Q&A Quick Prompts */}
             <div className="px-3 pb-3 pt-1">
               <div className="rounded-lg bg-[#0a1320]/95 border border-[#00f0ff]/40 px-2.5 py-2 space-y-1.5">
                 <div className="flex items-center justify-between text-[9px] font-extrabold uppercase text-[#63809b]">
-                  <span>ОКНО ВВОДА // КОНСОЛЬ</span>
+                  <span>ВОПРОС-ОТВЕТ // ЧАТ С УЧАСТНИКАМИ</span>
                   <span>КАНАЛ #{activeChannel.name.toUpperCase()}</span>
+                </div>
+                <div
+                  data-testid="preview-qa-chips"
+                  className="flex flex-wrap items-center gap-1.5 pb-0.5"
+                >
+                  {PREVIEW_QUICK_QUESTIONS.map((qText) => (
+                    <button
+                      key={qText}
+                      type="button"
+                      onClick={() => submitPreviewQuestion(qText)}
+                      className="text-[10.5px] font-semibold px-2 py-1 rounded bg-[#00f0ff]/10 border border-[#00f0ff]/25 text-[#9eeeff] hover:bg-[#00f0ff]/20 hover:border-[#00f0ff]/60 hover:text-white transition-colors cursor-pointer"
+                    >
+                      {qText}
+                    </button>
+                  ))}
                 </div>
                 <form onSubmit={handleSend} className="flex items-center gap-2">
                   <span
@@ -714,12 +791,14 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
                     type="text"
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
-                    placeholder={`Написать в #${activeChannel.name}...`}
+                    placeholder={`Задайте вопрос собеседникам в #${activeChannel.name}...`}
                     aria-label={`Сообщение в канал ${activeChannel.name}`}
+                    data-testid="preview-chat-input"
                     className="flex-1 min-w-0 bg-[#050a12] border border-[#00f0ff]/20 focus:border-[#00f0ff] focus:outline-none rounded-md px-3 py-2 text-sm text-[#e6f7ff] placeholder:text-[#63809b]"
                   />
                   <button
                     type="submit"
+                    data-testid="preview-chat-send"
                     className="bg-[#00f0ff] text-[#031518] px-3.5 py-2 rounded-md font-extrabold text-[11.5px] uppercase hover:brightness-110 transition-all cursor-pointer shrink-0"
                   >
                     ОТПРАВИТЬ

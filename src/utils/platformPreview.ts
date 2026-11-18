@@ -294,6 +294,31 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
   },
 ];
 
+export const PREVIEW_QUICK_QUESTIONS: string[] = [
+  'Когда релиз и бета?',
+  'Как работает P2P-голос?',
+  'Сколько разработчиков делают Geek?',
+  'Как позвонить другу 1-на-1?',
+  'Будет ли бесплатно?',
+];
+
+function pickServerPeer(serverId: PreviewServerId, preferredNick?: string, offset: number = 0): PreviewMember {
+  const srv = PREVIEW_SERVERS.find((s) => s.id === serverId) ?? PREVIEW_SERVERS[0];
+  const online = srv.members.filter((m) => m.online);
+  const pool = online.length > 0 ? online : srv.members;
+  if (preferredNick) {
+    const exact = pool.find((m) => m.nick.toLowerCase() === preferredNick.toLowerCase());
+    if (exact) return exact;
+  }
+  return pool[Math.abs(offset) % pool.length];
+}
+
+function formatMsgTime(now: Date): string {
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
 export function createUserPreviewMessage(
   rawText: string,
   now: Date = new Date(),
@@ -301,16 +326,91 @@ export function createUserPreviewMessage(
   const text = rawText.trim();
   if (!text) return null;
 
-  const hh = String(now.getHours()).padStart(2, '0');
-  const mm = String(now.getMinutes()).padStart(2, '0');
-
   return {
-    id: `user-${now.getTime()}`,
+    id: `user-${now.getTime()}-${Math.random().toString(36).slice(2, 6)}`,
     author: 'Вы (Гость)',
     initials: 'ГО',
     avatarColor: '#3b82f6',
     badgeSet: 'set1',
-    time: `${hh}:${mm}`,
+    time: formatMsgTime(now),
     text: text.slice(0, 220),
+  };
+}
+
+export function generatePreviewPeerReply(
+  rawQuestion: string,
+  serverId: PreviewServerId,
+  channelId: string,
+  now: Date = new Date(),
+  replyIndex: number = 0,
+): PreviewMessage | null {
+  const clean = rawQuestion.trim();
+  if (!clean) return null;
+
+  const q = clean.toLowerCase().replace(/ё/g, 'е');
+  let preferredAuthor: string | undefined;
+  let answerText: string;
+
+  if (/команд|разработ|кто\s+дела|кто\s+созда|сколько\s+(людей|человек|вас)|энтузиазм|авторы/.test(q)) {
+    preferredAuthor = serverId === 'hc-node' ? 'DevCore' : 'Kira';
+    answerText =
+      'Geek пилит небольшая команда из трёх разработчиков на чистом энтузиазме в свободное время. Стараемся проработать каждую деталь — от звука до интерфейса!';
+  } else if (/pre-?beta|пре-?бета|1-?на-?1|один\s+на\s+один|код\s+доступ|пригласит|позвонить\s+другу|другу/.test(q)) {
+    preferredAuthor = serverId === 'hc-node' ? 'DevCore' : 'Niko';
+    answerText =
+      'Переключайся на кнопку «PRE-BETA СВЯЗЬ 1-НА-1» сверху или иконку PB слева: получишь одноразовый код GK-XXXX-XXXX на 2 человек. Общий лимит — 30 минут, при выходе твой таймер сразу ставится на паузу.';
+  } else if (/голос|звук|микрофон|webrtc|p2p|пинг|задерж|эхо|звон|слыш|релей|relay/.test(q)) {
+    preferredAuthor = serverId === 'hc-node' ? 'DevCore' : 'Kira';
+    answerText =
+      'Голос работает напрямую через WebRTC P2P с аппаратным эхоподавлением. Если жёсткий NAT или провайдер режет UDP, канал через пару секунд сам переключится на резервный серверный аудиопоток без наложений.';
+  } else if (/приват|шифр|безопас|e2e|утеч|данн|слеж/.test(q)) {
+    preferredAuthor = serverId === 'hc-node' ? 'Alex' : 'Vex';
+    answerText =
+      'Личные и групповые каналы проектируются со сквозным шифрованием, а в Pre-Beta комнатах сигнал идёт только между двумя подключёнными участниками без лишних посредников.';
+  } else if (/релиз|когда\s+выйд|бета|тест|старт|дорожн|roadmap|план/.test(q)) {
+    preferredAuthor = serverId === 'cy-4371' ? 'Niko' : 'Alex';
+    answerText =
+      'Запуск идёт поэтапно: ядро и текстовые каналы уже готовы, сейчас допиливаем P2P-голос и шифрование. Приглашения на закрытое тестирование раздаём в Telegram @geek_mes.';
+  } else if (/цен|бесплат|платн|подписк|стои|деньг|донат|нитро|nitro/.test(q)) {
+    preferredAuthor = serverId === 'ma-club' ? 'Muse' : 'Vex';
+    answerText =
+      'Да, всё базовое будет бесплатным: создание серверов, текстовые каналы, голосовой чат с высоким битрейтом и демонстрация экрана без искусственных ограничений.';
+  } else if (/устройств|платформ|windows|mac|linux|ios|android|телефон|мобил|браузер|скачат|пк/.test(q)) {
+    preferredAuthor = serverId === 'hc-node' ? 'DevCore' : 'Kira';
+    answerText =
+      'Сначала откроемся прямо в браузере и в лёгком десктоп-клиенте для Windows, macOS и Linux, а следующим шагом выйдут нативные приложения для iOS и Android.';
+  } else if (/бот|sdk|api|вебхук|webhook|discord|дискорд|импорт|перенес/.test(q)) {
+    preferredAuthor = serverId === 'hc-node' ? 'DevCore' : 'Alex';
+    answerText =
+      'На третьем этапе дорожной карты добавим открытый SDK для ботов, вебхуки и инструмент быстрого переноса структуры серверов, ролей и каналов из Discord.';
+  } else if (/секрет|пасхал|шифр|загад|подсказ|код\s*\d|четыре\s*цифр|ребус/.test(q)) {
+    preferredAuthor = 'Kira';
+    answerText =
+      'В логах выше уже спрятаны зацепки — смотри внимательнее на строки Base64, двоичные сдвиги и шестнадцатеричные множители. Готовых цифр в чат мы не сливаем 😉';
+  } else if (/рамк|знач|аватар|тема|интерфейс|дизайн|музык|радио|108\.4|камер|экран|18\+/.test(q)) {
+    preferredAuthor = serverId === 'ma-club' ? 'Muse' : 'Vex';
+    answerText =
+      'В интерфейсе есть гексагональные аватары, наборы неоновых рамок (LUCY NET, EDGERUN, SAMURAI), шторка камеры, фильтр 18+ со спойлером и фоновый стрим 108.4 FM.';
+  } else if (/контакт|почт|связат|обратн|помощ|поддерж|баг|ошибк|предлож/.test(q)) {
+    preferredAuthor = 'Niko';
+    answerText =
+      'Напиши нам через форму «Обратная связь» ниже на странице или напрямую на admin@geek-voice.ru — все сообщения попадают напрямую нашей тройке разработчиков.';
+  } else if (/^(привет|здаров|здравств|хай|ку|салют|йо|hello|hi|hey|как\s+дела|кто\s+тут|вы\s+тут)\b/.test(q)) {
+    preferredAuthor = serverId === 'cy-4371' ? 'Niko' : undefined;
+    answerText = `Привет! Добро пожаловать в #${channelId}. Можешь спросить здесь про релиз, P2P-голос, Pre-Beta связь 1-на-1, платформы, ботов или нашу команду из трёх разработчиков — ответим прямо в чате.`;
+  } else {
+    const snippet = clean.length > 52 ? `${clean.slice(0, 52)}...` : clean;
+    answerText = `По вопросу «${snippet}»: в #${channelId} мы как раз тестируем превью-клиент Geek. У нас 3 разработчика, прямой P2P-голос, Pre-Beta звонки 1-на-1 по коду, открытый Bot SDK в плане и бесплатный базовый доступ. Спроси подробнее про любую из этих тем или загляни в FAQ ниже!`;
+  }
+
+  const peer = pickServerPeer(serverId, preferredAuthor, replyIndex);
+  return {
+    id: `reply-${now.getTime()}-${replyIndex}-${Math.random().toString(36).slice(2, 6)}`,
+    author: peer.nick,
+    initials: peer.initials,
+    avatarColor: peer.avatarColor,
+    badgeSet: peer.badgeSet,
+    time: formatMsgTime(now),
+    text: answerText,
   };
 }
