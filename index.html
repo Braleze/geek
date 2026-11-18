@@ -4978,12 +4978,24 @@
             return pool[Math.abs(offset || 0) % pool.length];
           }
 
-          var cnLiveRepliesEnabled = false;
+          var cnLiveReplyUrl = null;
           if (typeof fetch === 'function') {
-            fetch('/api/preview/status')
-              .then(function (r) { return r.ok ? r.json() : null; })
-              .then(function (d) { if (d && d.ok && d.liveEnabled) cnLiveRepliesEnabled = true; })
-              .catch(function () {});
+            var cnFetchJson = function (url) {
+              return fetch(url).then(function (r) {
+                var ct = (r.headers && r.headers.get && r.headers.get('content-type')) || '';
+                if (!r.ok || ct.toLowerCase().indexOf('application/json') === -1) return null;
+                return r.json();
+              }).catch(function () { return null; });
+            };
+            cnFetchJson('./api/preview/status').then(function (d) {
+              if (d && d.ok) {
+                if (d.liveEnabled) cnLiveReplyUrl = './api/preview/reply';
+                return null;
+              }
+              return cnFetchJson('./api/preview.php?action=status').then(function (pd) {
+                if (pd && pd.ok && pd.liveEnabled) cnLiveReplyUrl = './api/preview.php?action=reply';
+              });
+            }).catch(function () {});
           }
 
           function cnGeneratePeerReply(rawQuestion, srv, chId, now, replyIndex) {
@@ -5091,14 +5103,14 @@
             });
             cnCustomMsgs[key] = arr.slice(-30);
 
-            if (!cnLiveRepliesEnabled || typeof fetch !== 'function') {
+            if (!cnLiveReplyUrl || typeof fetch !== 'function') {
               cnScheduleFallbackReply(val, srv, chId, key, now, arr.length);
               return;
             }
 
             cnTypingPeerName = 'Участник сервера';
             renderCyberNet();
-            fetch('/api/preview/reply', {
+            fetch(cnLiveReplyUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

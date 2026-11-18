@@ -13,6 +13,7 @@ import {
 import { usePreBetaCall } from '../hooks/usePreBetaCall';
 import { PreBetaWorkspace } from './PreBetaWorkspace';
 import { formatCountdownMs, normalizePreBetaCode } from '../utils/preBetaSession';
+import { probePreviewBackend } from '../utils/previewTransport';
 
 const WAVE_DELAYS = ['0s', '.2s', '.4s', '.1s', '.3s', '.5s', '.15s', '.35s', '.05s', '.25s', '.45s', '.12s'];
 
@@ -85,7 +86,7 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const replyCountRef = useRef<number>(0);
   const replyTimersRef = useRef<number[]>([]);
-  const liveRepliesEnabledRef = useRef<boolean>(false);
+  const liveReplyUrlRef = useRef<string | null>(null);
   const isMountedRef = useRef<boolean>(true);
 
   const preBeta = usePreBetaCall();
@@ -188,21 +189,14 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
 
   useEffect(() => {
     isMountedRef.current = true;
-    const controller = new AbortController();
-    fetch('/api/preview/status', { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { ok?: boolean; liveEnabled?: boolean } | null) => {
-        if (isMountedRef.current && data?.ok && data.liveEnabled) {
-          liveRepliesEnabledRef.current = true;
-        }
-      })
-      .catch(() => {
-        // Static hosting or offline fallback
-      });
+    void probePreviewBackend().then((cfg) => {
+      if (isMountedRef.current && cfg.liveEnabled && cfg.replyUrl) {
+        liveReplyUrlRef.current = cfg.replyUrl;
+      }
+    });
 
     return () => {
       isMountedRef.current = false;
-      controller.abort();
       for (const timerId of replyTimersRef.current) {
         window.clearTimeout(timerId);
       }
@@ -261,13 +255,14 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
     }));
     setDraft('');
 
-    if (!liveRepliesEnabledRef.current) {
+    const replyUrl = liveReplyUrlRef.current;
+    if (!replyUrl) {
       scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
       return;
     }
 
     setTypingPeerName('Участник сервера');
-    void fetch('/api/preview/reply', {
+    void fetch(replyUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

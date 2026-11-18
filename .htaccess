@@ -1,6 +1,8 @@
 DirectoryIndex index.html
 
 RedirectMatch 404 ^/\.git
+RedirectMatch 404 ^/\.env
+RedirectMatch 404 ^/\.prebeta-state\.json$
 RedirectMatch 404 ^/src/
 RedirectMatch 404 ^/(package\.json|package-lock\.json|tsconfig\.json|vite\.config\.ts|metadata\.json)$
 
