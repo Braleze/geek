@@ -3487,6 +3487,75 @@
           var cnCam = false;
           var cnScreen = false;
           var cnShowMembers = true;
+          var cnL30nelAudio = null;
+          var cnL30nelExhausted = false;
+
+          function stopL30nelVoiceAudio() {
+            if (!cnL30nelAudio) return;
+            var el = cnL30nelAudio;
+            cnL30nelAudio = null;
+            el.onerror = null;
+            try {
+              el.pause();
+              el.currentTime = 0;
+            } catch (e) {}
+            el.src = '';
+          }
+
+          function syncL30nelVoiceAudio() {
+            var shouldPlay = !pbActive && cnVoiceServerId === 'cy-4371';
+            if (!shouldPlay) {
+              stopL30nelVoiceAudio();
+              return;
+            }
+            if (typeof Audio === 'undefined') return;
+            if (cnL30nelAudio) {
+              cnL30nelAudio.muted = cnDeafened;
+              if (!cnDeafened && cnL30nelAudio.paused && !cnL30nelExhausted) {
+                try {
+                  var pr = cnL30nelAudio.play();
+                  if (pr && typeof pr.catch === 'function') pr.catch(function () {});
+                } catch (e) {}
+              }
+              return;
+            }
+            var exts = ['mp3', 'ogg', 'wav', 'm4a'];
+            var candidates = [];
+            for (var i = 0; i < exts.length; i++) {
+              candidates.push('./audio/l30nel.' + exts[i]);
+              candidates.push('./public/audio/l30nel.' + exts[i]);
+            }
+            var idx = 0;
+            cnL30nelExhausted = false;
+            var el = new Audio();
+            el.loop = true;
+            el.preload = 'auto';
+            el.volume = 0.85;
+            el.muted = cnDeafened;
+            cnL30nelAudio = el;
+
+            function loadNext() {
+              if (!cnL30nelAudio || pbActive || cnVoiceServerId !== 'cy-4371') return;
+              el.src = candidates[idx];
+              try {
+                var p = el.play();
+                if (p && typeof p.catch === 'function') p.catch(function () {});
+              } catch (e) {}
+            }
+
+            el.onerror = function () {
+              if (!cnL30nelAudio || pbActive || cnVoiceServerId !== 'cy-4371') return;
+              idx += 1;
+              if (idx >= candidates.length) {
+                cnL30nelExhausted = true;
+                stopL30nelVoiceAudio();
+                return;
+              }
+              loadNext();
+            };
+
+            loadNext();
+          }
 
           var cnMsgsEl = document.getElementById('gk-preview-messages');
           var cnTypingEl = document.getElementById('gk-preview-typing');
@@ -3643,7 +3712,7 @@
               srv.members.forEach(function (m) {
                 if (m.online && m.inVoice) {
                   peers.push({
-                    nick: m.nick,
+                    nick: m.nick + (m.nick === 'L30nel' && isInViewedVoice && srv.id === 'cy-4371' ? ' 🎵' : ''),
                     initials: m.initials,
                     color: m.color,
                     speaking: Boolean(m.speaking)
@@ -3690,6 +3759,7 @@
             if (vcGuestStatus) {
               vcGuestStatus.textContent = !cnVoiceServerId ? 'Не в голосе' : cnDeafened ? 'Звук выкл' : cnMicMuted ? 'Микрофон выкл' : 'В эфире';
             }
+            syncL30nelVoiceAudio();
 
             if (cnMsgsEl) {
               cnMsgsEl.innerHTML = '';
@@ -4694,6 +4764,7 @@
           }
 
           function renderPreBeta() {
+            syncL30nelVoiceAudio();
             var countdown = pbFormatMs(pbRoom ? pbRemainingMs : pbQuota.remainingMs);
             if (pbTabDemo) {
               pbTabDemo.classList.toggle('is-demo-active', !pbActive);

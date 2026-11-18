@@ -731,6 +731,16 @@ async function startServer(): Promise<void> {
     }
   }, 1000);
 
+  const publicAudioDir = path.resolve(process.cwd(), 'public', 'audio');
+  const rootAudioDir = path.resolve(process.cwd(), 'audio');
+  if (fs.existsSync(publicAudioDir)) {
+    app.use('/audio', express.static(publicAudioDir));
+    app.use('/public/audio', express.static(publicAudioDir));
+  }
+  if (fs.existsSync(rootAudioDir)) {
+    app.use('/audio', express.static(rootAudioDir));
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({

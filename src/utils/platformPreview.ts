@@ -524,3 +524,11 @@ export function toggleVoiceForViewedServer(
   return currentVoiceServerId === viewedServerId ? null : viewedServerId;
 }
 
+export function shouldPlayL30nelVoiceAudio(state: {
+  voiceServerId: PreviewServerId | null;
+  preBetaMode: boolean;
+}): boolean {
+  return !state.preBetaMode && state.voiceServerId === 'cy-4371';
+}
+
+

@@ -16,6 +16,7 @@ test('TRACK_FILENAMES use expected clean names without exposing secret codes', (
     cyberpunk: 'cyberpunk.mp3',
     tribute: 'gorshenev.mp3',
     love: 'love.mp3',
+    l30nel: 'l30nel.mp3',
   });
 
   const combined = [
@@ -39,6 +40,10 @@ test('getTrackCandidateUrls orders ./audio and ./public/audio candidates cleanly
   const loveUrls = getTrackCandidateUrls('love');
   assert.equal(loveUrls[0], './audio/love.mp3');
   assert.equal(loveUrls[1], './public/audio/love.mp3');
+
+  const l30nelUrls = getTrackCandidateUrls('l30nel');
+  assert.equal(l30nelUrls[0], './audio/l30nel.mp3');
+  assert.equal(l30nelUrls[1], './public/audio/l30nel.mp3');
 });
 
 test('TrackAudioPlayer cycles candidates on error, handles mute/unmute, and stops cleanly', () => {

@@ -26,6 +26,19 @@ export default defineConfig(() => {
           if (fs.existsSync(distDir) && fs.existsSync(srcAssets)) {
             fs.cpSync(srcAssets, distAssets, {recursive: true, force: true});
           }
+          const rootAudio = path.resolve(__dirname, 'audio');
+          const distAudio = path.resolve(distDir, 'audio');
+          if (fs.existsSync(distDir) && fs.existsSync(rootAudio)) {
+            fs.mkdirSync(distAudio, {recursive: true});
+            for (const entry of fs.readdirSync(rootAudio)) {
+              if (entry === '.gitkeep') continue;
+              const srcFile = path.join(rootAudio, entry);
+              const dstFile = path.join(distAudio, entry);
+              if (!fs.existsSync(dstFile)) {
+                fs.cpSync(srcFile, dstFile, {recursive: true});
+              }
+            }
+          }
         },
       },
     ],

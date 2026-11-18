@@ -21,11 +21,13 @@ import {
   createUserPreviewMessage,
   generatePreviewPeerReply,
   getVoicePeersForServer,
+  shouldPlayL30nelVoiceAudio,
   toggleVoiceForViewedServer,
   type PreviewBadgeSet,
   type PreviewMessage,
   type PreviewServerId,
 } from '../utils/platformPreview';
+import { TrackAudioPlayer } from '../utils/audioTracks';
 import { usePreBetaCall } from '../hooks/usePreBetaCall';
 import { PreBetaWorkspace } from './PreBetaWorkspace';
 import { formatCountdownMs, normalizePreBetaCode } from '../utils/preBetaSession';
@@ -114,6 +116,24 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
   const replyTimersRef = useRef<number[]>([]);
   const liveReplyUrlRef = useRef<string | null>(null);
   const isMountedRef = useRef<boolean>(true);
+  const l30nelAudioPlayerRef = useRef<TrackAudioPlayer | null>(null);
+
+  const syncL30nelVoiceAudio = (
+    targetVoiceServerId: PreviewServerId | null,
+    isPreBeta: boolean,
+    isDeafened: boolean,
+  ) => {
+    if (!l30nelAudioPlayerRef.current) {
+      l30nelAudioPlayerRef.current = new TrackAudioPlayer('l30nel');
+    }
+    const player = l30nelAudioPlayerRef.current;
+    player.setMuted(isDeafened);
+    if (shouldPlayL30nelVoiceAudio({ voiceServerId: targetVoiceServerId, preBetaMode: isPreBeta })) {
+      player.start();
+    } else {
+      player.stop();
+    }
+  };
 
   const preBeta = usePreBetaCall();
 
@@ -179,21 +199,31 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
   });
 
   const handleToggleVoiceChannel = (targetServerId: PreviewServerId) => {
-    setVoiceServerId((prev) => {
-      const next = toggleVoiceForViewedServer(prev, targetServerId);
-      if (next === null) {
-        setCamActive(false);
-        setScreenActive(false);
-      }
-      return next;
-    });
+    const next = toggleVoiceForViewedServer(voiceServerId, targetServerId);
+    setVoiceServerId(next);
+    if (next === null) {
+      setCamActive(false);
+      setScreenActive(false);
+    }
+    syncL30nelVoiceAudio(next, preBetaMode, deafened);
   };
 
   const handleLeaveVoice = () => {
     setVoiceServerId(null);
     setCamActive(false);
     setScreenActive(false);
+    syncL30nelVoiceAudio(null, preBetaMode, deafened);
   };
+
+  useEffect(() => {
+    syncL30nelVoiceAudio(voiceServerId, preBetaMode, deafened);
+  }, [voiceServerId, preBetaMode, deafened]);
+
+  useEffect(() => {
+    return () => {
+      l30nelAudioPlayerRef.current?.stop();
+    };
+  }, []);
 
   const handleSelectServer = (srvId: PreviewServerId) => {
     setPreBetaMode(false);
@@ -713,6 +743,7 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                       />
                       <span className="truncate flex-1">
                         {vp.nick}
+                        {vp.id === 'u-l30nel' && isInActiveServerVoice ? ' 🎵' : ''}
                         {vp.inCam ? ' 📷' : ''}
                         {vp.inScreen ? ' 🖥️' : ''}
                       </span>
@@ -783,7 +814,10 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                   <button
                     type="button"
                     onClick={() => {
-                      if (!voiceServerId) setVoiceServerId(activeServer.id);
+                      if (!voiceServerId) {
+                        setVoiceServerId(activeServer.id);
+                        syncL30nelVoiceAudio(activeServer.id, preBetaMode, deafened);
+                      }
                       setCamActive((prev) => !prev);
                     }}
                     aria-pressed={camActive}
@@ -799,7 +833,10 @@ const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
                   <button
                     type="button"
                     onClick={() => {
-                      if (!voiceServerId) setVoiceServerId(activeServer.id);
+                      if (!voiceServerId) {
+                        setVoiceServerId(activeServer.id);
+                        syncL30nelVoiceAudio(activeServer.id, preBetaMode, deafened);
+                      }
                       setScreenActive((prev) => !prev);
                     }}
                     aria-pressed={screenActive}

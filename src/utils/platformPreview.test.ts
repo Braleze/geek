@@ -106,7 +106,11 @@ test('user messages embed hard cipher clues for codes 1 and 2 without key 3, ter
   assert.equal(/5\s*нажатий|откроют\s*терминал|p2p\s*голос/i.test(allTexts), false);
 });
 
-import { getVoicePeersForServer, toggleVoiceForViewedServer } from './platformPreview';
+import {
+  getVoicePeersForServer,
+  shouldPlayL30nelVoiceAudio,
+  toggleVoiceForViewedServer,
+} from './platformPreview';
 
 test('preview starts outside any voice channel and keeps guest only in the joined server when browsing others', () => {
   const nightclub = PREVIEW_SERVERS[0];
@@ -159,4 +163,13 @@ test('preview starts outside any voice channel and keeps guest only in the joine
     true,
   );
 });
+
+test('L30nel plays MP3 audio only when user is connected to Ночной эфир outside Pre-Beta mode', () => {
+  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: null, preBetaMode: false }), false);
+  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: 'cy-4371', preBetaMode: false }), true);
+  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: 'hc-node', preBetaMode: false }), false);
+  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: 'ma-club', preBetaMode: false }), false);
+  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: 'cy-4371', preBetaMode: true }), false);
+});
+
 
