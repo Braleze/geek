@@ -1,9 +1,14 @@
+import 'dotenv/config';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
 import express from 'express';
 import { WebSocket, WebSocketServer } from 'ws';
+import {
+  generateLivePreviewPeerReply,
+  isPreviewGeminiConfigured,
+} from './src/utils/previewGeminiService.ts';
 import {
   PRE_BETA_MAX_PARTICIPANTS,
   appendPreBetaMessage,
@@ -218,6 +223,35 @@ async function startServer(): Promise<void> {
 
   app.get('/api/health', (_req, res) => {
     res.json({ ok: true });
+  });
+
+  app.get('/api/preview/status', (_req, res) => {
+    res.json({
+      ok: true,
+      liveEnabled: isPreviewGeminiConfigured(),
+    });
+  });
+
+  app.post('/api/preview/reply', async (req, res) => {
+    const body = parseBodyObj(req.body);
+    const result = await generateLivePreviewPeerReply({
+      question: body.question,
+      serverId: body.serverId,
+      channelId: body.channelId,
+      history: body.history,
+    });
+    if (!result.ok) {
+      res.status(result.status).json({
+        ok: false,
+        reason: result.reason,
+        error: result.message,
+      });
+      return;
+    }
+    res.json({
+      ok: true,
+      reply: result.reply,
+    });
   });
 
   app.get('/api/prebeta/status', (req, res) => {

@@ -1,5 +1,6 @@
 export type PreviewServerId = 'cy-4371' | 'hc-node' | 'ma-club';
 export type PreviewBadgeSet = 'set1' | 'set2' | 'set3' | '';
+export type PreviewPeerNick = 'L30nel' | 'Sergo' | 'Max';
 
 export interface PreviewMessage {
   id: string;
@@ -19,7 +20,7 @@ export interface PreviewTextChannel {
 
 export interface PreviewMember {
   id: string;
-  nick: string;
+  nick: PreviewPeerNick;
   initials: string;
   avatarColor: string;
   badgeSet: PreviewBadgeSet;
@@ -45,6 +46,30 @@ export const BADGE_META: Record<Exclude<PreviewBadgeSet, ''>, { label: string; c
   set3: { label: '🔥 SAMURAI', className: 'geek-badge-set3' },
 };
 
+export const PREVIEW_PEER_PROFILES: Record<
+  PreviewPeerNick,
+  { nick: PreviewPeerNick; initials: string; avatarColor: string; badgeSet: PreviewBadgeSet }
+> = {
+  L30nel: {
+    nick: 'L30nel',
+    initials: 'L3',
+    avatarColor: '#ff2a85',
+    badgeSet: 'set3',
+  },
+  Sergo: {
+    nick: 'Sergo',
+    initials: 'SE',
+    avatarColor: '#3b82f6',
+    badgeSet: 'set2',
+  },
+  Max: {
+    nick: 'Max',
+    initials: 'MX',
+    avatarColor: '#b829ff',
+    badgeSet: 'set1',
+  },
+};
+
 export const PREVIEW_SERVERS: PreviewServer[] = [
   {
     id: 'cy-4371',
@@ -68,8 +93,8 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
           },
           {
             id: 'm2',
-            author: 'Niko',
-            initials: 'NI',
+            author: 'L30nel',
+            initials: 'L3',
             avatarColor: '#ff2a85',
             badgeSet: 'set3',
             time: '23:42',
@@ -77,12 +102,12 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
           },
           {
             id: 'm3',
-            author: 'Kira',
-            initials: 'KI',
+            author: 'Sergo',
+            initials: 'SE',
             avatarColor: '#3b82f6',
             badgeSet: 'set2',
             time: '23:44',
-            text: 'Уже на месте! Кстати, пока ковыряла сборку SAMURAI, нашла в дампе пару простых множителей из хроники Пондсмита: первый равен 0x1F, а второй в ASCII отвечает за заглавную литеру C. Их произведение — ровно год той самой башни.',
+            text: 'Уже на месте! Кстати, пока ковырял сборку SAMURAI, нашёл в дампе пару простых множителей из хроники Пондсмита: первый равен 0x1F, а второй в ASCII отвечает за заглавную литеру C. Их произведение — ровно год той самой башни.',
           },
         ],
       },
@@ -92,19 +117,19 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
         messages: [
           {
             id: 'g1',
-            author: 'Artyom',
-            initials: 'AR',
-            avatarColor: '#10b981',
+            author: 'Max',
+            initials: 'MX',
+            avatarColor: '#b829ff',
             badgeSet: 'set1',
             time: '22:18',
             text: 'Как вам гексагональные аватары и неоновые наборы рамок профиля?',
           },
           {
             id: 'g2',
-            author: 'Vex',
-            initials: 'VX',
-            avatarColor: '#b829ff',
-            badgeSet: 'set2',
+            author: 'L30nel',
+            initials: 'L3',
+            avatarColor: '#ff2a85',
+            badgeSet: 'set3',
             time: '22:20',
             text: 'Набор SAMURAI с Джонни — топ. А бинды Ctrl/Alt вообще спасают в катках.',
           },
@@ -116,10 +141,10 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
         messages: [
           {
             id: 'z1',
-            author: 'Lina',
-            initials: 'LI',
-            avatarColor: '#ff2a85',
-            badgeSet: 'set1',
+            author: 'Sergo',
+            initials: 'SE',
+            avatarColor: '#3b82f6',
+            badgeSet: 'set2',
             time: '21:10',
             text: 'Ищем тиму на вечерние коопы и обсуждаем свежие сборки.',
           },
@@ -131,10 +156,10 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
         messages: [
           {
             id: 'mu1',
-            author: 'Silver',
-            initials: 'SV',
-            avatarColor: '#ff003c',
-            badgeSet: 'set3',
+            author: 'Max',
+            initials: 'MX',
+            avatarColor: '#b829ff',
+            badgeSet: 'set1',
             time: '23:15',
             text: '108.4 FM // Вечерний синтвейв и гитарные риффы для кодинга.',
           },
@@ -143,9 +168,9 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
     ],
     members: [
       {
-        id: 'u-niko',
-        nick: 'Niko',
-        initials: 'NI',
+        id: 'u-l30nel',
+        nick: 'L30nel',
+        initials: 'L3',
         avatarColor: '#ff2a85',
         badgeSet: 'set3',
         online: true,
@@ -154,9 +179,9 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
         speaking: true,
       },
       {
-        id: 'u-kira',
-        nick: 'Kira',
-        initials: 'KI',
+        id: 'u-sergo',
+        nick: 'Sergo',
+        initials: 'SE',
         avatarColor: '#3b82f6',
         badgeSet: 'set2',
         online: true,
@@ -164,23 +189,13 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
         inVoice: true,
       },
       {
-        id: 'u-vex',
-        nick: 'Vex',
-        initials: 'VX',
+        id: 'u-max',
+        nick: 'Max',
+        initials: 'MX',
         avatarColor: '#b829ff',
         badgeSet: 'set1',
         online: true,
         customStatus: 'Читает чат',
-        inVoice: false,
-      },
-      {
-        id: 'u-artyom',
-        nick: 'Artyom',
-        initials: 'AR',
-        avatarColor: '#10b981',
-        badgeSet: 'set1',
-        online: false,
-        customStatus: '',
         inVoice: false,
       },
     ],
@@ -198,19 +213,19 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
         messages: [
           {
             id: 'h1',
-            author: 'DevCore',
-            initials: 'DC',
-            avatarColor: '#00f0ff',
-            badgeSet: 'set1',
+            author: 'Sergo',
+            initials: 'SE',
+            avatarColor: '#3b82f6',
+            badgeSet: 'set2',
             time: '19:40',
             text: 'Перевели голосовые комнаты на прямые WebRTC P2P-каналы с резервным релеем.',
           },
           {
             id: 'h2',
-            author: 'Alex',
-            initials: 'AL',
-            avatarColor: '#3b82f6',
-            badgeSet: 'set2',
+            author: 'Max',
+            initials: 'MX',
+            avatarColor: '#b829ff',
+            badgeSet: 'set1',
             time: '19:45',
             text: 'Отличный апдейт! Ждём наборы ранних тестировщиков в @geek_mes.',
           },
@@ -234,24 +249,34 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
     ],
     members: [
       {
-        id: 'u-dev',
-        nick: 'DevCore',
-        initials: 'DC',
-        avatarColor: '#00f0ff',
-        badgeSet: 'set1',
+        id: 'u-sergo-hc',
+        nick: 'Sergo',
+        initials: 'SE',
+        avatarColor: '#3b82f6',
+        badgeSet: 'set2',
         online: true,
         customStatus: 'Собирает билд',
         inVoice: true,
         speaking: true,
       },
       {
-        id: 'u-alex',
-        nick: 'Alex',
-        initials: 'AL',
-        avatarColor: '#3b82f6',
-        badgeSet: 'set2',
+        id: 'u-max-hc',
+        nick: 'Max',
+        initials: 'MX',
+        avatarColor: '#b829ff',
+        badgeSet: 'set1',
         online: true,
         customStatus: 'В коде',
+        inVoice: false,
+      },
+      {
+        id: 'u-l30nel-hc',
+        nick: 'L30nel',
+        initials: 'L3',
+        avatarColor: '#ff2a85',
+        badgeSet: 'set3',
+        online: false,
+        customStatus: '',
         inVoice: false,
       },
     ],
@@ -269,10 +294,10 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
         messages: [
           {
             id: 'ma1',
-            author: 'Muse',
-            initials: 'MU',
-            avatarColor: '#ff2a85',
-            badgeSet: 'set2',
+            author: 'Max',
+            initials: 'MX',
+            avatarColor: '#b829ff',
+            badgeSet: 'set1',
             time: '20:05',
             text: 'Добавили шторку регулировки камер и фильтр 18+ со спойлером прямо в чате.',
           },
@@ -281,14 +306,34 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
     ],
     members: [
       {
-        id: 'u-muse',
-        nick: 'Muse',
-        initials: 'MU',
-        avatarColor: '#ff2a85',
-        badgeSet: 'set2',
+        id: 'u-max-ma',
+        nick: 'Max',
+        initials: 'MX',
+        avatarColor: '#b829ff',
+        badgeSet: 'set1',
         online: true,
         customStatus: 'Рисует рамки',
         inVoice: true,
+      },
+      {
+        id: 'u-l30nel-ma',
+        nick: 'L30nel',
+        initials: 'L3',
+        avatarColor: '#ff2a85',
+        badgeSet: 'set3',
+        online: true,
+        customStatus: 'Тестирует звук',
+        inVoice: false,
+      },
+      {
+        id: 'u-sergo-ma',
+        nick: 'Sergo',
+        initials: 'SE',
+        avatarColor: '#3b82f6',
+        badgeSet: 'set2',
+        online: false,
+        customStatus: '',
+        inVoice: false,
       },
     ],
   },
@@ -302,7 +347,11 @@ export const PREVIEW_QUICK_QUESTIONS: string[] = [
   'Будет ли бесплатно?',
 ];
 
-function pickServerPeer(serverId: PreviewServerId, preferredNick?: string, offset: number = 0): PreviewMember {
+export function pickServerPeer(
+  serverId: PreviewServerId,
+  preferredNick?: PreviewPeerNick | string,
+  offset: number = 0,
+): PreviewMember {
   const srv = PREVIEW_SERVERS.find((s) => s.id === serverId) ?? PREVIEW_SERVERS[0];
   const online = srv.members.filter((m) => m.online);
   const pool = online.length > 0 ? online : srv.members;
@@ -313,7 +362,7 @@ function pickServerPeer(serverId: PreviewServerId, preferredNick?: string, offse
   return pool[Math.abs(offset) % pool.length];
 }
 
-function formatMsgTime(now: Date): string {
+export function formatMsgTime(now: Date): string {
   const hh = String(now.getHours()).padStart(2, '0');
   const mm = String(now.getMinutes()).padStart(2, '0');
   return `${hh}:${mm}`;
@@ -348,59 +397,59 @@ export function generatePreviewPeerReply(
   if (!clean) return null;
 
   const q = clean.toLowerCase().replace(/ё/g, 'е');
-  let preferredAuthor: string | undefined;
+  let preferredAuthor: PreviewPeerNick | undefined;
   let answerText: string;
 
   if (/команд|разработ|кто\s+дела|кто\s+созда|сколько\s+(людей|человек|вас)|энтузиазм|авторы/.test(q)) {
-    preferredAuthor = serverId === 'hc-node' ? 'DevCore' : 'Kira';
+    preferredAuthor = 'Sergo';
     answerText =
-      'Geek пилит небольшая команда из трёх разработчиков на чистом энтузиазме в свободное время. Стараемся проработать каждую деталь — от звука до интерфейса!';
+      'Geek пилим втроём — L30nel, Sergo и Max на чистом энтузиазме в свободное время. Стараемся проработать каждую деталь — от звука до интерфейса!';
   } else if (/pre-?beta|пре-?бета|1-?на-?1|один\s+на\s+один|код\s+доступ|пригласит|позвонить\s+другу|другу/.test(q)) {
-    preferredAuthor = serverId === 'hc-node' ? 'DevCore' : 'Niko';
+    preferredAuthor = serverId === 'hc-node' ? 'Sergo' : 'L30nel';
     answerText =
       'Переключайся на кнопку «PRE-BETA СВЯЗЬ 1-НА-1» сверху или иконку PB слева: получишь одноразовый код GK-XXXX-XXXX на 2 человек. Общий лимит — 30 минут, при выходе твой таймер сразу ставится на паузу.';
   } else if (/голос|звук|микрофон|webrtc|p2p|пинг|задерж|эхо|звон|слыш|релей|relay/.test(q)) {
-    preferredAuthor = serverId === 'hc-node' ? 'DevCore' : 'Kira';
+    preferredAuthor = 'Sergo';
     answerText =
       'Голос работает напрямую через WebRTC P2P с аппаратным эхоподавлением. Если жёсткий NAT или провайдер режет UDP, канал через пару секунд сам переключится на резервный серверный аудиопоток без наложений.';
   } else if (/приват|шифр|безопас|e2e|утеч|данн|слеж/.test(q)) {
-    preferredAuthor = serverId === 'hc-node' ? 'Alex' : 'Vex';
+    preferredAuthor = 'Max';
     answerText =
       'Личные и групповые каналы проектируются со сквозным шифрованием, а в Pre-Beta комнатах сигнал идёт только между двумя подключёнными участниками без лишних посредников.';
   } else if (/релиз|когда\s+выйд|бета|тест|старт|дорожн|roadmap|план/.test(q)) {
-    preferredAuthor = serverId === 'cy-4371' ? 'Niko' : 'Alex';
+    preferredAuthor = serverId === 'cy-4371' ? 'L30nel' : 'Max';
     answerText =
       'Запуск идёт поэтапно: ядро и текстовые каналы уже готовы, сейчас допиливаем P2P-голос и шифрование. Приглашения на закрытое тестирование раздаём в Telegram @geek_mes.';
   } else if (/цен|бесплат|платн|подписк|стои|деньг|донат|нитро|nitro/.test(q)) {
-    preferredAuthor = serverId === 'ma-club' ? 'Muse' : 'Vex';
+    preferredAuthor = 'Max';
     answerText =
       'Да, всё базовое будет бесплатным: создание серверов, текстовые каналы, голосовой чат с высоким битрейтом и демонстрация экрана без искусственных ограничений.';
   } else if (/устройств|платформ|windows|mac|linux|ios|android|телефон|мобил|браузер|скачат|пк/.test(q)) {
-    preferredAuthor = serverId === 'hc-node' ? 'DevCore' : 'Kira';
+    preferredAuthor = 'Sergo';
     answerText =
       'Сначала откроемся прямо в браузере и в лёгком десктоп-клиенте для Windows, macOS и Linux, а следующим шагом выйдут нативные приложения для iOS и Android.';
   } else if (/бот|sdk|api|вебхук|webhook|discord|дискорд|импорт|перенес/.test(q)) {
-    preferredAuthor = serverId === 'hc-node' ? 'DevCore' : 'Alex';
+    preferredAuthor = serverId === 'hc-node' ? 'Sergo' : 'Max';
     answerText =
       'На третьем этапе дорожной карты добавим открытый SDK для ботов, вебхуки и инструмент быстрого переноса структуры серверов, ролей и каналов из Discord.';
   } else if (/секрет|пасхал|шифр|загад|подсказ|код\s*\d|четыре\s*цифр|ребус/.test(q)) {
-    preferredAuthor = 'Kira';
+    preferredAuthor = 'Sergo';
     answerText =
       'В логах выше уже спрятаны зацепки — смотри внимательнее на строки Base64, двоичные сдвиги и шестнадцатеричные множители. Готовых цифр в чат мы не сливаем 😉';
   } else if (/рамк|знач|аватар|тема|интерфейс|дизайн|музык|радио|108\.4|камер|экран|18\+/.test(q)) {
-    preferredAuthor = serverId === 'ma-club' ? 'Muse' : 'Vex';
+    preferredAuthor = 'Max';
     answerText =
       'В интерфейсе есть гексагональные аватары, наборы неоновых рамок (LUCY NET, EDGERUN, SAMURAI), шторка камеры, фильтр 18+ со спойлером и фоновый стрим 108.4 FM.';
   } else if (/контакт|почт|связат|обратн|помощ|поддерж|баг|ошибк|предлож/.test(q)) {
-    preferredAuthor = 'Niko';
+    preferredAuthor = serverId === 'ma-club' ? 'Max' : 'L30nel';
     answerText =
       'Напиши нам через форму «Обратная связь» ниже на странице или напрямую на admin@geek-voice.ru — все сообщения попадают напрямую нашей тройке разработчиков.';
   } else if (/^(привет|здаров|здравств|хай|ку|салют|йо|hello|hi|hey|как\s+дела|кто\s+тут|вы\s+тут)\b/.test(q)) {
-    preferredAuthor = serverId === 'cy-4371' ? 'Niko' : undefined;
-    answerText = `Привет! Добро пожаловать в #${channelId}. Можешь спросить здесь про релиз, P2P-голос, Pre-Beta связь 1-на-1, платформы, ботов или нашу команду из трёх разработчиков — ответим прямо в чате.`;
+    preferredAuthor = serverId === 'cy-4371' ? 'L30nel' : undefined;
+    answerText = `Привет! Добро пожаловать в #${channelId}. Тут в сети L30nel, Sergo и Max — спрашивай про релиз, P2P-голос, Pre-Beta связь 1-на-1, платформы или нашу разработку.`;
   } else {
     const snippet = clean.length > 52 ? `${clean.slice(0, 52)}...` : clean;
-    answerText = `По вопросу «${snippet}»: в #${channelId} мы как раз тестируем превью-клиент Geek. У нас 3 разработчика, прямой P2P-голос, Pre-Beta звонки 1-на-1 по коду, открытый Bot SDK в плане и бесплатный базовый доступ. Спроси подробнее про любую из этих тем или загляни в FAQ ниже!`;
+    answerText = `По вопросу «${snippet}»: в #${channelId} мы как раз тестируем превью-клиент Geek. У нас команда из трёх разработчиков (L30nel, Sergo и Max), прямой P2P-голос, Pre-Beta звонки 1-на-1 по коду, Bot SDK в плане и бесплатный базовый доступ. Спроси подробнее про любую из этих тем!`;
   }
 
   const peer = pickServerPeer(serverId, preferredAuthor, replyIndex);

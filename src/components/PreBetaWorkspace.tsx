@@ -200,7 +200,7 @@ export function PreBetaWorkspace({
               type="text"
               value={nick}
               onChange={(e) => setNick(e.target.value)}
-              placeholder="Например: CyberNiko (необязательно)"
+              placeholder="Например: L30nel (необязательно)"
               maxLength={22}
               className="flex-1 bg-[#04070d] border border-[#00f0ff]/25 focus:border-[#00f0ff] focus:outline-none rounded-lg px-3 py-2 text-xs sm:text-sm text-white placeholder:text-[#63809b]"
             />

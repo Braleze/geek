@@ -7,14 +7,27 @@ import {
   generatePreviewPeerReply,
 } from './platformPreview';
 
-test('PREVIEW_SERVERS defines 3 CYBER.NET servers with channels and members', () => {
+test('PREVIEW_SERVERS defines 3 CYBER.NET servers using L30nel, Sergo, and Max', () => {
   assert.equal(PREVIEW_SERVERS.length, 3);
   assert.equal(PREVIEW_SERVERS[0].id, 'cy-4371');
   assert.equal(PREVIEW_SERVERS[0].name, 'Ночной клуб');
+
+  const allowedNicks = new Set(['L30nel', 'Sergo', 'Max']);
   for (const srv of PREVIEW_SERVERS) {
     assert.ok(srv.textChannels.length >= 1);
     assert.ok(srv.members.length >= 1);
     assert.ok(srv.voiceChannel.length > 0);
+    for (const m of srv.members) {
+      assert.equal(allowedNicks.has(m.nick), true, `Unexpected member nick: ${m.nick}`);
+    }
+    for (const ch of srv.textChannels) {
+      for (const msg of ch.messages) {
+        assert.ok(
+          msg.author === 'СИСТЕМА GEEK' || allowedNicks.has(msg.author),
+          `Unexpected author: ${msg.author}`,
+        );
+      }
+    }
   }
 });
 
@@ -30,29 +43,29 @@ test('createUserPreviewMessage ignores blank strings and trims valid input', () 
   assert.equal(msg.time, '21:05');
 });
 
-test('generatePreviewPeerReply answers user questions in-character from server peers', () => {
+test('generatePreviewPeerReply answers user questions in-character from L30nel, Sergo, and Max', () => {
   assert.ok(PREVIEW_QUICK_QUESTIONS.length >= 4);
   const fixed = new Date('2026-11-18T12:15:00');
 
   const teamReply = generatePreviewPeerReply('Сколько разработчиков делают проект?', 'cy-4371', 'игровая-комната', fixed, 0);
   assert.ok(teamReply);
-  assert.equal(teamReply.author, 'Kira');
-  assert.match(teamReply.text, /трёх разработчиков/i);
+  assert.equal(teamReply.author, 'Sergo');
+  assert.match(teamReply.text, /втро[её]м|L30nel, Sergo и Max/i);
   assert.equal(/двух\s+разработчик/i.test(teamReply.text), false);
 
   const voiceReply = generatePreviewPeerReply('Как работает P2P-голос?', 'hc-node', 'код-и-архитектура', fixed, 1);
   assert.ok(voiceReply);
-  assert.equal(voiceReply.author, 'DevCore');
+  assert.equal(voiceReply.author, 'Sergo');
   assert.match(voiceReply.text, /WebRTC P2P/i);
 
   const preBetaReply = generatePreviewPeerReply('Как позвонить другу 1-на-1?', 'cy-4371', 'общий', fixed, 2);
   assert.ok(preBetaReply);
-  assert.equal(preBetaReply.author, 'Niko');
+  assert.equal(preBetaReply.author, 'L30nel');
   assert.match(preBetaReply.text, /GK-XXXX-XXXX/);
 
   const customReply = generatePreviewPeerReply('Есть ли поддержка кастомных тем?', 'ma-club', 'идеи-комьюнити', fixed, 3);
   assert.ok(customReply);
-  assert.equal(customReply.author, 'Muse');
+  assert.equal(customReply.author, 'Max');
   assert.ok(customReply.text.length > 20);
 });
 
@@ -61,36 +74,34 @@ test('user messages embed hard cipher clues for codes 1 and 2 without key 3, ter
     srv.textChannels.flatMap((ch) => ch.messages.map((m) => m.text)),
   ).join(' ');
 
-  // Verify embedded hard puzzle tokens exist in user messages
-  const nikoMsg = PREVIEW_SERVERS[0].textChannels[0].messages.find((m) => m.author === 'Niko');
-  const kiraMsg = PREVIEW_SERVERS[0].textChannels[0].messages.find((m) => m.author === 'Kira');
-  assert.ok(nikoMsg);
-  assert.ok(kiraMsg);
+  const l30nelMsg = PREVIEW_SERVERS[0].textChannels[0].messages.find((m) => m.author === 'L30nel');
+  const sergoMsg = PREVIEW_SERVERS[0].textChannels[0].messages.find((m) => m.author === 'Sergo');
+  assert.ok(l30nelMsg);
+  assert.ok(sergoMsg);
 
-  const b64Match = nikoMsg.text.match(/([A-Za-z0-9+/]+=+)/);
-  const binMatch = nikoMsg.text.match(/0b([01]+)/);
+  const b64Match = l30nelMsg.text.match(/([A-Za-z0-9+/]+=+)/);
+  const binMatch = l30nelMsg.text.match(/0b([01]+)/);
   assert.ok(b64Match && binMatch);
   const decodedYear = Number(Buffer.from(b64Match[1], 'base64').toString('utf8'));
   const offset = parseInt(binMatch[1], 2);
   assert.equal(decodedYear + offset, Number(String.fromCharCode(50, 48, 50, 55)));
 
-  const hexMatch = kiraMsg.text.match(/0x([0-9A-Fa-f]+)/);
+  const hexMatch = sergoMsg.text.match(/0x([0-9A-Fa-f]+)/);
   assert.ok(hexMatch);
   const factorA = parseInt(hexMatch[1], 16);
   const factorB = 'C'.charCodeAt(0);
   assert.equal(factorA * factorB, Number(String.fromCharCode(50, 48, 55, 55)));
 
-  // No raw secret codes
   const forbiddenCodes = [
     [50, 48, 49, 51],
     [50, 48, 50, 55],
     [50, 48, 55, 55],
+    [48, 54, 48, 50],
   ].map((arr) => arr.map((c) => String.fromCharCode(c)).join(''));
   for (const code of forbiddenCodes) {
     assert.equal(allTexts.includes(code), false);
   }
 
-  // No Key 3 mentions or terminal-opening instructions anywhere in preview messages
   assert.equal(/горшен[её]в|король и шут|ключ\s*0?3/i.test(allTexts), false);
   assert.equal(/5\s*нажатий|откроют\s*терминал|p2p\s*голос/i.test(allTexts), false);
 });

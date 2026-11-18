@@ -85,6 +85,8 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const replyCountRef = useRef<number>(0);
   const replyTimersRef = useRef<number[]>([]);
+  const liveRepliesEnabledRef = useRef<boolean>(false);
+  const isMountedRef = useRef<boolean>(true);
 
   const preBeta = usePreBetaCall();
 
@@ -185,13 +187,59 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
   }, [allMessages.length, typingPeerName, messageKey]);
 
   useEffect(() => {
+    isMountedRef.current = true;
+    const controller = new AbortController();
+    fetch('/api/preview/status', { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { ok?: boolean; liveEnabled?: boolean } | null) => {
+        if (isMountedRef.current && data?.ok && data.liveEnabled) {
+          liveRepliesEnabledRef.current = true;
+        }
+      })
+      .catch(() => {
+        // Static hosting or offline fallback
+      });
+
     return () => {
+      isMountedRef.current = false;
+      controller.abort();
       for (const timerId of replyTimersRef.current) {
         window.clearTimeout(timerId);
       }
       replyTimersRef.current = [];
     };
   }, []);
+
+  const scheduleFallbackReply = (
+    questionText: string,
+    targetServerId: PreviewServerId,
+    targetChannelId: string,
+    targetKey: string,
+    replyIdx: number,
+  ) => {
+    const reply = generatePreviewPeerReply(
+      questionText,
+      targetServerId,
+      targetChannelId,
+      new Date(),
+      replyIdx,
+    );
+    if (!reply) {
+      if (isMountedRef.current) setTypingPeerName(null);
+      return;
+    }
+
+    if (isMountedRef.current) setTypingPeerName(reply.author);
+    const timerId = window.setTimeout(() => {
+      if (!isMountedRef.current) return;
+      setCustomMessages((prev) => ({
+        ...prev,
+        [targetKey]: [...(prev[targetKey] ?? []), reply].slice(-30),
+      }));
+      setTypingPeerName((cur) => (cur === reply.author ? null : cur));
+    }, 450);
+    replyTimersRef.current.push(timerId);
+  };
 
   const submitPreviewQuestion = (questionText: string) => {
     const newMsg = createUserPreviewMessage(questionText);
@@ -202,6 +250,10 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
     const targetKey = `${targetServerId}:${targetChannelId}`;
     const replyIdx = replyCountRef.current;
     replyCountRef.current += 1;
+    const recentHistory = allMessages.slice(-8).map((m) => ({
+      author: m.author,
+      text: m.text,
+    }));
 
     setCustomMessages((prev) => ({
       ...prev,
@@ -209,24 +261,38 @@ export function PlatformPreview({ openPreBetaSignal = 0 }: { openPreBetaSignal?:
     }));
     setDraft('');
 
-    const reply = generatePreviewPeerReply(
-      newMsg.text,
-      targetServerId,
-      targetChannelId,
-      new Date(),
-      replyIdx,
-    );
-    if (!reply) return;
+    if (!liveRepliesEnabledRef.current) {
+      scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
+      return;
+    }
 
-    setTypingPeerName(reply.author);
-    const timerId = window.setTimeout(() => {
-      setCustomMessages((prev) => ({
-        ...prev,
-        [targetKey]: [...(prev[targetKey] ?? []), reply].slice(-30),
-      }));
-      setTypingPeerName((cur) => (cur === reply.author ? null : cur));
-    }, 450);
-    replyTimersRef.current.push(timerId);
+    setTypingPeerName('Участник сервера');
+    void fetch('/api/preview/reply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: newMsg.text,
+        serverId: targetServerId,
+        channelId: targetChannelId,
+        history: recentHistory,
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = (await res.json()) as { ok?: boolean; reply?: PreviewMessage };
+        if (!data.ok || !data.reply) throw new Error('Invalid reply');
+        if (!isMountedRef.current) return;
+        const liveReply = data.reply;
+        setCustomMessages((prev) => ({
+          ...prev,
+          [targetKey]: [...(prev[targetKey] ?? []), liveReply].slice(-30),
+        }));
+        setTypingPeerName(null);
+      })
+      .catch(() => {
+        if (!isMountedRef.current) return;
+        scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
+      });
   };
 
   const handleSend = (event: FormEvent<HTMLFormElement>) => {
