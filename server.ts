@@ -45,12 +45,7 @@ import {
 } from './src/utils/preBetaSession.ts';
 
 const PORT = Number(process.env.PORT) || 3000;
-const STATE_FILE = process.env.PREBETA_STATE_FILE
-  ? path.resolve(process.env.PREBETA_STATE_FILE)
-  : path.resolve(process.cwd(), '.prebeta-state.json');
-
-const BLOCKED_STATIC_PATH_RE =
-  /(?:^|\/)(?:\.htaccess|\.env(?:\.[^/]*)?|\.prebeta-state\.json|\.geek_live_voice_state_v1\.json)(?:\/|$)|\.php(?:\/|$)/i;
+const STATE_FILE = path.resolve(process.cwd(), '.prebeta-state.json');
 
 function loadStore(): PreBetaStoreState {
   try {
@@ -236,37 +231,10 @@ function parseBodyObj(body: unknown): Record<string, unknown> {
 
 async function startServer(): Promise<void> {
   const app = express();
-  app.set('trust proxy', 1);
-  app.disable('x-powered-by');
-
-  const distDir = path.resolve(process.cwd(), 'dist');
-  const isProd =
-    process.env.NODE_ENV === 'production' ||
-    (process.env.npm_lifecycle_event === 'start' && fs.existsSync(path.join(distDir, 'index.html')));
-
-  // Never serve legacy PHP endpoints, .htaccess, env files, or state files from static/dist hosting
-  app.use((req, res, next) => {
-    let decodedPath = req.path;
-    try {
-      decodedPath = decodeURIComponent(req.path);
-    } catch {
-      decodedPath = req.path;
-    }
-    if (BLOCKED_STATIC_PATH_RE.test(decodedPath)) {
-      res.status(404).end();
-      return;
-    }
-    next();
-  });
-
   app.use(express.json({ limit: '128kb' }));
   app.use(express.text({ type: 'text/plain', limit: '128kb' }));
 
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true });
-  });
-
-  app.get('/healthz', (_req, res) => {
     res.json({ ok: true });
   });
 
@@ -864,7 +832,7 @@ async function startServer(): Promise<void> {
       return;
     }
 
-    if (isProd) {
+    if (process.env.NODE_ENV === 'production') {
       socket.destroy();
     }
   });
@@ -1182,30 +1150,8 @@ async function startServer(): Promise<void> {
     });
   });
 
-  // Keep WebSocket connections alive behind reverse proxies (e.g., Netrun/nginx 60s idle timeout)
-  const wsKeepaliveTimer = setInterval(() => {
-    for (const client of wss.clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        try {
-          client.ping();
-        } catch {
-          // Ignore transient close
-        }
-      }
-    }
-    for (const client of wssVoice.clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        try {
-          client.ping();
-        } catch {
-          // Ignore transient close
-        }
-      }
-    }
-  }, 25_000);
-
   // Authoritative server timer: prune stale HTTP peers (pauses clock), sync active rooms, expire when 0
-  const roomTickTimer = setInterval(() => {
+  setInterval(() => {
     const now = Date.now();
     let dirty = false;
 
@@ -1284,7 +1230,7 @@ async function startServer(): Promise<void> {
     app.use('/audio', express.static(rootAudioDir));
   }
 
-  if (!isProd) {
+  if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: {
@@ -1295,49 +1241,16 @@ async function startServer(): Promise<void> {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(
-      express.static(distDir, {
-        dotfiles: 'ignore',
-        setHeaders: (res, filePath) => {
-          if (filePath.endsWith(`${path.sep}index.html`)) {
-            res.setHeader('Cache-Control', 'no-cache');
-          }
-        },
-      }),
-    );
-    app.use('/api', (_req, res) => {
-      res.status(404).json({ ok: false, reason: 'NOT_FOUND' });
-    });
+    const distDir = path.resolve(process.cwd(), 'dist');
+    app.use(express.static(distDir));
     app.get('*', (_req, res) => {
-      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(distDir, 'index.html'));
     });
   }
 
   httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(
-      `Geek server listening on http://0.0.0.0:${PORT} (${isProd ? 'production' : 'development'})`,
-    );
+    console.log(`Geek server listening on http://0.0.0.0:${PORT}`);
   });
-
-  let shuttingDown = false;
-  const shutdown = (signal: string) => {
-    if (shuttingDown) return;
-    shuttingDown = true;
-    console.log(`Received ${signal}, shutting down Geek server...`);
-    clearInterval(wsKeepaliveTimer);
-    clearInterval(roomTickTimer);
-    saveStore();
-    wss.close();
-    wssVoice.close();
-    httpServer.close(() => {
-      process.exit(0);
-    });
-    setTimeout(() => process.exit(0), 5_000).unref();
-  };
-
-  process.once('SIGTERM', () => shutdown('SIGTERM'));
-  process.once('SIGINT', () => shutdown('SIGINT'));
 }
 
 startServer().catch((error) => {

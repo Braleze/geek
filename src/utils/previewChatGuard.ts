@@ -5,7 +5,7 @@ import {
   type PreviewMessage,
   type PreviewPeerNick,
   type PreviewServerId,
-} from './platformPreview.ts';
+} from './platformPreview';
 
 export const PREVIEW_ALLOWED_PEERS: readonly PreviewPeerNick[] = ['L30nel', 'Sergo', 'Max'];
 export const MAX_PREVIEW_QUESTION_CHARS = 220;
