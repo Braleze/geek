@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { LiveVoicePublicPeer } from '../utils/liveVoiceRoom';
+import {
+  computeLiveVoiceInitials,
+  filterActiveRemoteVideos,
+  sanitizeLiveVoiceNick,
+  type LiveVoicePublicPeer,
+} from '../utils/liveVoiceRoom';
 import {
   RELAY_FALLBACK_DELAY_MS,
   RELAY_SAMPLE_RATE,
@@ -40,6 +45,21 @@ export interface RemoteVideoEntry {
   stream: MediaStream;
 }
 
+const LIVE_VOICE_NICK_STORAGE_KEY = 'geek_live_voice_nick_v1';
+const DEFAULT_LIVE_VOICE_NICK = 'Вы (Гость)';
+
+function readStoredLiveVoiceNick(): string {
+  try {
+    const raw = window.localStorage.getItem(LIVE_VOICE_NICK_STORAGE_KEY);
+    if (raw && raw.trim()) {
+      return sanitizeLiveVoiceNick(raw, 1);
+    }
+  } catch {
+    // Ignore storage restrictions
+  }
+  return DEFAULT_LIVE_VOICE_NICK;
+}
+
 export function useLiveVoiceRoom({
   preferredBackend,
   onUnauthorized,
@@ -49,6 +69,7 @@ export function useLiveVoiceRoom({
 } = {}) {
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
+  const [nick, setNickState] = useState<string>(() => readStoredLiveVoiceNick());
   const [myPeerId, setMyPeerId] = useState<string | null>(null);
   const [peers, setPeers] = useState<LiveVoicePublicPeer[]>([]);
   const [micMuted, setMicMuted] = useState(false);
@@ -81,7 +102,8 @@ export function useLiveVoiceRoom({
     httpBackendRef.current = preferredBackend;
   }
   const tokenRef = useRef<string | null>(null);
-  const joinedNickRef = useRef<string>('Вы (Гость)');
+  const joinedNickRef = useRef<string>(nick);
+  joinedNickRef.current = nick;
   const wsRef = useRef<WebSocket | null>(null);
   const wsConnectPromiseRef = useRef<Promise<WebSocket> | null>(null);
   const localSessionRef = useRef<LocalVoiceSession | null>(null);
@@ -144,13 +166,23 @@ export function useLiveVoiceRoom({
   >(new Map());
   const relayFallbackTimerRef = useRef<number | null>(null);
 
-  const syncRemoteVideosState = useCallback(() => {
-    const entries: RemoteVideoEntry[] = [];
-    for (const [peerId, stream] of peerRemoteVideoRef.current.entries()) {
-      entries.push({ peerId, stream });
-    }
-    setRemoteVideoPeers(entries);
-  }, []);
+  const syncRemoteVideosState = useCallback(
+    (peersList: readonly LiveVoicePublicPeer[] = peersRef.current) => {
+      const peerIdSet = new Set(peersList.map((p) => p.peerId));
+      const rawEntries: RemoteVideoEntry[] = [];
+      for (const [peerId, stream] of Array.from(peerRemoteVideoRef.current.entries())) {
+        const videoTracks = stream.getVideoTracks();
+        const hasLiveTrack = videoTracks.some((t) => t.readyState !== 'ended');
+        if (!peerIdSet.has(peerId) || !hasLiveTrack) {
+          peerRemoteVideoRef.current.delete(peerId);
+          continue;
+        }
+        rawEntries.push({ peerId, stream });
+      }
+      setRemoteVideoPeers(filterActiveRemoteVideos(rawEntries, peersList));
+    },
+    [],
+  );
 
   const stopPolling = useCallback(() => {
     pollSessionRef.current += 1;
@@ -170,6 +202,7 @@ export function useLiveVoiceRoom({
 
   const sendRoomUpdate = useCallback(
     (patch: {
+      nick?: string;
       micMuted?: boolean;
       deafened?: boolean;
       hasAudio?: boolean;
@@ -178,6 +211,37 @@ export function useLiveVoiceRoom({
       speaking?: boolean;
     }) => {
       if (!connectedRef.current) return;
+
+      // Optimistically apply own state updates immediately for responsive UI
+      const selfId = myPeerIdRef.current;
+      if (selfId && peersRef.current.length > 0) {
+        const nextPeers = peersRef.current.map((p) => {
+          if (p.peerId !== selfId) return p;
+          const nextNick =
+            typeof patch.nick === 'string' ? sanitizeLiveVoiceNick(patch.nick, 1) : p.nick;
+          const nextMicMuted = typeof patch.micMuted === 'boolean' ? patch.micMuted : p.micMuted;
+          const nextDeafened = typeof patch.deafened === 'boolean' ? patch.deafened : p.deafened;
+          const nextSpeaking =
+            typeof patch.speaking === 'boolean'
+              ? patch.speaking && !nextMicMuted && !nextDeafened
+              : p.speaking && !nextMicMuted && !nextDeafened;
+          return {
+            ...p,
+            nick: nextNick,
+            initials: typeof patch.nick === 'string' ? computeLiveVoiceInitials(nextNick) : p.initials,
+            micMuted: nextMicMuted,
+            deafened: nextDeafened,
+            hasAudio: typeof patch.hasAudio === 'boolean' ? patch.hasAudio : p.hasAudio,
+            camActive: typeof patch.camActive === 'boolean' ? patch.camActive : p.camActive,
+            screenActive:
+              typeof patch.screenActive === 'boolean' ? patch.screenActive : p.screenActive,
+            speaking: nextSpeaking,
+          };
+        });
+        peersRef.current = nextPeers;
+        setPeers(nextPeers);
+      }
+
       if (transportRef.current === 'local') {
         localSessionRef.current?.sendUpdate(patch);
         return;
@@ -729,10 +793,12 @@ export function useLiveVoiceRoom({
       } else if (track.kind === 'video') {
         const videoStream = new MediaStream([track]);
         peerRemoteVideoRef.current.set(remotePeerId, videoStream);
-        syncRemoteVideosState();
+        syncRemoteVideosState(peersRef.current);
         track.onended = () => {
-          peerRemoteVideoRef.current.delete(remotePeerId);
-          syncRemoteVideosState();
+          if (peerRemoteVideoRef.current.get(remotePeerId) === videoStream) {
+            peerRemoteVideoRef.current.delete(remotePeerId);
+          }
+          syncRemoteVideosState(peersRef.current);
         };
       }
     },
@@ -977,6 +1043,7 @@ export function useLiveVoiceRoom({
         const nextPeers = data.peers as LiveVoicePublicPeer[];
         peersRef.current = nextPeers;
         setPeers(nextPeers);
+        syncRemoteVideosState(nextPeers);
         if (nextPeers.length < 2) {
           stopAllRelayPlayback();
         } else {
@@ -1015,6 +1082,7 @@ export function useLiveVoiceRoom({
       handlePeerSignal,
       scheduleRelayFallback,
       stopAllRelayPlayback,
+      syncRemoteVideosState,
     ],
   );
 
@@ -1087,6 +1155,7 @@ export function useLiveVoiceRoom({
                     if (Array.isArray(rejoinData.peers)) {
                       peersRef.current = rejoinData.peers;
                       setPeers(rejoinData.peers);
+                      syncRemoteVideosState(rejoinData.peers);
                     }
                     if (Array.isArray(rejoinData.signals)) {
                       for (const sig of rejoinData.signals) {
@@ -1123,6 +1192,7 @@ export function useLiveVoiceRoom({
             }
             peersRef.current = payload.peers;
             setPeers(payload.peers);
+            syncRemoteVideosState(payload.peers);
             if (payload.peers.length >= 2) {
               scheduleRelayFallback();
             }
@@ -1173,6 +1243,7 @@ export function useLiveVoiceRoom({
       scheduleRelayFallback,
       stopLocalMedia,
       stopPolling,
+      syncRemoteVideosState,
     ],
   );
 
@@ -1251,6 +1322,7 @@ export function useLiveVoiceRoom({
           setMyPeerId(peerId);
           peersRef.current = nextPeers;
           setPeers(nextPeers);
+          syncRemoteVideosState(nextPeers);
           connectedRef.current = true;
           setConnected(true);
           setConnecting(false);
@@ -1299,14 +1371,26 @@ export function useLiveVoiceRoom({
 
     wsConnectPromiseRef.current = promise;
     return promise;
-  }, [cleanupAllPeers, evaluateRoomAudioMode, handleServerPacket, scheduleRelayFallback, stopLocalMedia]);
+  }, [
+    cleanupAllPeers,
+    evaluateRoomAudioMode,
+    handleServerPacket,
+    scheduleRelayFallback,
+    stopLocalMedia,
+    syncRemoteVideosState,
+  ]);
 
   const join = useCallback(
-    async (token: string, nick: string = 'Вы (Гость)'): Promise<boolean> => {
+    async (token: string, customNick?: string): Promise<boolean> => {
       if (!token) {
         setError('Введите секретный код в чат, чтобы открыть живой голосовой канал.');
         return false;
       }
+
+      const nick =
+        customNick && customNick.trim()
+          ? sanitizeLiveVoiceNick(customNick, 1)
+          : joinedNickRef.current || DEFAULT_LIVE_VOICE_NICK;
 
       // Warm up AudioContext synchronously inside user gesture
       try {
@@ -1325,6 +1409,7 @@ export function useLiveVoiceRoom({
 
       tokenRef.current = token;
       joinedNickRef.current = nick;
+      setNickState(nick);
       stopPolling();
       stopLocalSession();
       setConnecting(true);
@@ -1491,6 +1576,7 @@ export function useLiveVoiceRoom({
         const nextPeers = Array.isArray(payload.peers) ? payload.peers : [];
         peersRef.current = nextPeers;
         setPeers(nextPeers);
+        syncRemoteVideosState(nextPeers);
         connectedRef.current = true;
         setConnected(true);
         setConnecting(false);
@@ -1524,6 +1610,7 @@ export function useLiveVoiceRoom({
       startHttpPolling,
       stopLocalSession,
       stopPolling,
+      syncRemoteVideosState,
     ],
   );
 
@@ -1562,6 +1649,25 @@ export function useLiveVoiceRoom({
     cleanupAllPeers();
     stopLocalMedia();
   }, [cleanupAllPeers, stopLocalMedia, stopLocalSession, stopPolling]);
+
+  const updateNick = useCallback(
+    (rawNick: string): string => {
+      const trimmed = String(rawNick ?? '').trim();
+      const nextNick = trimmed ? sanitizeLiveVoiceNick(trimmed, 1) : DEFAULT_LIVE_VOICE_NICK;
+      joinedNickRef.current = nextNick;
+      setNickState(nextNick);
+      try {
+        window.localStorage.setItem(LIVE_VOICE_NICK_STORAGE_KEY, nextNick);
+      } catch {
+        // Ignore storage restrictions
+      }
+      if (connectedRef.current) {
+        sendRoomUpdate({ nick: nextNick });
+      }
+      return nextNick;
+    },
+    [sendRoomUpdate],
+  );
 
   const toggleMicMute = useCallback(() => {
     setMicMuted((prev) => {
@@ -1685,12 +1791,42 @@ export function useLiveVoiceRoom({
       for (const [remotePeerId, pc] of peerConnectionsRef.current.entries()) {
         if (pc.connectionState === 'closed') continue;
         try {
-          const videoSender = pc.getSenders().find((s) => s.track?.kind === 'video');
-          if (videoSender) {
-            await videoSender.replaceTrack(track);
-          } else if (track && stream) {
-            pc.addTrack(track, stream);
-            await initiateRtcOfferToPeer(remotePeerId, false);
+          const transceivers = typeof pc.getTransceivers === 'function' ? pc.getTransceivers() : [];
+          const videoTrans = transceivers.find(
+            (t) => t.sender.track?.kind === 'video' || t.receiver.track?.kind === 'video',
+          );
+          const fallbackVideoSender = pc.getSenders().find((s) => s.track?.kind === 'video');
+
+          if (track && stream) {
+            if (videoTrans) {
+              const needsRenegotiation =
+                videoTrans.direction !== 'sendrecv' && videoTrans.direction !== 'sendonly';
+              if (needsRenegotiation) {
+                videoTrans.direction = 'sendrecv';
+              }
+              await videoTrans.sender.replaceTrack(track);
+              if (needsRenegotiation) {
+                await initiateRtcOfferToPeer(remotePeerId, false);
+              }
+            } else if (fallbackVideoSender) {
+              await fallbackVideoSender.replaceTrack(track);
+            } else {
+              pc.addTrack(track, stream);
+              await initiateRtcOfferToPeer(remotePeerId, false);
+            }
+          } else {
+            const sendersToClear = new Set<RTCRtpSender>();
+            for (const t of transceivers) {
+              if (t.sender.track?.kind === 'video') {
+                sendersToClear.add(t.sender);
+              }
+            }
+            if (fallbackVideoSender) {
+              sendersToClear.add(fallbackVideoSender);
+            }
+            for (const sender of sendersToClear) {
+              await sender.replaceTrack(null);
+            }
           }
         } catch {
           // Ignore video renegotiation error
@@ -1703,7 +1839,10 @@ export function useLiveVoiceRoom({
   const toggleCamera = useCallback(async () => {
     if (camActiveRef.current) {
       if (localCamStreamRef.current) {
-        for (const t of localCamStreamRef.current.getTracks()) t.stop();
+        for (const t of localCamStreamRef.current.getTracks()) {
+          t.onended = null;
+          t.stop();
+        }
         localCamStreamRef.current = null;
       }
       setLocalCamStream(null);
@@ -1728,6 +1867,23 @@ export function useLiveVoiceRoom({
         video: { width: { ideal: 640 }, height: { ideal: 360 } },
         audio: false,
       });
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.onended = () => {
+          if (localCamStreamRef.current === stream) {
+            for (const t of stream.getTracks()) {
+              t.onended = null;
+              t.stop();
+            }
+            localCamStreamRef.current = null;
+            setLocalCamStream(null);
+            camActiveRef.current = false;
+            setCamActive(false);
+            sendRoomUpdate({ camActive: false });
+            void syncOutboundVideoTrack(localScreenStreamRef.current);
+          }
+        };
+      }
       localCamStreamRef.current = stream;
       setLocalCamStream(stream);
       camActiveRef.current = true;
@@ -1743,7 +1899,10 @@ export function useLiveVoiceRoom({
   const toggleScreen = useCallback(async () => {
     if (screenActiveRef.current) {
       if (localScreenStreamRef.current) {
-        for (const t of localScreenStreamRef.current.getTracks()) t.stop();
+        for (const t of localScreenStreamRef.current.getTracks()) {
+          t.onended = null;
+          t.stop();
+        }
         localScreenStreamRef.current = null;
       }
       setLocalScreenStream(null);
@@ -1771,12 +1930,18 @@ export function useLiveVoiceRoom({
       const videoTrack = stream.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.onended = () => {
-          localScreenStreamRef.current = null;
-          setLocalScreenStream(null);
-          screenActiveRef.current = false;
-          setScreenActive(false);
-          sendRoomUpdate({ screenActive: false });
-          void syncOutboundVideoTrack(localCamStreamRef.current);
+          if (localScreenStreamRef.current === stream) {
+            for (const t of stream.getTracks()) {
+              t.onended = null;
+              t.stop();
+            }
+            localScreenStreamRef.current = null;
+            setLocalScreenStream(null);
+            screenActiveRef.current = false;
+            setScreenActive(false);
+            sendRoomUpdate({ screenActive: false });
+            void syncOutboundVideoTrack(localCamStreamRef.current);
+          }
         };
       }
       localScreenStreamRef.current = stream;
@@ -1830,6 +1995,7 @@ export function useLiveVoiceRoom({
   return {
     connected,
     connecting,
+    nick,
     myPeerId,
     peers,
     micMuted,
@@ -1851,6 +2017,7 @@ export function useLiveVoiceRoom({
     setError,
     join,
     leave,
+    updateNick,
     toggleMicMute,
     toggleDeafen,
     toggleLoopback,

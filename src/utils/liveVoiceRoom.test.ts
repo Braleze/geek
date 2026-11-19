@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   LIVE_VOICE_MAX_PARTICIPANTS,
   buildLiveVoiceSnapshot,
+  filterActiveRemoteVideos,
   joinLiveVoiceRoom,
   leaveLiveVoiceRoom,
   pruneStaleLiveVoicePeers,
@@ -44,6 +45,64 @@ test('liveVoiceRoom supports multi-user join, state updates, leave, and capacity
   }
   const over = joinLiveVoiceRoom(peers, { peerId: 'peer-overflow', nick: 'Extra' }, t0 + 999);
   assert.equal(over.ok, false);
+});
+
+test('updateLiveVoicePeer updates nick and recomputes initials cleanly', () => {
+  const peers = new Map<string, LiveVoicePeer>();
+  const t0 = 1_700_000_000_000;
+  joinLiveVoiceRoom(peers, { peerId: 'peer-a', nick: 'Вы (Гость)' }, t0);
+
+  const renamed = updateLiveVoicePeer(peers, 'peer-a', { nick: '  Кибер   Волк  ' }, t0 + 50);
+  assert.ok(renamed);
+  assert.equal(renamed[0].nick, 'Кибер Волк');
+  assert.equal(renamed[0].initials, 'КВ');
+
+  const truncated = updateLiveVoicePeer(
+    peers,
+    'peer-a',
+    { nick: 'ОченьДлинноеИмяКотороеНужноОбрезать' },
+    t0 + 100,
+  );
+  assert.ok(truncated);
+  assert.equal(truncated[0].nick.length, 22);
+});
+
+test('filterActiveRemoteVideos hides remote streams as soon as camera and screen are off or peer leaves', () => {
+  const peers = new Map<string, LiveVoicePeer>();
+  const t0 = 1_700_000_000_000;
+  joinLiveVoiceRoom(peers, { peerId: 'peer-a', nick: 'Alpha', screenActive: true }, t0);
+  joinLiveVoiceRoom(peers, { peerId: 'peer-b', nick: 'Beta', camActive: true }, t0 + 10);
+
+  const cachedStreams = [
+    { peerId: 'peer-a', tag: 'stream-a' },
+    { peerId: 'peer-b', tag: 'stream-b' },
+    { peerId: 'peer-gone', tag: 'stream-gone' },
+  ];
+
+  const initialVisible = filterActiveRemoteVideos(cachedStreams, buildLiveVoiceSnapshot(peers));
+  assert.deepEqual(
+    initialVisible.map((v) => v.peerId),
+    ['peer-a', 'peer-b'],
+  );
+
+  // Turning off screen share on peer-a immediately drops peer-a video tile (no frozen last frame)
+  const afterScreenStop = updateLiveVoicePeer(peers, 'peer-a', { screenActive: false }, t0 + 20)!;
+  const visibleAfterStop = filterActiveRemoteVideos(cachedStreams, afterScreenStop);
+  assert.deepEqual(
+    visibleAfterStop.map((v) => v.peerId),
+    ['peer-b'],
+  );
+
+  // Turning off camera on peer-b leaves zero video tiles
+  const afterCamStop = updateLiveVoicePeer(peers, 'peer-b', { camActive: false }, t0 + 30)!;
+  assert.deepEqual(filterActiveRemoteVideos(cachedStreams, afterCamStop), []);
+
+  // Re-enabling camera on peer-a immediately restores its video tile without requiring a fresh track
+  const afterCamRestart = updateLiveVoicePeer(peers, 'peer-a', { camActive: true }, t0 + 40)!;
+  assert.deepEqual(
+    filterActiveRemoteVideos(cachedStreams, afterCamRestart).map((v) => v.peerId),
+    ['peer-a'],
+  );
 });
 
 test('pruneStaleLiveVoicePeers removes stale HTTP peers and leaves WS peers intact', () => {

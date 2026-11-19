@@ -44,6 +44,7 @@ export interface LocalVoiceSession {
   peerId: string;
   peers: LiveVoicePublicPeer[];
   sendUpdate: (patch: {
+    nick?: string;
     micMuted?: boolean;
     deafened?: boolean;
     hasAudio?: boolean;

@@ -728,6 +728,7 @@ async function startServer(): Promise<void> {
       liveVoicePeers,
       peerId,
       {
+        nick: typeof body.nick === 'string' ? body.nick : undefined,
         micMuted: typeof body.micMuted === 'boolean' ? body.micMuted : undefined,
         deafened: typeof body.deafened === 'boolean' ? body.deafened : undefined,
         hasAudio: typeof body.hasAudio === 'boolean' ? body.hasAudio : undefined,
@@ -1089,6 +1090,7 @@ async function startServer(): Promise<void> {
           liveVoicePeers,
           peerId,
           {
+            nick: typeof msg.nick === 'string' ? msg.nick : undefined,
             micMuted: typeof msg.micMuted === 'boolean' ? msg.micMuted : undefined,
             deafened: typeof msg.deafened === 'boolean' ? msg.deafened : undefined,
             hasAudio: typeof msg.hasAudio === 'boolean' ? msg.hasAudio : undefined,

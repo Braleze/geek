@@ -435,6 +435,14 @@ try {
         ];
         $sets = ['last_seen_at = :seen'];
         $params = [':seen' => $now, ':peer' => $peerId];
+        if (array_key_exists('nick', $input) && is_string($input['nick'])) {
+            $nextNick = sanitizeVoiceNick($input['nick'], 1);
+            $nextInitials = computeVoiceInitials($nextNick);
+            $sets[] = 'nick = :nick';
+            $sets[] = 'initials = :initials';
+            $params[':nick'] = $nextNick;
+            $params[':initials'] = $nextInitials;
+        }
         foreach ($flagMap as $jsonKey => $col) {
             if (array_key_exists($jsonKey, $input) && is_bool($input[$jsonKey])) {
                 $sets[] = "{$col} = :{$col}";

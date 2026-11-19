@@ -143,6 +143,7 @@ export function updateLiveVoicePeer(
   peers: Map<string, LiveVoicePeer>,
   peerId: string,
   patch: {
+    nick?: string;
     micMuted?: boolean;
     deafened?: boolean;
     hasAudio?: boolean;
@@ -155,6 +156,11 @@ export function updateLiveVoicePeer(
   const peer = peers.get(peerId);
   if (!peer) return null;
 
+  if (typeof patch.nick === 'string') {
+    const nextNick = sanitizeLiveVoiceNick(patch.nick, 1);
+    peer.nick = nextNick;
+    peer.initials = computeLiveVoiceInitials(nextNick);
+  }
   if (typeof patch.micMuted === 'boolean') peer.micMuted = patch.micMuted;
   if (typeof patch.deafened === 'boolean') peer.deafened = patch.deafened;
   if (typeof patch.hasAudio === 'boolean') peer.hasAudio = patch.hasAudio;
@@ -197,4 +203,23 @@ export function pruneStaleLiveVoicePeers(
 
 export function shouldInitiateRtcMesh(myPeerId: string, remotePeerId: string): boolean {
   return myPeerId !== remotePeerId && myPeerId < remotePeerId;
+}
+
+export function filterActiveRemoteVideos<T extends { peerId: string }>(
+  entries: Iterable<T>,
+  peers: readonly LiveVoicePublicPeer[],
+): T[] {
+  const activeVideoPeerIds = new Set<string>();
+  for (const peer of peers) {
+    if (peer.camActive || peer.screenActive) {
+      activeVideoPeerIds.add(peer.peerId);
+    }
+  }
+  const active: T[] = [];
+  for (const entry of entries) {
+    if (activeVideoPeerIds.has(entry.peerId)) {
+      active.push(entry);
+    }
+  }
+  return active;
 }

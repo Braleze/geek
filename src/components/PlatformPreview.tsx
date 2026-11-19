@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import {
+  Check,
   ChevronDown,
   Headphones,
   HelpCircle,
@@ -39,6 +40,7 @@ import { useLiveVoiceRoom } from '../hooks/useLiveVoiceRoom';
 import { PreBetaWorkspace } from './PreBetaWorkspace';
 import { formatCountdownMs, normalizePreBetaCode } from '../utils/preBetaSession';
 import { probePreviewBackend, requestServerVoiceUnlock } from '../utils/previewTransport';
+import { computeLiveVoiceInitials } from '../utils/liveVoiceRoom';
 
 const WAVE_DELAYS = ['0s', '.2s', '.4s', '.1s', '.3s', '.5s', '.15s', '.35s', '.05s', '.25s', '.45s', '.12s'];
 
@@ -46,12 +48,21 @@ function StreamVideoPreview({ stream, label }: { stream: MediaStream; label: str
   const videoRef = useRef<HTMLVideoElement | null>(null);
   useEffect(() => {
     const el = videoRef.current;
-    if (el && el.srcObject !== stream) {
+    if (!el) return;
+    if (el.srcObject !== stream) {
       el.srcObject = stream;
     }
+    void el.play().catch(() => {});
+    return () => {
+      el.pause();
+      el.srcObject = null;
+    };
   }, [stream]);
   return (
-    <div className="relative rounded overflow-hidden border border-[#00f0ff]/35 bg-[#03070e] aspect-video">
+    <div
+      data-testid="preview-live-video-tile"
+      className="relative rounded overflow-hidden border border-[#00f0ff]/35 bg-[#03070e] aspect-video"
+    >
       <video
         ref={videoRef}
         autoPlay
@@ -59,7 +70,7 @@ function StreamVideoPreview({ stream, label }: { stream: MediaStream; label: str
         muted
         className="w-full h-full object-cover"
       />
-      <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-[9px] font-bold text-[#00f0ff]">
+      <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-black/75 text-[9px] font-bold text-[#00f0ff] max-w-[92%] truncate">
         {label}
       </span>
     </div>
@@ -192,6 +203,35 @@ export function PlatformPreview({
       }
     },
   });
+  const [liveNickDraft, setLiveNickDraft] = useState<string>(liveVoice.nick);
+  const [liveNickSaved, setLiveNickSaved] = useState<boolean>(false);
+  const liveNickSavedTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setLiveNickDraft(liveVoice.nick);
+  }, [liveVoice.nick]);
+
+  useEffect(() => {
+    return () => {
+      if (liveNickSavedTimerRef.current !== null) {
+        window.clearTimeout(liveNickSavedTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleSaveLiveNick = (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    const saved = liveVoice.updateNick(liveNickDraft);
+    setLiveNickDraft(saved);
+    setLiveNickSaved(true);
+    if (liveNickSavedTimerRef.current !== null) {
+      window.clearTimeout(liveNickSavedTimerRef.current);
+    }
+    liveNickSavedTimerRef.current = window.setTimeout(() => {
+      setLiveNickSaved(false);
+      liveNickSavedTimerRef.current = null;
+    }, 1500);
+  };
 
   const syncL30nelVoiceAudio = (
     targetVoiceServerId: PreviewServerId | null,
@@ -302,7 +342,9 @@ export function PlatformPreview({
     if (voiceServerId !== null) {
       handleLeaveVoice();
     }
-    void liveVoice.join(voiceUnlockToken, 'Вы (Гость)');
+    const cleanNick = liveVoice.updateNick(liveNickDraft);
+    setLiveNickDraft(cleanNick);
+    void liveVoice.join(voiceUnlockToken, cleanNick);
   };
 
   useEffect(() => {
@@ -1100,6 +1142,43 @@ export function PlatformPreview({
                       </span>
                     </button>
 
+                    <form
+                      onSubmit={handleSaveLiveNick}
+                      data-testid="live-voice-nick-form"
+                      className="flex items-center gap-1 mb-2 px-0.5"
+                    >
+                      <input
+                        type="text"
+                        value={liveNickDraft}
+                        onChange={(e) => setLiveNickDraft(e.target.value)}
+                        onBlur={() => {
+                          if (liveNickDraft.trim() !== liveVoice.nick) {
+                            handleSaveLiveNick();
+                          }
+                        }}
+                        maxLength={22}
+                        aria-label="Ваш ник в Live Голос"
+                        placeholder="Ваш ник..."
+                        data-testid="live-voice-nick-input"
+                        className="min-w-0 flex-1 px-2 py-1 rounded bg-[#050c16] border border-[#00f0ff]/30 focus:border-[#00f0ff] focus:outline-none text-[11px] font-semibold text-white placeholder:text-[#63809b]"
+                      />
+                      <button
+                        type="submit"
+                        data-testid="live-voice-nick-save"
+                        title="Сохранить ник в Live Голос"
+                        className={`px-2 py-1 rounded border text-[10px] font-extrabold cursor-pointer transition-colors shrink-0 flex items-center gap-0.5 ${
+                          liveNickSaved
+                            ? 'bg-[#10b981]/25 border-[#10b981] text-[#6ee7b7]'
+                            : liveNickDraft.trim() !== liveVoice.nick
+                              ? 'bg-[#00f0ff]/20 border-[#00f0ff] text-white hover:bg-[#00f0ff]/30'
+                              : 'bg-[#0d1829] border-[#00f0ff]/20 text-[#9eeeff] hover:border-[#00f0ff]/50 hover:text-white'
+                        }`}
+                      >
+                        <Check className="w-3 h-3" />
+                        <span>{liveNickSaved ? 'ОК' : 'Ник'}</span>
+                      </button>
+                    </form>
+
                     {liveVoice.connected && (
                       <div data-testid="preview-live-voice-peers" className="space-y-1 pl-2 mb-2">
                         {liveVoice.peers.map((vp) => (
@@ -1118,7 +1197,7 @@ export function PlatformPreview({
                             />
                             <span className="truncate flex-1">
                               {vp.nick}
-                              {vp.peerId === liveVoice.myPeerId ? ' (Вы)' : ''}
+                              {vp.peerId === liveVoice.myPeerId && !vp.nick.startsWith('Вы ') ? ' (Вы)' : ''}
                               {vp.camActive ? ' 📷' : ''}
                               {vp.screenActive ? ' 🖥️' : ''}
                             </span>
@@ -1253,31 +1332,40 @@ export function PlatformPreview({
                         </div>
                       )}
 
-                      {(liveVoice.localCamStream ||
-                        liveVoice.localScreenStream ||
+                      {((liveVoice.camActive && liveVoice.localCamStream) ||
+                        (liveVoice.screenActive && liveVoice.localScreenStream) ||
                         liveVoice.remoteVideoPeers.length > 0) && (
-                        <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto geek-chat-scroll">
-                          {liveVoice.localCamStream && (
+                        <div
+                          data-testid="preview-live-video-grid"
+                          className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto geek-chat-scroll"
+                        >
+                          {liveVoice.camActive && liveVoice.localCamStream && (
                             <StreamVideoPreview stream={liveVoice.localCamStream} label="Вы · Камера" />
                           )}
-                          {liveVoice.localScreenStream && (
+                          {liveVoice.screenActive && liveVoice.localScreenStream && (
                             <StreamVideoPreview stream={liveVoice.localScreenStream} label="Вы · Экран" />
                           )}
-                          {liveVoice.remoteVideoPeers.map((rv) => (
-                            <StreamVideoPreview
-                              key={rv.peerId}
-                              stream={rv.stream}
-                              label={
-                                liveVoice.peers.find((p) => p.peerId === rv.peerId)?.nick ?? 'Участник'
-                              }
-                            />
-                          ))}
+                          {liveVoice.remoteVideoPeers.map((rv) => {
+                            const remotePeer = liveVoice.peers.find((p) => p.peerId === rv.peerId);
+                            const streamKind = remotePeer?.screenActive ? 'Экран' : 'Камера';
+                            const label = remotePeer
+                              ? `${remotePeer.nick} · ${streamKind}`
+                              : 'Участник';
+                            return (
+                              <StreamVideoPreview
+                                key={rv.peerId}
+                                stream={rv.stream}
+                                label={label}
+                              />
+                            );
+                          })}
                         </div>
                       )}
 
                       <div className="grid grid-cols-3 gap-1.5">
                         <button
                           type="button"
+                          data-testid="preview-live-cam-btn"
                           onClick={() => void liveVoice.toggleCamera()}
                           aria-pressed={liveVoice.camActive}
                           className={`py-1 px-1.5 rounded border text-[10.5px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
@@ -1291,6 +1379,7 @@ export function PlatformPreview({
                         </button>
                         <button
                           type="button"
+                          data-testid="preview-live-screen-btn"
                           onClick={() => void liveVoice.toggleScreen()}
                           aria-pressed={liveVoice.screenActive}
                           className={`py-1 px-1.5 rounded border text-[10.5px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors ${
@@ -1385,7 +1474,7 @@ export function PlatformPreview({
               <div className="h-[54px] px-2.5 bg-[#040810] border-t border-[#00f0ff]/15 flex items-center justify-between gap-1.5">
                 <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
                   <HexAvatar
-                    initials="ГО"
+                    initials={voiceUnlockToken ? computeLiveVoiceInitials(liveVoice.nick) : 'ГО'}
                     color="#3b82f6"
                     sizeClass="w-8 h-8 text-[10px]"
                     online={liveVoice.connected ? !liveVoice.deafened : !deafened}
@@ -1393,7 +1482,12 @@ export function PlatformPreview({
                   />
                   <div className="min-w-0 flex-1 overflow-hidden">
                     <div className="flex items-center gap-1 min-w-0">
-                      <span className="text-[11.5px] font-extrabold text-white whitespace-nowrap shrink-0">Вы (Гость)</span>
+                      <span
+                        data-testid="preview-user-bar-nick"
+                        className="text-[11.5px] font-extrabold text-white truncate"
+                      >
+                        {voiceUnlockToken ? liveVoice.nick : 'Вы (Гость)'}
+                      </span>
                       <span className="inline-flex items-center px-1 py-[1px] rounded text-[8px] font-black uppercase tracking-tight whitespace-nowrap shrink-0 geek-badge-set1">
                         🌙 LUCY NET
                       </span>
