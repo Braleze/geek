@@ -26,14 +26,14 @@ import {
   type ResamplerState,
 } from '../utils/preBetaAudio';
 
+import {
+  DEFAULT_ICE_SERVERS,
+  computeAdaptivePollMs,
+  mergeIceServers,
+} from '../utils/hostBudget';
+
 const CLIENT_ID_STORAGE_KEY = 'geek_prebeta_client_id_v1';
 const NICK_STORAGE_KEY = 'geek_prebeta_nick_v1';
-
-const ICE_SERVERS: RTCIceServer[] = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun.cloudflare.com:3478' },
-];
 
 export type PreBetaQuotaState = {
   status: 'LOADING' | 'AVAILABLE' | 'ACTIVE' | 'EXHAUSTED';
@@ -124,7 +124,11 @@ export function usePreBetaCall() {
   const persistentAudioRef = useRef<HTMLAudioElement | null>(null);
   const pendingJoinRef = useRef<{ code: string; nick: string } | null>(null);
   const pollTimerRef = useRef<number | null>(null);
+  const pollSessionRef = useRef<number>(0);
   const pollIntervalMsRef = useRef<number>(750);
+  const pollKickRef = useRef<(() => void) | null>(null);
+  const lastActivityAtRef = useRef<number>(0);
+  const iceServersRef = useRef<RTCIceServer[]>([...DEFAULT_ICE_SERVERS]);
   const roomRef = useRef<PublicRoomSnapshot | null>(null);
   roomRef.current = roomSnapshot;
   const myPeerIdRef = useRef<string | null>(null);
@@ -185,6 +189,9 @@ export function usePreBetaCall() {
   const refreshQuotaStatus = useCallback(async () => {
     try {
       const probed = await probePreBetaBackend(clientId);
+      if (probed.iceServers) {
+        iceServersRef.current = mergeIceServers(probed.iceServers);
+      }
       setTransport((prev) =>
         prev === 'node-http' && probed.transport === 'node-ws' ? 'node-http' : probed.transport,
       );
@@ -225,8 +232,10 @@ export function usePreBetaCall() {
   }, [quota.status, quota.paused, quota.expiresAt]);
 
   const stopPolling = useCallback(() => {
+    pollSessionRef.current += 1;
+    pollKickRef.current = null;
     if (pollTimerRef.current !== null) {
-      window.clearInterval(pollTimerRef.current);
+      window.clearTimeout(pollTimerRef.current);
       pollTimerRef.current = null;
     }
   }, []);
@@ -689,7 +698,7 @@ export function usePreBetaCall() {
         return null;
       }
 
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      const pc = new RTCPeerConnection({ iceServers: iceServersRef.current });
       pcRef.current = pc;
 
       if (localStreamRef.current) {
@@ -992,11 +1001,25 @@ export function usePreBetaCall() {
   const startHttpPolling = useCallback(
     (mode: 'node-http' | 'php-http' | 'local', code: string, peerId: string) => {
       stopPolling();
+      const sessionId = pollSessionRef.current;
+      let lastMessageCount = roomRef.current?.messages.length ?? 0;
+
+      const scheduleNext = () => {
+        if (pollSessionRef.current !== sessionId || !roomRef.current) return;
+        if (pollTimerRef.current !== null) {
+          window.clearTimeout(pollTimerRef.current);
+        }
+        pollTimerRef.current = window.setTimeout(() => {
+          pollTimerRef.current = null;
+          void pollOnce();
+        }, pollIntervalMsRef.current);
+      };
 
       const pollOnce = async () => {
-        if (!roomRef.current) return;
+        if (pollSessionRef.current !== sessionId || !roomRef.current) return;
         if (mode === 'local') {
           const res = localPreBetaApi.poll(code, peerId);
+          if (pollSessionRef.current !== sessionId) return;
           if (!res.ok) {
             stopPolling();
             cleanupRtc();
@@ -1008,8 +1031,20 @@ export function usePreBetaCall() {
             return;
           }
           if (res.snapshot) {
+            if (res.signals.length > 0 || res.snapshot.messages.length !== lastMessageCount) {
+              lastMessageCount = res.snapshot.messages.length;
+              lastActivityAtRef.current = Date.now();
+            }
             applyPolledState(res.snapshot, res.signals);
+            pollIntervalMsRef.current = computeAdaptivePollMs({
+              peerCount: res.snapshot.participants.length,
+              audioMode: audioModeRef.current,
+              negotiating: rtcStatusRef.current === 'negotiating',
+              hidden: typeof document !== 'undefined' && document.hidden,
+              hasRecentActivity: Date.now() - lastActivityAtRef.current < 8000,
+            });
           }
+          scheduleNext();
           return;
         }
 
@@ -1020,6 +1055,7 @@ export function usePreBetaCall() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code, peerId, clientId }),
           });
+          if (pollSessionRef.current !== sessionId || !roomRef.current) return;
           const data = (await response.json()) as {
             ok?: boolean;
             reason?: string;
@@ -1027,6 +1063,7 @@ export function usePreBetaCall() {
             snapshot?: PublicRoomSnapshot;
             signals?: QueuedSignal[];
           };
+          if (pollSessionRef.current !== sessionId || !roomRef.current) return;
           if (!data.ok || !data.snapshot) {
             if (data.reason === 'ROOM_EXPIRED' || data.reason === 'NOT_IN_ROOM' || data.reason === 'ROOM_NOT_FOUND') {
               stopPolling();
@@ -1036,29 +1073,59 @@ export function usePreBetaCall() {
               if (data.reason === 'ROOM_EXPIRED') setRemainingMs(0);
               setError(data.message ?? 'Сессия завершена.');
               void refreshQuotaStatus();
+              return;
             }
+            scheduleNext();
             return;
           }
-          applyPolledState(data.snapshot, data.signals ?? []);
-
-          // Dynamically speed up polling (260ms) when 2 peers are relaying PCM audio over HTTP
-          const wantFastPoll = data.snapshot.participants.length >= 2 && relayActiveRef.current;
-          const desiredMs = wantFastPoll ? 260 : 750;
-          if (desiredMs !== pollIntervalMsRef.current) {
-            pollIntervalMsRef.current = desiredMs;
-            startHttpPolling(mode, code, peerId);
+          const incomingSignals = data.signals ?? [];
+          if (incomingSignals.length > 0 || data.snapshot.messages.length !== lastMessageCount) {
+            lastMessageCount = data.snapshot.messages.length;
+            lastActivityAtRef.current = Date.now();
           }
+          applyPolledState(data.snapshot, incomingSignals);
+
+          // Adaptive polling tuned for REG.RU Host-0 80 CP/day limit:
+          // fast during PCM relay or ICE handshake, calm once WebRTC P2P is live or tab is hidden.
+          const effectiveAudioMode = relayActiveRef.current ? 'relay' : audioModeRef.current;
+          pollIntervalMsRef.current = computeAdaptivePollMs({
+            peerCount: data.snapshot.participants.length,
+            audioMode: effectiveAudioMode,
+            negotiating: rtcStatusRef.current === 'negotiating',
+            hidden: typeof document !== 'undefined' && document.hidden,
+            hasRecentActivity: Date.now() - lastActivityAtRef.current < 8000,
+          });
         } catch {
           // Transient poll hiccup: keep trying on next tick
         }
+        scheduleNext();
       };
 
-      pollTimerRef.current = window.setInterval(() => {
+      pollKickRef.current = () => {
+        if (pollSessionRef.current !== sessionId || !roomRef.current) return;
+        lastActivityAtRef.current = Date.now();
+        if (pollTimerRef.current !== null) {
+          window.clearTimeout(pollTimerRef.current);
+          pollTimerRef.current = null;
+        }
         void pollOnce();
-      }, pollIntervalMsRef.current);
+      };
+
+      scheduleNext();
     },
     [applyPolledState, cleanupRtc, clientId, refreshQuotaStatus, stopLocalMedia, stopPolling],
   );
+
+  // Immediately refresh when returning to the tab after background throttling
+  useEffect(() => {
+    const onVisibility = () => {
+      if (!document.hidden) {
+        pollKickRef.current?.();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
 
   // Instant IPC refresh when running in local multi-tab fallback
   useEffect(() => {
@@ -1309,6 +1376,7 @@ export function usePreBetaCall() {
         ok?: boolean;
         peerId?: string;
         snapshot?: PublicRoomSnapshot;
+        iceServers?: unknown;
         message?: string;
       };
       if (!payload.ok || !payload.peerId || !payload.snapshot) {
@@ -1316,6 +1384,10 @@ export function usePreBetaCall() {
         setError(payload.message ?? 'Не удалось подключиться к диалогу.');
         return false;
       }
+      if (payload.iceServers) {
+        iceServersRef.current = mergeIceServers(payload.iceServers);
+      }
+      lastActivityAtRef.current = Date.now();
       applyJoinedSnapshot(payload.peerId, payload.snapshot);
       startHttpPolling(mode, payload.snapshot.code, payload.peerId);
       return true;
@@ -1502,6 +1574,7 @@ export function usePreBetaCall() {
       const activeRoom = roomRef.current;
       const peerId = myPeerIdRef.current;
       if (!clean || !activeRoom || !peerId) return false;
+      lastActivityAtRef.current = Date.now();
 
       const mode = transportRef.current;
       if (mode === 'node-ws') {

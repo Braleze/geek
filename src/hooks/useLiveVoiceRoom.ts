@@ -17,11 +17,11 @@ import {
   type LocalVoiceSession,
 } from '../utils/liveVoiceLocalTransport';
 
-const ICE_SERVERS: RTCIceServer[] = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
-  { urls: 'stun:stun.cloudflare.com:3478' },
-];
+import {
+  DEFAULT_ICE_SERVERS,
+  computeAdaptivePollMs,
+  mergeIceServers,
+} from '../utils/hostBudget';
 
 export type LiveVoiceAudioMode = 'idle' | 'waiting' | 'webrtc' | 'relay' | 'loopback';
 export type LiveVoiceTransportMode = 'ws' | 'http-node' | 'http-php' | 'local' | null;
@@ -88,6 +88,9 @@ export function useLiveVoiceRoom({
   const pollTimerRef = useRef<number | null>(null);
   const pollSessionRef = useRef<number>(0);
   const pollIntervalMsRef = useRef<number>(700);
+  const pollKickRef = useRef<(() => void) | null>(null);
+  const lastActivityAtRef = useRef<number>(0);
+  const iceServersRef = useRef<RTCIceServer[]>([...DEFAULT_ICE_SERVERS]);
   const myPeerIdRef = useRef<string | null>(null);
   myPeerIdRef.current = myPeerId;
   const peersRef = useRef<LiveVoicePublicPeer[]>([]);
@@ -151,6 +154,7 @@ export function useLiveVoiceRoom({
 
   const stopPolling = useCallback(() => {
     pollSessionRef.current += 1;
+    pollKickRef.current = null;
     if (pollTimerRef.current !== null) {
       window.clearTimeout(pollTimerRef.current);
       pollTimerRef.current = null;
@@ -752,7 +756,7 @@ export function useLiveVoiceRoom({
         return null;
       }
 
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      const pc = new RTCPeerConnection({ iceServers: iceServersRef.current });
       peerConnectionsRef.current.set(remotePeerId, pc);
 
       if (localMicStreamRef.current) {
@@ -1114,6 +1118,9 @@ export function useLiveVoiceRoom({
           }
           rejoinAttempts = 0;
           if (Array.isArray(payload.peers)) {
+            if (payload.peers.length !== peersRef.current.length) {
+              lastActivityAtRef.current = Date.now();
+            }
             peersRef.current = payload.peers;
             setPeers(payload.peers);
             if (payload.peers.length >= 2) {
@@ -1121,17 +1128,40 @@ export function useLiveVoiceRoom({
             }
             evaluateRoomAudioMode();
           }
-          if (Array.isArray(payload.signals)) {
+          if (Array.isArray(payload.signals) && payload.signals.length > 0) {
+            lastActivityAtRef.current = Date.now();
             for (const sig of payload.signals) {
               handleServerPacket(sig);
             }
           }
-          const wantFast = (payload.peers?.length ?? 0) >= 2 && audioModeRef.current === 'relay';
-          pollIntervalMsRef.current = wantFast ? 280 : 700;
+          let anyNegotiating = false;
+          for (const pc of peerConnectionsRef.current.values()) {
+            if (pc.connectionState === 'connecting' || pc.connectionState === 'new') {
+              anyNegotiating = true;
+              break;
+            }
+          }
+          pollIntervalMsRef.current = computeAdaptivePollMs({
+            peerCount: payload.peers?.length ?? peersRef.current.length,
+            audioMode: audioModeRef.current,
+            negotiating: anyNegotiating,
+            hidden: typeof document !== 'undefined' && document.hidden,
+            hasRecentActivity: Date.now() - lastActivityAtRef.current < 8000,
+          });
         } catch {
           // Transient poll glitch
         }
         scheduleNext();
+      };
+
+      pollKickRef.current = () => {
+        if (pollSessionRef.current !== sessionId || !connectedRef.current) return;
+        lastActivityAtRef.current = Date.now();
+        if (pollTimerRef.current !== null) {
+          window.clearTimeout(pollTimerRef.current);
+          pollTimerRef.current = null;
+        }
+        void pollOnce();
       };
 
       scheduleNext();
@@ -1145,6 +1175,17 @@ export function useLiveVoiceRoom({
       stopPolling,
     ],
   );
+
+  // Wake up throttled polling right away when user returns to this tab
+  useEffect(() => {
+    const onVisibility = () => {
+      if (!document.hidden) {
+        pollKickRef.current?.();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
 
   const ensureSocketConnected = useCallback((): Promise<WebSocket> => {
     const current = wsRef.current;
@@ -1382,6 +1423,7 @@ export function useLiveVoiceRoom({
             peerId?: string;
             peers?: LiveVoicePublicPeer[];
             signals?: Array<Record<string, unknown>>;
+            iceServers?: unknown;
           };
           return { payload, status: res.status };
         } catch {
@@ -1391,7 +1433,7 @@ export function useLiveVoiceRoom({
 
       try {
         transportRef.current = 'http';
-        pollIntervalMsRef.current = 450;
+        pollIntervalMsRef.current = 550;
         const order: Array<'node' | 'php'> =
           preferredBackendRef.current === 'php' ? ['php', 'node'] : ['node', 'php'];
         let activeBackend: 'node' | 'php' = order[0];
@@ -1402,6 +1444,7 @@ export function useLiveVoiceRoom({
           peerId?: string;
           peers?: LiveVoicePublicPeer[];
           signals?: Array<Record<string, unknown>>;
+          iceServers?: unknown;
         } | null = null;
         let lastStatus = 0;
 
@@ -1439,6 +1482,10 @@ export function useLiveVoiceRoom({
             payload.message ?? 'Сервер голосового канала недоступен — включён локальный режим.',
           );
         }
+        if (payload.iceServers) {
+          iceServersRef.current = mergeIceServers(payload.iceServers);
+        }
+        lastActivityAtRef.current = Date.now();
         myPeerIdRef.current = payload.peerId;
         setMyPeerId(payload.peerId);
         const nextPeers = Array.isArray(payload.peers) ? payload.peers : [];

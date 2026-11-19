@@ -1,15 +1,19 @@
 DirectoryIndex index.html
+Options -Indexes
 
 RedirectMatch 404 ^/\.git
 RedirectMatch 404 ^/\.env
-RedirectMatch 404 ^/\.prebeta-state\.json$
 RedirectMatch 404 ^/src/
+RedirectMatch 404 ^/api/\.data(/|$)
+RedirectMatch 404 ^/api/(config|config\.example|bootstrap)\.php$
+RedirectMatch 404 \.(sqlite|sqlite3|db|wal|shm|sql)$
 RedirectMatch 404 ^/(package\.json|package-lock\.json|tsconfig\.json|vite\.config\.ts|metadata\.json)$
 
 <IfModule mod_mime.c>
   AddType application/javascript .js .mjs
   AddType text/css .css
   AddType image/svg+xml .svg
+  AddType font/woff2 .woff2
   AddType audio/mpeg .mp3
   AddType audio/ogg .ogg
   AddType audio/wav .wav
@@ -17,7 +21,7 @@ RedirectMatch 404 ^/(package\.json|package-lock\.json|tsconfig\.json|vite\.confi
 </IfModule>
 
 <IfModule mod_headers.c>
-  <FilesMatch "\.(html)$">
+  <FilesMatch "\.(html|php)$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
   </FilesMatch>
 </IfModule>

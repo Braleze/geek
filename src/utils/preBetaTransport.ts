@@ -27,6 +27,7 @@ export interface QuotaResponse {
   remainingMs: number;
   paused: boolean;
   transport: PreBetaTransportKind;
+  iceServers?: RTCIceServer[];
 }
 
 export interface QueuedSignal {
@@ -78,6 +79,9 @@ export async function probePreBetaBackend(clientId: string): Promise<QuotaRespon
           : PRE_BETA_DURATION_MS,
       paused: typeof nodeRes.data.paused === 'boolean' ? nodeRes.data.paused : true,
       transport: 'node-ws',
+      iceServers: Array.isArray(nodeRes.data.iceServers)
+        ? (nodeRes.data.iceServers as RTCIceServer[])
+        : undefined,
     };
   }
 
@@ -97,6 +101,9 @@ export async function probePreBetaBackend(clientId: string): Promise<QuotaRespon
           : PRE_BETA_DURATION_MS,
       paused: typeof phpRes.data.paused === 'boolean' ? phpRes.data.paused : true,
       transport: 'php-http',
+      iceServers: Array.isArray(phpRes.data.iceServers)
+        ? (phpRes.data.iceServers as RTCIceServer[])
+        : undefined,
     };
   }
 

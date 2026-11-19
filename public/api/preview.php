@@ -1,8 +1,7 @@
 <?php
 declare(strict_types=1);
 
-header('Content-Type: application/json; charset=UTF-8');
-header('Cache-Control: no-store, no-cache, must-revalidate');
+require_once __DIR__ . '/bootstrap.php';
 
 const PREVIEW_MODEL = 'gemini-3.1-flash-lite';
 const MAX_QUESTION_CHARS = 220;
@@ -15,104 +14,11 @@ const MAX_UNLOCKED_QUESTION_CHARS = 2000;
 const MAX_UNLOCKED_REPLY_CHARS = 4000;
 const UNLOCK_TOKEN_TTL_MS = 86400000;
 
-function respondJson(int $status, array $payload): void {
-    http_response_code($status);
-    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-function readJsonInput(): array {
-    $raw = file_get_contents('php://input');
-    if (is_string($raw) && $raw !== '') {
-        $decoded = json_decode($raw, true);
-        if (is_array($decoded)) {
-            return $decoded;
-        }
-    }
-    return $_POST ?: [];
-}
-
-function utf8Len(string $s): int {
-    return function_exists('mb_strlen') ? mb_strlen($s, 'UTF-8') : strlen($s);
-}
-
-function utf8Substr(string $s, int $start, ?int $len = null): string {
-    if (function_exists('mb_substr')) {
-        return $len === null ? mb_substr($s, $start, null, 'UTF-8') : mb_substr($s, $start, $len, 'UTF-8');
-    }
-    return $len === null ? substr($s, $start) : substr($s, $start, $len);
-}
-
-function utf8Strtolower(string $s): string {
-    return function_exists('mb_strtolower') ? mb_strtolower($s, 'UTF-8') : strtolower($s);
-}
-
-function readEnvSetting(string $name): string {
-    $candidates = [
-        getenv($name),
-        $_ENV[$name] ?? null,
-        $_SERVER[$name] ?? null,
-        $_SERVER['REDIRECT_' . $name] ?? null,
-    ];
-    foreach ($candidates as $val) {
-        if (is_string($val)) {
-            $trimmed = trim($val);
-            if ($trimmed !== '' && $trimmed !== 'MY_GEMINI_API_KEY' && $trimmed !== 'MY_APP_URL') {
-                return $trimmed;
-            }
-        }
-    }
-
-    $envPaths = [
-        dirname(__DIR__) . '/.env',
-        dirname(__DIR__, 2) . '/.env',
-        __DIR__ . '/.env',
-    ];
-    foreach ($envPaths as $path) {
-        if (!@is_file($path) || !@is_readable($path)) {
-            continue;
-        }
-        $lines = @file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        if (!is_array($lines)) {
-            continue;
-        }
-        foreach ($lines as $line) {
-            $trimmed = trim($line);
-            if ($trimmed === '' || strpos($trimmed, '#') === 0) {
-                continue;
-            }
-            if (strpos($trimmed, 'export ') === 0) {
-                $trimmed = trim(substr($trimmed, 7));
-            }
-            $eqPos = strpos($trimmed, '=');
-            if ($eqPos === false) {
-                continue;
-            }
-            $key = trim(substr($trimmed, 0, $eqPos));
-            if ($key !== $name) {
-                continue;
-            }
-            $rawVal = trim(substr($trimmed, $eqPos + 1));
-            $first = substr($rawVal, 0, 1);
-            $last = substr($rawVal, -1);
-            if (($first === '"' && $last === '"') || ($first === "'" && $last === "'")) {
-                $rawVal = substr($rawVal, 1, -1);
-            }
-            $rawVal = trim($rawVal);
-            if ($rawVal !== '' && $rawVal !== 'MY_GEMINI_API_KEY' && $rawVal !== 'MY_APP_URL') {
-                return $rawVal;
-            }
-        }
-    }
-
-    return '';
-}
-
 function sanitizeText(string $raw, int $maxChars = MAX_QUESTION_CHARS): string {
     $cleaned = preg_replace('/[\x00-\x1F\x7F]/u', ' ', $raw) ?? $raw;
     $cleaned = preg_replace('/\s+/u', ' ', trim($cleaned)) ?? trim($cleaned);
-    if (utf8Len($cleaned) > $maxChars) {
-        $cleaned = trim(utf8Substr($cleaned, 0, $maxChars));
+    if (gkUtf8Len($cleaned) > $maxChars) {
+        $cleaned = trim(gkUtf8Substr($cleaned, 0, $maxChars));
     }
     return $cleaned;
 }
@@ -120,8 +26,8 @@ function sanitizeText(string $raw, int $maxChars = MAX_QUESTION_CHARS): string {
 function sanitizeMultilinePrompt(string $raw, int $maxChars = MAX_UNLOCKED_QUESTION_CHARS): string {
     $cleaned = preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/u', '', $raw) ?? $raw;
     $cleaned = trim($cleaned);
-    if (utf8Len($cleaned) > $maxChars) {
-        $cleaned = trim(utf8Substr($cleaned, 0, $maxChars));
+    if (gkUtf8Len($cleaned) > $maxChars) {
+        $cleaned = trim(gkUtf8Substr($cleaned, 0, $maxChars));
     }
     return $cleaned;
 }
@@ -190,13 +96,13 @@ function isValidVoiceUnlockAttempt(string $raw, string $expectedCode): bool {
 }
 
 function getVoiceUnlockHmacSecret(string $apiKey): string {
-    $voiceCode = readEnvSetting('PREVIEW_VOICE_UNLOCK_CODE') ?: DEFAULT_VOICE_UNLOCK_CODE;
+    $voiceCode = gkSetting('preview_voice_unlock_code', 'PREVIEW_VOICE_UNLOCK_CODE', DEFAULT_VOICE_UNLOCK_CODE);
     $baseKey = $apiKey !== '' ? $apiKey : 'local-preview-key';
     return $baseKey . '::voice-unlock::' . $voiceCode;
 }
 
 function signUnlockToken(string $hmacSecret): string {
-    $expMs = (string)(int)(round(microtime(true) * 1000) + UNLOCK_TOKEN_TTL_MS);
+    $expMs = (string)(gkNowMs() + UNLOCK_TOKEN_TTL_MS);
     $sig = hash_hmac('sha256', $expMs, $hmacSecret);
     return $expMs . '.' . $sig;
 }
@@ -214,8 +120,7 @@ function verifyUnlockToken($token, string $hmacSecret): bool {
     if (!preg_match('/^\d{10,16}$/', $payload) || !preg_match('/^[0-9a-f]{64}$/i', $providedSig)) {
         return false;
     }
-    $nowMs = (int)round(microtime(true) * 1000);
-    if ((int)$payload <= $nowMs) {
+    if ((int)$payload <= gkNowMs()) {
         return false;
     }
     $expectedSig = hash_hmac('sha256', $payload, $hmacSecret);
@@ -257,17 +162,17 @@ function containsForbiddenReplyContent(string $text): bool {
 
 function truncateChatReply(string $text, int $maxChars = MAX_REPLY_CHARS): string {
     $norm = sanitizeText($text, $maxChars + 80);
-    if (utf8Len($norm) <= $maxChars) {
+    if (gkUtf8Len($norm) <= $maxChars) {
         return $norm;
     }
-    $sliced = utf8Substr($norm, 0, $maxChars - 1);
+    $sliced = gkUtf8Substr($norm, 0, $maxChars - 1);
     $lastDot = strrpos($sliced, '.');
     $lastBang = strrpos($sliced, '!');
     $lastQ = strrpos($sliced, '?');
     $bestByte = max((int)$lastDot, (int)$lastBang, (int)$lastQ);
     if ($bestByte > 0) {
         $candidate = trim(substr($sliced, 0, $bestByte + 1));
-        if (utf8Len($candidate) >= (int)floor($maxChars * 0.55)) {
+        if (gkUtf8Len($candidate) >= (int)floor($maxChars * 0.55)) {
             return $candidate;
         }
     }
@@ -280,10 +185,10 @@ function truncateChatReply(string $text, int $maxChars = MAX_REPLY_CHARS): strin
 
 function truncateUnlockedReply(string $text, int $maxChars = MAX_UNLOCKED_REPLY_CHARS): string {
     $cleaned = sanitizeMultilinePrompt($text, $maxChars + 80);
-    if (utf8Len($cleaned) <= $maxChars) {
+    if (gkUtf8Len($cleaned) <= $maxChars) {
         return $cleaned;
     }
-    return trim(utf8Substr($cleaned, 0, $maxChars - 1)) . '…';
+    return trim(gkUtf8Substr($cleaned, 0, $maxChars - 1)) . '…';
 }
 
 function getPeerProfile(string $nick): array {
@@ -292,9 +197,9 @@ function getPeerProfile(string $nick): array {
         'Sergo' => ['nick' => 'Sergo', 'initials' => 'SE', 'avatarColor' => '#3b82f6', 'badgeSet' => 'set2'],
         'Max' => ['nick' => 'Max', 'initials' => 'MX', 'avatarColor' => '#b829ff', 'badgeSet' => 'set1'],
     ];
-    $lower = utf8Strtolower(trim($nick));
+    $lower = gkUtf8Lower(trim($nick));
     foreach ($profiles as $key => $profile) {
-        if (utf8Strtolower($key) === $lower) {
+        if (gkUtf8Lower($key) === $lower) {
             return $profile;
         }
     }
@@ -304,7 +209,7 @@ function getPeerProfile(string $nick): array {
 function buildPeerMessage(string $author, string $text, string $prefix = 'live'): array {
     $profile = getPeerProfile($author);
     return [
-        'id' => $prefix . '-' . (string)(int)round(microtime(true) * 1000) . '-' . bin2hex(random_bytes(2)),
+        'id' => $prefix . '-' . (string)gkNowMs() . '-' . bin2hex(random_bytes(2)),
         'author' => $profile['nick'],
         'initials' => $profile['initials'],
         'avatarColor' => $profile['avatarColor'],
@@ -316,7 +221,7 @@ function buildPeerMessage(string $author, string $text, string $prefix = 'live')
 
 function buildSystemMessage(string $text, string $prefix = 'unlock'): array {
     return [
-        'id' => $prefix . '-' . (string)(int)round(microtime(true) * 1000) . '-' . bin2hex(random_bytes(2)),
+        'id' => $prefix . '-' . (string)gkNowMs() . '-' . bin2hex(random_bytes(2)),
         'author' => 'СИСТЕМА GEEK',
         'initials' => 'СГ',
         'avatarColor' => '#00f0ff',
@@ -328,7 +233,7 @@ function buildSystemMessage(string $text, string $prefix = 'unlock'): array {
 
 function buildUnlockedReplyMessage(string $text): array {
     return [
-        'id' => 'free-' . (string)(int)round(microtime(true) * 1000) . '-' . bin2hex(random_bytes(2)),
+        'id' => 'free-' . (string)gkNowMs() . '-' . bin2hex(random_bytes(2)),
         'author' => 'Geek Core',
         'initials' => 'GK',
         'avatarColor' => '#10b981',
@@ -364,7 +269,7 @@ function callGeminiRest(
     string $contentsText,
     bool $structuredJson = true
 ): array {
-    $apiBase = rtrim(readEnvSetting('GEMINI_API_BASE') ?: 'https://generativelanguage.googleapis.com', '/');
+    $apiBase = rtrim(gkSetting('gemini_api_base', 'GEMINI_API_BASE', 'https://generativelanguage.googleapis.com'), '/');
     $url = $apiBase . '/v1beta/models/' . PREVIEW_MODEL . ':generateContent';
 
     $generationConfig = [
@@ -418,10 +323,10 @@ function callGeminiRest(
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json; charset=UTF-8',
                 'x-goog-api-key: ' . $apiKey,
-                'User-Agent: aistudio-build',
+                'User-Agent: geek-host0-php',
             ],
         ];
-        $proxyUrl = readEnvSetting('GEMINI_PROXY_URL');
+        $proxyUrl = gkSetting('gemini_proxy_url', 'GEMINI_PROXY_URL', '');
         if ($proxyUrl !== '') {
             $opts[CURLOPT_PROXY] = $proxyUrl;
         }
@@ -445,7 +350,7 @@ function callGeminiRest(
             'method' => 'POST',
             'timeout' => 20,
             'ignore_errors' => true,
-            'header' => "Content-Type: application/json; charset=UTF-8\r\nx-goog-api-key: {$apiKey}\r\nUser-Agent: aistudio-build\r\n",
+            'header' => "Content-Type: application/json; charset=UTF-8\r\nx-goog-api-key: {$apiKey}\r\nUser-Agent: geek-host0-php\r\n",
             'content' => $payload,
         ],
     ]);
@@ -457,7 +362,7 @@ function callGeminiRest(
 }
 
 $action = (string)($_GET['action'] ?? '');
-$input = readJsonInput();
+$input = gkReadJsonInput();
 if ($action === '' && isset($input['action'])) {
     $action = (string)$input['action'];
 }
@@ -468,26 +373,26 @@ if ($action === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = 'reply';
 }
 
-$apiKey = readEnvSetting('GEMINI_API_KEY');
+$apiKey = gkSetting('gemini_api_key', 'GEMINI_API_KEY', '');
 
 if ($action === 'status') {
-    respondJson(200, [
+    gkRespondJson(200, [
         'ok' => true,
         'liveEnabled' => $apiKey !== '',
         'voiceUnlockEnabled' => true,
     ]);
 }
 
-$voiceCode = readEnvSetting('PREVIEW_VOICE_UNLOCK_CODE') ?: DEFAULT_VOICE_UNLOCK_CODE;
+$voiceCode = gkSetting('preview_voice_unlock_code', 'PREVIEW_VOICE_UNLOCK_CODE', DEFAULT_VOICE_UNLOCK_CODE);
 $voiceHmacSecret = getVoiceUnlockHmacSecret($apiKey);
-$voiceUnlockedMessageText = '🎙 Тестовый живой голосовой канал «🔊 Live Голос (Тест)» открыт в списке голосовых каналов! Подключайтесь для проверки WebRTC / WS-голоса, камеры, экрана и Эхо-теста. Чтобы снова скрыть канал, отправьте /voice-lock.';
+$voiceUnlockedMessageText = '🎙 Тестовый живой голосовой канал «🔊 Live Голос (Тест)» открыт в списке голосовых каналов! Подключайтесь для проверки WebRTC-голоса, камеры, экрана и Эхо-теста. Чтобы снова скрыть канал, отправьте /voice-lock.';
 
 if ($action === 'voice-unlock') {
     $rawCode = (string)($input['code'] ?? ($input['question'] ?? ''));
     if (!isValidVoiceUnlockAttempt($rawCode, $voiceCode)) {
-        respondJson(200, ['ok' => true, 'matched' => false]);
+        gkRespondJson(200, ['ok' => true, 'matched' => false]);
     }
-    respondJson(200, [
+    gkRespondJson(200, [
         'ok' => true,
         'matched' => true,
         'voiceUnlockToken' => signUnlockToken($voiceHmacSecret),
@@ -496,13 +401,13 @@ if ($action === 'voice-unlock') {
 }
 
 if ($action !== 'reply') {
-    respondJson(400, ['ok' => false, 'reason' => 'UNKNOWN_ACTION', 'error' => 'Неизвестное действие preview API.']);
+    gkRespondJson(400, ['ok' => false, 'reason' => 'UNKNOWN_ACTION', 'error' => 'Неизвестное действие preview API.']);
 }
 
 $rawQuestion = (string)($input['question'] ?? '');
 
 if (isValidVoiceUnlockAttempt($rawQuestion, $voiceCode)) {
-    respondJson(200, [
+    gkRespondJson(200, [
         'ok' => true,
         'voiceUnlocked' => true,
         'voiceUnlockToken' => signUnlockToken($voiceHmacSecret),
@@ -511,14 +416,14 @@ if (isValidVoiceUnlockAttempt($rawQuestion, $voiceCode)) {
 }
 
 if ($apiKey === '') {
-    respondJson(503, ['ok' => false, 'reason' => 'GEMINI_NOT_CONFIGURED', 'error' => 'Gemini API key is not configured on the server.']);
+    gkRespondJson(503, ['ok' => false, 'reason' => 'GEMINI_NOT_CONFIGURED', 'error' => 'Gemini API key is not configured on the server.']);
 }
 
-$unlockCode = readEnvSetting('PREVIEW_UNLOCK_CODE') ?: DEFAULT_UNLOCK_CODE;
+$unlockCode = gkSetting('preview_unlock_code', 'PREVIEW_UNLOCK_CODE', DEFAULT_UNLOCK_CODE);
 $hmacSecret = $apiKey . '::' . $unlockCode;
 
 if (isValidUnlockAttempt($rawQuestion, $unlockCode)) {
-    respondJson(200, [
+    gkRespondJson(200, [
         'ok' => true,
         'unlocked' => true,
         'unlockToken' => signUnlockToken($hmacSecret),
@@ -531,7 +436,7 @@ if (isValidUnlockAttempt($rawQuestion, $unlockCode)) {
 if (verifyUnlockToken($input['unlockToken'] ?? null, $hmacSecret)) {
     $cleanPrompt = sanitizeMultilinePrompt($rawQuestion, MAX_UNLOCKED_QUESTION_CHARS);
     if ($cleanPrompt === '') {
-        respondJson(400, ['ok' => false, 'reason' => 'EMPTY_QUESTION', 'error' => 'Сообщение не должно быть пустым.']);
+        gkRespondJson(400, ['ok' => false, 'reason' => 'EMPTY_QUESTION', 'error' => 'Сообщение не должно быть пустым.']);
     }
 
     $history = sanitizeHistory($input['history'] ?? [], MAX_UNLOCKED_QUESTION_CHARS);
@@ -551,7 +456,7 @@ if (verifyUnlockToken($input['unlockToken'] ?? null, $hmacSecret)) {
 
     $res = callGeminiRest($apiKey, $unlockedSystem, $contentsText, false);
     if (empty($res['ok'])) {
-        respondJson(502, [
+        gkRespondJson(502, [
             'ok' => false,
             'reason' => 'GEMINI_UPSTREAM_ERROR',
             'error' => (string)($res['error'] ?? 'Upstream Gemini request failed.'),
@@ -562,10 +467,10 @@ if (verifyUnlockToken($input['unlockToken'] ?? null, $hmacSecret)) {
     $modelText = $decodedBody['candidates'][0]['content']['parts'][0]['text'] ?? '';
     $finalText = is_string($modelText) ? truncateUnlockedReply($modelText, MAX_UNLOCKED_REPLY_CHARS) : '';
     if ($finalText === '') {
-        respondJson(502, ['ok' => false, 'reason' => 'EMPTY_MODEL_REPLY', 'error' => 'Модель вернула пустой ответ.']);
+        gkRespondJson(502, ['ok' => false, 'reason' => 'EMPTY_MODEL_REPLY', 'error' => 'Модель вернула пустой ответ.']);
     }
 
-    respondJson(200, [
+    gkRespondJson(200, [
         'ok' => true,
         'reply' => buildUnlockedReplyMessage($finalText),
     ]);
@@ -573,7 +478,7 @@ if (verifyUnlockToken($input['unlockToken'] ?? null, $hmacSecret)) {
 
 $cleanQuestion = sanitizeText($rawQuestion, MAX_QUESTION_CHARS);
 if ($cleanQuestion === '') {
-    respondJson(400, ['ok' => false, 'reason' => 'EMPTY_QUESTION', 'error' => 'Сообщение не должно быть пустым.']);
+    gkRespondJson(400, ['ok' => false, 'reason' => 'EMPTY_QUESTION', 'error' => 'Сообщение не должно быть пустым.']);
 }
 
 $servers = [
@@ -592,7 +497,7 @@ $lastAuthor = count($history) > 0 ? (string)$history[count($history) - 1]['autho
 
 if (isPromptInjectionOrOffTopic($cleanQuestion)) {
     $safe = resolveSafeOffTopicReply($serverId, $channelId, $lastAuthor);
-    respondJson(200, ['ok' => true, 'reply' => buildPeerMessage($safe['author'], $safe['text'], 'live-guard')]);
+    gkRespondJson(200, ['ok' => true, 'reply' => buildPeerMessage($safe['author'], $safe['text'], 'live-guard')]);
 }
 
 $avoidRepeatNote = in_array($lastAuthor, ['L30nel', 'Sergo', 'Max'], true)
@@ -630,7 +535,7 @@ $contentsText = implode("\n", [
 
 $res = callGeminiRest($apiKey, $systemInstruction, $contentsText, true);
 if (empty($res['ok'])) {
-    respondJson(502, [
+    gkRespondJson(502, [
         'ok' => false,
         'reason' => 'GEMINI_UPSTREAM_ERROR',
         'error' => (string)($res['error'] ?? 'Upstream Gemini request failed.'),
@@ -641,7 +546,7 @@ $decodedBody = json_decode((string)$res['raw'], true);
 $modelText = $decodedBody['candidates'][0]['content']['parts'][0]['text'] ?? '';
 if (!is_string($modelText) || trim($modelText) === '') {
     $safe = resolveSafeOffTopicReply($serverId, $channelId, $lastAuthor);
-    respondJson(200, ['ok' => true, 'reply' => buildPeerMessage($safe['author'], $safe['text'], 'live-guard')]);
+    gkRespondJson(200, ['ok' => true, 'reply' => buildPeerMessage($safe['author'], $safe['text'], 'live-guard')]);
 }
 
 $trimmedJson = trim($modelText);
@@ -655,12 +560,12 @@ if (!is_array($parsedReply)) {
 $replyText = is_array($parsedReply) && isset($parsedReply['text']) ? truncateChatReply((string)$parsedReply['text']) : '';
 $replyAuthor = is_array($parsedReply) && isset($parsedReply['author']) ? (string)$parsedReply['author'] : 'L30nel';
 
-if (utf8Len($replyText) < 4 || containsForbiddenReplyContent($replyText)) {
+if (gkUtf8Len($replyText) < 4 || containsForbiddenReplyContent($replyText)) {
     $safe = resolveSafeOffTopicReply($serverId, $channelId, $lastAuthor);
-    respondJson(200, ['ok' => true, 'reply' => buildPeerMessage($safe['author'], $safe['text'], 'live-guard')]);
+    gkRespondJson(200, ['ok' => true, 'reply' => buildPeerMessage($safe['author'], $safe['text'], 'live-guard')]);
 }
 
-respondJson(200, [
+gkRespondJson(200, [
     'ok' => true,
     'reply' => buildPeerMessage($replyAuthor, $replyText, 'live'),
 ]);

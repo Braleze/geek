@@ -1,7 +1,21 @@
 DirectoryIndex index.html
+Options -Indexes
 
+# Force HTTPS on REG.RU Host-0 (Nginx -> Apache proxy safe)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# Block direct access to private config, database files, and hidden files
 RedirectMatch 404 ^/\.git
 RedirectMatch 404 ^/\.env
+RedirectMatch 404 ^/api/\.data(/|$)
+RedirectMatch 404 ^/api/(config|config\.example|bootstrap)\.php$
+RedirectMatch 404 \.(sqlite|sqlite3|db|wal|shm|sql)$
 RedirectMatch 404 ^/\.prebeta-state\.json$
 RedirectMatch 404 \.geek_live_voice_state_v1\.json$
 
@@ -9,14 +23,24 @@ RedirectMatch 404 \.geek_live_voice_state_v1\.json$
   AddType application/javascript .js .mjs
   AddType text/css .css
   AddType image/svg+xml .svg
+  AddType font/woff2 .woff2
   AddType audio/mpeg .mp3
   AddType audio/ogg .ogg
   AddType audio/wav .wav
   AddType audio/mp4 .m4a
 </IfModule>
 
+# Gzip compression to speed up page loads and save bandwidth
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+# Smart caching: never cache HTML/API; cache Vite hashed assets aggressively
 <IfModule mod_headers.c>
-  <FilesMatch "\.(html)$">
+  <FilesMatch "\.(html|php)$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+  <FilesMatch "\.(js|css|svg|png|jpg|jpeg|webp|woff2|mp3|ogg|m4a)$">
+    Header set Cache-Control "public, max-age=2592000, immutable"
   </FilesMatch>
 </IfModule>
