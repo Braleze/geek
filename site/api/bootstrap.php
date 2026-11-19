@@ -87,7 +87,7 @@ function gkLoadConfig(): array {
         'mysql_pass' => '',
         'mysql_charset' => 'utf8mb4',
         'gemini_api_key' => '',
-        'gemini_api_base' => 'https://generativelanguage.googleapis.com',
+        'gemini_api_base' => '',
         'gemini_proxy_url' => '',
         'preview_unlock_code' => '',
         'preview_voice_unlock_code' => '',

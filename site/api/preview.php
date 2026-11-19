@@ -263,14 +263,46 @@ function resolveSafeOffTopicReply(string $serverId, string $channelId, string $l
     ];
 }
 
+function isReverseProxyEndpointUrl(string $url): bool {
+    $parsed = @parse_url($url);
+    if (!is_array($parsed)) {
+        return false;
+    }
+    $scheme = strtolower((string)($parsed['scheme'] ?? ''));
+    $host = strtolower((string)($parsed['host'] ?? ''));
+    if ($host === '' || ($scheme !== 'https' && $scheme !== 'http')) {
+        return false;
+    }
+    if (!empty($parsed['user']) || !empty($parsed['pass'])) {
+        return false;
+    }
+    if (preg_match('/\.(workers\.dev|pages\.dev|vercel\.app|netlify\.app|deno\.dev|onrender\.com|fly\.dev)$/i', $host)) {
+        return true;
+    }
+    return $scheme === 'https' && empty($parsed['port']);
+}
+
 function callGeminiRest(
     string $apiKey,
     string $systemInstruction,
     string $contentsText,
     bool $structuredJson = true
 ): array {
-    $apiBase = rtrim(gkSetting('gemini_api_base', 'GEMINI_API_BASE', 'https://generativelanguage.googleapis.com'), '/');
-    $url = $apiBase . '/v1beta/models/' . PREVIEW_MODEL . ':generateContent';
+    $configuredBase = rtrim(gkSetting('gemini_api_base', 'GEMINI_API_BASE', ''), '/');
+    $proxySetting = rtrim(gkSetting('gemini_proxy_url', 'GEMINI_PROXY_URL', ''), '/');
+
+    $apiBase = $configuredBase !== '' ? $configuredBase : 'https://generativelanguage.googleapis.com';
+    $curlForwardProxy = '';
+
+    if ($proxySetting !== '') {
+        if ($configuredBase === '' && isReverseProxyEndpointUrl($proxySetting)) {
+            $apiBase = $proxySetting;
+        } else {
+            $curlForwardProxy = $proxySetting;
+        }
+    }
+
+    $url = $apiBase . '/v1beta/models/' . PREVIEW_MODEL . ':generateContent?key=' . rawurlencode($apiKey);
 
     $generationConfig = [
         'thinkingConfig' => ['thinkingLevel' => 'MINIMAL'],
@@ -326,9 +358,8 @@ function callGeminiRest(
                 'User-Agent: geek-host0-php',
             ],
         ];
-        $proxyUrl = gkSetting('gemini_proxy_url', 'GEMINI_PROXY_URL', '');
-        if ($proxyUrl !== '') {
-            $opts[CURLOPT_PROXY] = $proxyUrl;
+        if ($curlForwardProxy !== '') {
+            $opts[CURLOPT_PROXY] = $curlForwardProxy;
         }
         curl_setopt_array($ch, $opts);
         $rawResp = curl_exec($ch);

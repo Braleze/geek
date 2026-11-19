@@ -28,8 +28,10 @@ return [
     'mysql_charset' => 'utf8mb4',
 
     // Gemini API для живых ответов участников в демо-чате (необязательно; без ключа работают встроенные ответы)
+    // Для обхода региональных блокировок вставьте URL вашего Cloudflare Worker (https://...workers.dev)
+    // в 'gemini_proxy_url' (или 'gemini_api_base').
     'gemini_api_key' => '',
-    'gemini_api_base' => 'https://generativelanguage.googleapis.com',
+    'gemini_api_base' => '',
     'gemini_proxy_url' => '',
 
     // Секретные коды превью (оставьте пустыми, чтобы использовать значения по умолчанию или .env)
