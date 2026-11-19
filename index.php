@@ -3,39 +3,69 @@ declare(strict_types=1);
 
 /**
  * Точка входа для REG.RU Host-0 при загрузке всего архива проекта в корень домена.
- * Отдаёт готовую скомпилированную версию из site/index.html и направляет ассеты в ./site/assets/.
+ * Отдаёт готовую скомпилированную версию из site/index.html и автоматически подставляет
+ * актуальные файлы ассетов из site/assets/ (даже если index.html ссылался на старый хеш).
  */
 
 header('Content-Type: text/html; charset=UTF-8');
 header('Cache-Control: no-cache, no-store, must-revalidate');
 header('X-Content-Type-Options: nosniff');
 
-$siteIndex = __DIR__ . '/site/index.html';
-if (@is_file($siteIndex) && @is_readable($siteIndex)) {
-    $html = file_get_contents($siteIndex);
-    if (is_string($html) && $html !== '') {
-        $html = str_replace(
-            ['src="./assets/', 'href="./assets/'],
-            ['src="./site/assets/', 'href="./site/assets/'],
-            $html
-        );
-        echo $html;
-        exit;
+function gkPickLatestAsset(string $assetsDir, string $pattern): ?string {
+    $matches = @glob($assetsDir . '/' . $pattern);
+    if (!is_array($matches) || count($matches) === 0) {
+        return null;
     }
+    usort($matches, static function (string $a, string $b): int {
+        return (@filemtime($b) ?: 0) <=> (@filemtime($a) ?: 0);
+    });
+    return basename($matches[0]);
 }
 
-$distIndex = __DIR__ . '/dist/index.html';
-if (@is_file($distIndex) && @is_readable($distIndex)) {
-    $html = file_get_contents($distIndex);
-    if (is_string($html) && $html !== '') {
-        $html = str_replace(
-            ['src="./assets/', 'href="./assets/'],
-            ['src="./dist/assets/', 'href="./dist/assets/'],
-            $html
-        );
-        echo $html;
-        exit;
+function gkServeBuiltHtml(string $bundleDir, string $publicPrefix): bool {
+    $indexPath = $bundleDir . '/index.html';
+    if (!@is_file($indexPath) || !@is_readable($indexPath)) {
+        return false;
     }
+    $html = file_get_contents($indexPath);
+    if (!is_string($html) || $html === '') {
+        return false;
+    }
+
+    $assetsDir = $bundleDir . '/assets';
+    if (@is_dir($assetsDir)) {
+        if (preg_match('/src="\.\/assets\/([^"]+\.js)"/', $html, $jsMatch)) {
+            $refJs = $jsMatch[1];
+            $latestJs = gkPickLatestAsset($assetsDir, 'index-*.js');
+            if ($latestJs !== null && (!@is_file($assetsDir . '/' . $refJs) || $latestJs !== $refJs)) {
+                $html = str_replace('src="./assets/' . $refJs . '"', 'src="./assets/' . $latestJs . '"', $html);
+            }
+        }
+        if (preg_match('/href="\.\/assets\/([^"]+\.css)"/', $html, $cssMatch)) {
+            $refCss = $cssMatch[1];
+            $latestCss = gkPickLatestAsset($assetsDir, 'index-*.css');
+            if ($latestCss !== null && (!@is_file($assetsDir . '/' . $refCss) || $latestCss !== $refCss)) {
+                $html = str_replace('href="./assets/' . $refCss . '"', 'href="./assets/' . $latestCss . '"', $html);
+            }
+        }
+    }
+
+    $html = str_replace(
+        ['src="./assets/', 'href="./assets/'],
+        ['src="./' . $publicPrefix . '/assets/', 'href="./' . $publicPrefix . '/assets/'],
+        $html
+    );
+
+    echo $html;
+    return true;
+}
+
+if (gkServeBuiltHtml(__DIR__ . '/site', 'site')) {
+    exit;
+}
+
+if (gkServeBuiltHtml(__DIR__ . '/dist', 'dist')) {
+    exit;
 }
 
 http_response_code(503);

@@ -1142,42 +1142,44 @@ export function PlatformPreview({
                       </span>
                     </button>
 
-                    <form
-                      onSubmit={handleSaveLiveNick}
-                      data-testid="live-voice-nick-form"
-                      className="flex items-center gap-1 mb-2 px-0.5"
-                    >
-                      <input
-                        type="text"
-                        value={liveNickDraft}
-                        onChange={(e) => setLiveNickDraft(e.target.value)}
-                        onBlur={() => {
-                          if (liveNickDraft.trim() !== liveVoice.nick) {
-                            handleSaveLiveNick();
-                          }
-                        }}
-                        maxLength={22}
-                        aria-label="Ваш ник в Live Голос"
-                        placeholder="Ваш ник..."
-                        data-testid="live-voice-nick-input"
-                        className="min-w-0 flex-1 px-2 py-1 rounded bg-[#050c16] border border-[#00f0ff]/30 focus:border-[#00f0ff] focus:outline-none text-[11px] font-semibold text-white placeholder:text-[#63809b]"
-                      />
-                      <button
-                        type="submit"
-                        data-testid="live-voice-nick-save"
-                        title="Сохранить ник в Live Голос"
-                        className={`px-2 py-1 rounded border text-[10px] font-extrabold cursor-pointer transition-colors shrink-0 flex items-center gap-0.5 ${
-                          liveNickSaved
-                            ? 'bg-[#10b981]/25 border-[#10b981] text-[#6ee7b7]'
-                            : liveNickDraft.trim() !== liveVoice.nick
-                              ? 'bg-[#00f0ff]/20 border-[#00f0ff] text-white hover:bg-[#00f0ff]/30'
-                              : 'bg-[#0d1829] border-[#00f0ff]/20 text-[#9eeeff] hover:border-[#00f0ff]/50 hover:text-white'
-                        }`}
+                    {!liveVoice.connected && (
+                      <form
+                        onSubmit={handleSaveLiveNick}
+                        data-testid="live-voice-nick-form"
+                        className="flex items-center gap-1 mb-2 px-0.5"
                       >
-                        <Check className="w-3 h-3" />
-                        <span>{liveNickSaved ? 'ОК' : 'Ник'}</span>
-                      </button>
-                    </form>
+                        <input
+                          type="text"
+                          value={liveNickDraft}
+                          onChange={(e) => setLiveNickDraft(e.target.value)}
+                          onBlur={() => {
+                            if (liveNickDraft.trim() !== liveVoice.nick) {
+                              handleSaveLiveNick();
+                            }
+                          }}
+                          maxLength={22}
+                          aria-label="Ваш ник в Live Голос"
+                          placeholder="Ваш ник..."
+                          data-testid="live-voice-nick-input"
+                          className="min-w-0 flex-1 px-2 py-1 rounded bg-[#050c16] border border-[#00f0ff]/30 focus:border-[#00f0ff] focus:outline-none text-[11px] font-semibold text-white placeholder:text-[#63809b]"
+                        />
+                        <button
+                          type="submit"
+                          data-testid="live-voice-nick-save"
+                          title="Сохранить ник в Live Голос"
+                          className={`px-2 py-1 rounded border text-[10px] font-extrabold cursor-pointer transition-colors shrink-0 flex items-center gap-0.5 ${
+                            liveNickSaved
+                              ? 'bg-[#10b981]/25 border-[#10b981] text-[#6ee7b7]'
+                              : liveNickDraft.trim() !== liveVoice.nick
+                                ? 'bg-[#00f0ff]/20 border-[#00f0ff] text-white hover:bg-[#00f0ff]/30'
+                                : 'bg-[#0d1829] border-[#00f0ff]/20 text-[#9eeeff] hover:border-[#00f0ff]/50 hover:text-white'
+                          }`}
+                        >
+                          <Check className="w-3 h-3" />
+                          <span>{liveNickSaved ? 'ОК' : 'Ник'}</span>
+                        </button>
+                      </form>
+                    )}
 
                     {liveVoice.connected && (
                       <div data-testid="preview-live-voice-peers" className="space-y-1 pl-2 mb-2">
@@ -1275,6 +1277,44 @@ export function PlatformPreview({
                           ВЫЙТИ
                         </button>
                       </div>
+
+                      {/* Always-visible inline nickname editor while in Live Voice */}
+                      <form
+                        onSubmit={handleSaveLiveNick}
+                        data-testid="live-voice-nick-form"
+                        className="flex items-center gap-1"
+                      >
+                        <input
+                          type="text"
+                          value={liveNickDraft}
+                          onChange={(e) => setLiveNickDraft(e.target.value)}
+                          onBlur={() => {
+                            if (liveNickDraft.trim() !== liveVoice.nick) {
+                              handleSaveLiveNick();
+                            }
+                          }}
+                          maxLength={22}
+                          aria-label="Ваш ник в Live Голос"
+                          placeholder="Ваш ник..."
+                          data-testid="live-voice-nick-input"
+                          className="min-w-0 flex-1 px-2 py-1 rounded bg-[#03070e] border border-[#00f0ff]/35 focus:border-[#00f0ff] focus:outline-none text-[11px] font-semibold text-white placeholder:text-[#63809b]"
+                        />
+                        <button
+                          type="submit"
+                          data-testid="live-voice-nick-save"
+                          title="Сохранить ник в Live Голос"
+                          className={`px-2 py-1 rounded border text-[10px] font-extrabold cursor-pointer transition-colors shrink-0 flex items-center gap-0.5 ${
+                            liveNickSaved
+                              ? 'bg-[#10b981]/25 border-[#10b981] text-[#6ee7b7]'
+                              : liveNickDraft.trim() !== liveVoice.nick
+                                ? 'bg-[#00f0ff]/20 border-[#00f0ff] text-white hover:bg-[#00f0ff]/30'
+                                : 'bg-[#0d1829] border-[#00f0ff]/25 text-[#9eeeff] hover:border-[#00f0ff]/60 hover:text-white'
+                          }`}
+                        >
+                          <Check className="w-3 h-3" />
+                          <span>{liveNickSaved ? 'ОК' : 'Ник'}</span>
+                        </button>
+                      </form>
 
                       {/* Real mic signal level & diagnostic actions */}
                       <div className="space-y-1">
