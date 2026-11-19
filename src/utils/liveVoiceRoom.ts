@@ -1,5 +1,5 @@
 export const LIVE_VOICE_MAX_PARTICIPANTS = 8;
-export const LIVE_VOICE_HTTP_STALE_MS = 12_000;
+export const LIVE_VOICE_HTTP_STALE_MS = 30_000;
 
 export interface LiveVoicePeer {
   peerId: string;

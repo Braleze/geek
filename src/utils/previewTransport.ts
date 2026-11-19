@@ -17,6 +17,7 @@ export function liveVoiceHttpUrls(backend: 'node' | 'php') {
   if (backend === 'php') {
     return {
       status: './api/voice.php?action=status',
+      unlock: './api/voice.php?action=unlock',
       join: './api/voice.php?action=join',
       poll: './api/voice.php?action=poll',
       update: './api/voice.php?action=update',
@@ -26,12 +27,53 @@ export function liveVoiceHttpUrls(backend: 'node' | 'php') {
   }
   return {
     status: './api/voice/status',
+    unlock: './api/voice/unlock',
     join: './api/voice/join',
     poll: './api/voice/poll',
     update: './api/voice/update',
     signal: './api/voice/signal',
     leave: './api/voice/leave',
   };
+}
+
+export function buildVoiceUnlockCandidates(
+  preferredUrl?: string | null,
+  preferredBackend?: 'node' | 'php' | 'local' | null,
+): Array<{ url: string; backend: 'node' | 'php' }> {
+  const ordered: Array<{ url: string; backend: 'node' | 'php' }> = [];
+  const pushUnique = (url: string | null | undefined, backend: 'node' | 'php') => {
+    if (!url) return;
+    if (ordered.some((item) => item.url === url)) return;
+    ordered.push({ url, backend });
+  };
+
+  if (preferredUrl) {
+    const inferred: 'node' | 'php' = preferredUrl.includes('.php') ? 'php' : 'node';
+    pushUnique(preferredUrl, inferred);
+  }
+
+  if (preferredBackend === 'php') {
+    pushUnique('./api/preview.php?action=voice-unlock', 'php');
+    pushUnique('./api/voice.php?action=unlock', 'php');
+    pushUnique('./api/preview/voice-unlock', 'node');
+    pushUnique('./api/voice/unlock', 'node');
+  } else {
+    pushUnique('./api/preview/voice-unlock', 'node');
+    pushUnique('./api/voice/unlock', 'node');
+    pushUnique('./api/preview.php?action=voice-unlock', 'php');
+    pushUnique('./api/voice.php?action=unlock', 'php');
+  }
+
+  return ordered;
+}
+
+export interface ServerVoiceUnlockResult {
+  matched: boolean;
+  backend: 'node' | 'php' | null;
+  unlockUrl: string | null;
+  voiceUnlockToken?: string;
+  reply?: Record<string, unknown>;
+  serverReachable: boolean;
 }
 
 async function fetchJsonSafe(
@@ -56,6 +98,66 @@ async function fetchJsonSafe(
   }
 }
 
+export async function requestServerVoiceUnlock(
+  rawCode: string,
+  preferredUrl?: string | null,
+  preferredBackend?: 'node' | 'php' | 'local' | null,
+): Promise<ServerVoiceUnlockResult> {
+  const candidates = buildVoiceUnlockCandidates(preferredUrl, preferredBackend);
+  let reachableBackend: 'node' | 'php' | null = null;
+  let reachableUrl: string | null = null;
+
+  for (const cand of candidates) {
+    const res = await fetchJsonSafe(
+      cand.url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: rawCode.slice(0, 220) }),
+      },
+      4500,
+    );
+    if (!res.ok || !res.data || res.data.ok !== true) {
+      continue;
+    }
+    if (!reachableBackend) {
+      reachableBackend = cand.backend;
+      reachableUrl = cand.url;
+    }
+    if (
+      res.data.matched === true &&
+      typeof res.data.voiceUnlockToken === 'string' &&
+      res.data.voiceUnlockToken.length > 0 &&
+      res.data.reply &&
+      typeof res.data.reply === 'object'
+    ) {
+      return {
+        matched: true,
+        backend: cand.backend,
+        unlockUrl: cand.url,
+        voiceUnlockToken: res.data.voiceUnlockToken,
+        reply: res.data.reply as Record<string, unknown>,
+        serverReachable: true,
+      };
+    }
+    if (res.data.matched === false) {
+      return {
+        matched: false,
+        backend: cand.backend,
+        unlockUrl: cand.url,
+        serverReachable: true,
+      };
+    }
+  }
+
+  return {
+    matched: false,
+    backend: reachableBackend,
+    unlockUrl: reachableUrl,
+    serverReachable: reachableBackend !== null,
+  };
+}
+
 export async function probePreviewBackend(): Promise<PreviewEndpointConfig> {
   // 1. Check Node Express route (./api/preview/status)
   const nodeRes = await fetchJsonSafe('./api/preview/status');
@@ -65,7 +167,7 @@ export async function probePreviewBackend(): Promise<PreviewEndpointConfig> {
     return {
       liveEnabled,
       replyUrl: liveEnabled ? './api/preview/reply' : null,
-      voiceUnlockUrl: voiceUnlockEnabled ? './api/preview/voice-unlock' : null,
+      voiceUnlockUrl: voiceUnlockEnabled ? './api/preview/voice-unlock' : './api/voice/unlock',
       transport: liveEnabled ? 'node' : 'local',
       voiceBackend: 'node',
     };
@@ -79,8 +181,22 @@ export async function probePreviewBackend(): Promise<PreviewEndpointConfig> {
     return {
       liveEnabled,
       replyUrl: liveEnabled ? './api/preview.php?action=reply' : null,
-      voiceUnlockUrl: voiceUnlockEnabled ? './api/preview.php?action=voice-unlock' : null,
+      voiceUnlockUrl: voiceUnlockEnabled
+        ? './api/preview.php?action=voice-unlock'
+        : './api/voice.php?action=unlock',
       transport: liveEnabled ? 'php' : 'local',
+      voiceBackend: 'php',
+    };
+  }
+
+  // 3. Fallback probe directly to ./api/voice.php?action=status (in case preview.php is unavailable)
+  const phpVoiceRes = await fetchJsonSafe('./api/voice.php?action=status');
+  if (phpVoiceRes.ok && phpVoiceRes.data && phpVoiceRes.data.ok === true) {
+    return {
+      liveEnabled: false,
+      replyUrl: null,
+      voiceUnlockUrl: './api/voice.php?action=unlock',
+      transport: 'local',
       voiceBackend: 'php',
     };
   }

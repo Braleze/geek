@@ -2203,7 +2203,7 @@
                             <span style="font-size:11.5px;font-weight:800;color:#fff;white-space:nowrap;flex-shrink:0;">Вы (Гость)</span>
                             <span class="gk-cn-badge gk-cn-badge-set1" style="font-size:8px;padding:1px 4px;">🌙 LUCY NET</span>
                           </div>
-                          <div id="gk-vc-guest-status" style="font-size:10px;color:#00f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Не в голосе</div>
+                          <div id="gk-vc-guest-status" data-testid="preview-guest-status" style="font-size:10px;color:#00f0ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Не в голосе</div>
                         </div>
                       </div>
                       <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">
@@ -3945,15 +3945,22 @@
             if (cnVoiceLiveEl) cnVoiceLiveEl.style.display = isInViewedVoice ? 'inline' : 'none';
             if (cnVdockStatusEl) {
               if (lvInRoom && cnLv) {
-                cnVdockStatusEl.textContent = cnLv.audioMode === 'loopback'
-                  ? '🟢 ЭХО-ТЕСТ · ЛОКАЛЬНО'
-                  : cnLv.audioMode === 'webrtc'
-                    ? '🟢 В ЭФИРЕ · WebRTC P2P'
-                    : cnLv.audioMode === 'relay'
-                      ? '🟢 В ЭФИРЕ · WS RELAY'
-                      : '🟢 В ЭФИРЕ · ЖДЁМ УЧАСТНИКОВ';
-                cnVdockStatusEl.style.color = '#10b981';
+                cnVdockStatusEl.setAttribute('data-transport', cnLv.transportMode || 'none');
+                if (cnLv.transportMode === 'local') {
+                  cnVdockStatusEl.textContent = '⚠️ ЛОКАЛЬНО · НЕТ СЕРВЕРА';
+                  cnVdockStatusEl.style.color = '#fcee0a';
+                } else {
+                  cnVdockStatusEl.textContent = cnLv.audioMode === 'loopback'
+                    ? '🟢 ЭХО-ТЕСТ · ЛОКАЛЬНО'
+                    : cnLv.audioMode === 'webrtc'
+                      ? '🟢 В ЭФИРЕ · WebRTC P2P'
+                      : cnLv.audioMode === 'relay'
+                        ? (cnLv.transportMode === 'http-php' ? '🟢 В ЭФИРЕ · PHP RELAY' : '🟢 В ЭФИРЕ · WS RELAY')
+                        : (cnLv.transportMode === 'http-php' ? '🟢 В ЭФИРЕ · СЕРВЕР PHP' : '🟢 В ЭФИРЕ · СЕРВЕР');
+                  cnVdockStatusEl.style.color = '#10b981';
+                }
               } else if (connectedVoiceSrv) {
+                cnVdockStatusEl.removeAttribute('data-transport');
                 cnVdockStatusEl.textContent = connectedVoiceSrv.id === srv.id ? '🟢 В ЭФИРЕ' : ('🟢 В ЭФИРЕ · ' + connectedVoiceSrv.name);
                 cnVdockStatusEl.style.color = '#10b981';
               }
@@ -3971,8 +3978,10 @@
             if (cnLiveMicFillEl && cnLv) cnLiveMicFillEl.style.width = (cnLv.micMuted ? 0 : cnLv.micLevel) + '%';
             if (cnLiveUnlockAudioBtn && cnLv) cnLiveUnlockAudioBtn.hidden = !cnLv.audioUnlockNeeded;
             if (cnLiveErrorEl && cnLv) {
-              cnLiveErrorEl.hidden = !cnLv.error;
-              cnLiveErrorEl.textContent = cnLv.error || '';
+              var noticeText = cnLv.error || cnLv.syncNotice || '';
+              cnLiveErrorEl.hidden = !noticeText;
+              cnLiveErrorEl.textContent = noticeText;
+              cnLiveErrorEl.style.color = cnLv.error ? '#ff7aa8' : '#fcee0a';
             }
             if (cnLiveCamBtn && cnLv) {
               cnLiveCamBtn.classList.toggle('is-cam', cnLv.camActive);
@@ -5486,7 +5495,7 @@
 
           var cnLiveReplyUrl = null;
           var cnVoiceUnlockUrl = './api/preview/voice-unlock';
-          var cnVoiceBackend = 'local';
+          var cnVoiceBackend = null;
           var cnVoiceUnlockStorageKey = 'geek_preview_voice_unlock_token';
           var cnVoiceUnlockToken = null;
           try {
@@ -5552,7 +5561,7 @@
           var cnLv = (function () {
             var LV_PEERS_KEY = 'geek_live_voice_peers_v1';
             var LV_IPC_CH = 'geek_live_voice_ipc_v1';
-            var LV_STALE_MS = 12000;
+            var LV_STALE_MS = 30000;
             var state = {
               connected: false,
               connecting: false,
@@ -5567,6 +5576,8 @@
               speaking: false,
               micLevel: 0,
               audioMode: 'idle',
+              transportMode: null,
+              syncNotice: null,
               audioUnlockNeeded: false,
               error: null,
               localCamStream: null,
@@ -5574,9 +5585,11 @@
               remoteVideoPeers: []
             };
             var tokenRef = null;
+            var joinedNick = 'Вы (Гость)';
             var transport = null;
             var ws = null;
             var pollTimer = null;
+            var pollSeq = 0;
             var hbTimer = null;
             var localIpc = null;
             var localMicStream = null;
@@ -5850,7 +5863,8 @@
               }
             }
             function resetRoom() {
-              if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+              pollSeq += 1;
+              if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
               if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
               if (ws) { try { ws.close(); } catch (e) {} ws = null; }
               if (localIpc) {
@@ -5875,13 +5889,16 @@
               state.connected = false; state.connecting = false; state.myPeerId = null; state.peers = [];
               state.micMuted = false; state.deafened = false; state.hasMicAudio = false;
               state.camActive = false; state.screenActive = false; state.loopbackActive = false;
-              state.speaking = false; state.audioMode = 'idle'; state.audioUnlockNeeded = false;
+              state.speaking = false; state.audioMode = 'idle'; state.transportMode = null;
+              state.syncNotice = null; state.audioUnlockNeeded = false;
               state.remoteVideoPeers = [];
               lastSpk = false;
             }
-            function enterLocalFallback(nick) {
+            function enterLocalFallback(nick, notice) {
               var pid = 'locv-' + Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36);
               transport = 'local';
+              state.transportMode = 'local';
+              state.syncNotice = notice || 'Локальный режим (только этот браузер).';
               state.myPeerId = pid;
               state.connected = true;
               state.connecting = false;
@@ -5927,10 +5944,18 @@
               notifyRender();
             }
             function startHttpPoll(mode) {
-              if (pollTimer) clearInterval(pollTimer);
+              pollSeq += 1;
+              if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+              var mySeq = pollSeq;
+              var rejoinAttempts = 0;
               var url = mode === 'php-http' ? './api/voice.php?action=poll' : './api/voice/poll';
-              pollTimer = setInterval(function () {
-                if (!state.myPeerId) return;
+              var joinUrl = mode === 'php-http' ? './api/voice.php?action=join' : './api/voice/join';
+              function schedule() {
+                if (mySeq !== pollSeq || !state.connected) return;
+                pollTimer = setTimeout(pollOnce, 700);
+              }
+              function pollOnce() {
+                if (mySeq !== pollSeq || !state.connected || !state.myPeerId) return;
                 fetch(url, {
                   method: 'POST', headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ token: tokenRef, peerId: state.myPeerId })
@@ -5939,8 +5964,36 @@
                   if (ct.indexOf('application/json') === -1) return null;
                   return r.json();
                 }).then(function (d) {
-                  if (!d) return;
+                  if (mySeq !== pollSeq || !state.connected) return;
+                  if (!d) { schedule(); return; }
                   if (!d.ok) {
+                    if (d.reason === 'NOT_IN_ROOM' && rejoinAttempts < 2) {
+                      rejoinAttempts += 1;
+                      return fetch(joinUrl, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          token: tokenRef, peerId: state.myPeerId, nick: joinedNick,
+                          hasAudio: state.hasMicAudio, micMuted: state.micMuted,
+                          deafened: state.deafened, camActive: state.camActive, screenActive: state.screenActive
+                        })
+                      }).then(function (rr) {
+                        var rct = (rr.headers.get('content-type') || '').toLowerCase();
+                        return rct.indexOf('application/json') !== -1 ? rr.json() : null;
+                      }).then(function (rd) {
+                        if (mySeq !== pollSeq || !state.connected) return;
+                        if (rd && rd.ok && rd.peerId) {
+                          state.myPeerId = rd.peerId;
+                          if (Array.isArray(rd.peers)) state.peers = rd.peers;
+                          (rd.signals || []).forEach(handleSignal);
+                          notifyRender();
+                          schedule();
+                          return;
+                        }
+                        resetRoom();
+                        state.error = (d && d.message) || 'Сессия голосового канала завершена.';
+                        notifyRender();
+                      }).catch(function () { schedule(); });
+                    }
                     if (d.reason === 'UNAUTHORIZED' && tokenRef && tokenRef.indexOf('local-') !== 0) {
                       cnSetVoiceUnlockToken(null);
                       resetRoom();
@@ -5949,11 +6002,14 @@
                     }
                     return;
                   }
+                  rejoinAttempts = 0;
                   if (Array.isArray(d.peers)) state.peers = d.peers;
                   (d.signals || []).forEach(handleSignal);
                   notifyRender();
-                }).catch(function () {});
-              }, 1200);
+                  schedule();
+                }).catch(function () { schedule(); });
+              }
+              schedule();
             }
             function join(tok, nick) {
               if (!tok || state.connecting || state.connected) return;
@@ -5961,81 +6017,78 @@
               tokenRef = tok;
               state.connecting = true;
               state.error = null;
+              state.syncNotice = null;
               notifyRender();
               var cleanNick = String(nick || 'Вы (Гость)').trim() || 'Вы (Гость)';
+              joinedNick = cleanNick;
               var getMic = (navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
                 ? navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false })
                     .then(function (s) { localMicStream = s; state.hasMicAudio = true; startMicMeter(s); return true; })
                     .catch(function () { state.hasMicAudio = false; return false; })
                 : Promise.resolve(false);
               getMic.then(function (gotMic) {
-                if (tok.indexOf('local-') === 0 || cnVoiceBackend === 'local') {
-                  enterLocalFallback(cleanNick);
+                if (tok.indexOf('local-') === 0) {
+                  enterLocalFallback(cleanNick, 'Локальный режим (только этот браузер). Введите секретный код в чат повторно для синхронизации через сервер.');
                   return;
                 }
-                var joinMode = cnVoiceBackend === 'php' ? 'php-http' : 'node-http';
-                var joinUrl = joinMode === 'php-http' ? './api/voice.php?action=join' : './api/voice/join';
-                fetch(joinUrl, {
-                  method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ token: tok, nick: cleanNick, hasAudio: gotMic, micMuted: false, deafened: false, camActive: false, screenActive: false })
-                }).then(function (r) {
-                  var ct = (r.headers.get('content-type') || '').toLowerCase();
-                  if (ct.indexOf('application/json') === -1) throw new Error('NON_JSON');
-                  return r.json().then(function (d) { return { status: r.status, data: d }; });
-                }).then(function (res) {
-                  var d = res.data;
-                  if (!d || !d.ok || !d.peerId) {
-                    if (d && d.reason === 'UNAUTHORIZED' && tok.indexOf('local-') !== 0) {
-                      cnSetVoiceUnlockToken(null);
-                      state.connecting = false;
-                      state.error = d.message || 'Доступ запрещён.';
-                      notifyRender();
-                      return;
-                    }
-                    if (d && d.reason === 'ROOM_FULL') {
-                      state.connecting = false;
-                      state.error = d.message || 'Комната заполнена.';
-                      notifyRender();
-                      return;
-                    }
-                    enterLocalFallback(cleanNick);
+                var modes = cnVoiceBackend === 'php' ? ['php-http', 'node-http'] : ['node-http', 'php-http'];
+                var tryJoinAt = function (idx, lastStatus) {
+                  if (idx >= modes.length) {
+                    enterLocalFallback(
+                      cleanNick,
+                      lastStatus > 0
+                        ? ('Сервер /api/voice.php не вернул JSON (HTTP ' + lastStatus + ') — включён локальный режим.')
+                        : 'Нет связи с сервером /api/voice.php — включён локальный режим.'
+                    );
                     return;
                   }
-                  transport = joinMode;
-                  state.myPeerId = d.peerId;
-                  state.peers = d.peers || [];
-                  state.connected = true;
-                  state.connecting = false;
-                  (d.signals || []).forEach(handleSignal);
-                  startHttpPoll(joinMode);
-                  notifyRender();
-                }).catch(function () {
-                  if (joinMode === 'node-http') {
-                    fetch('./api/voice.php?action=join', {
-                      method: 'POST', headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ token: tok, nick: cleanNick, hasAudio: gotMic, micMuted: false, deafened: false, camActive: false, screenActive: false })
-                    }).then(function (r) {
-                      var ct = (r.headers.get('content-type') || '').toLowerCase();
-                      if (ct.indexOf('application/json') === -1) throw new Error('NON_JSON');
-                      return r.json();
-                    }).then(function (d) {
-                      if (d && d.ok && d.peerId) {
-                        transport = 'php-http';
-                        state.myPeerId = d.peerId;
-                        state.peers = d.peers || [];
-                        state.connected = true;
+                  var mode = modes[idx];
+                  var joinUrl = mode === 'php-http' ? './api/voice.php?action=join' : './api/voice/join';
+                  fetch(joinUrl, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: tok, nick: cleanNick, hasAudio: gotMic, micMuted: false, deafened: false, camActive: false, screenActive: false })
+                  }).then(function (r) {
+                    var ct = (r.headers.get('content-type') || '').toLowerCase();
+                    if (ct.indexOf('application/json') === -1) return { status: r.status, data: null };
+                    return r.json().then(function (d) { return { status: r.status, data: d }; });
+                  }).then(function (res) {
+                    var d = res.data;
+                    if (!d) {
+                      tryJoinAt(idx + 1, res.status);
+                      return;
+                    }
+                    if (!d.ok || !d.peerId) {
+                      if (d.reason === 'UNAUTHORIZED' && tok.indexOf('local-') !== 0) {
+                        cnSetVoiceUnlockToken(null);
                         state.connecting = false;
-                        (d.signals || []).forEach(handleSignal);
-                        startHttpPoll('php-http');
+                        state.error = d.message || 'Доступ запрещён.';
                         notifyRender();
-                      } else {
-                        enterLocalFallback(cleanNick);
+                        return;
                       }
-                    }).catch(function () { enterLocalFallback(cleanNick); });
-                  } else {
-                    enterLocalFallback(cleanNick);
-                  }
-                });
+                      if (d.reason === 'ROOM_FULL') {
+                        state.connecting = false;
+                        state.error = d.message || 'Комната заполнена.';
+                        notifyRender();
+                        return;
+                      }
+                      enterLocalFallback(cleanNick, d.message || 'Сервер голосового канала недоступен — включён локальный режим.');
+                      return;
+                    }
+                    transport = mode;
+                    state.transportMode = mode === 'php-http' ? 'http-php' : 'http-node';
+                    state.syncNotice = null;
+                    state.myPeerId = d.peerId;
+                    state.peers = d.peers || [];
+                    state.connected = true;
+                    state.connecting = false;
+                    (d.signals || []).forEach(handleSignal);
+                    startHttpPoll(mode);
+                    notifyRender();
+                  }).catch(function () {
+                    tryJoinAt(idx + 1, lastStatus);
+                  });
+                };
+                tryJoinAt(0, 0);
               });
             }
             function leave() {
@@ -6201,7 +6254,14 @@
                   if (pd.liveEnabled) cnLiveReplyUrl = './api/preview.php?action=reply';
                   cnVoiceUnlockUrl = './api/preview.php?action=voice-unlock';
                   cnVoiceBackend = 'php';
+                  return null;
                 }
+                return cnFetchJson('./api/voice.php?action=status').then(function (vd) {
+                  if (vd && vd.ok) {
+                    cnVoiceUnlockUrl = './api/voice.php?action=unlock';
+                    cnVoiceBackend = 'php';
+                  }
+                });
               });
             }).catch(function () {});
           }
@@ -6392,41 +6452,67 @@
               return true;
             }
 
-            if (!cnLiveReplyUrl || typeof fetch !== 'function') {
-              if (!cnVoiceUnlockUrl || typeof fetch !== 'function') {
-                if (cnTryLocalVoiceUnlockFallback()) return;
-                cnScheduleFallbackReply(val, srv, chId, key, now, arr.length);
-                return;
+            function cnRequestServerVoiceUnlock(rawCode) {
+              if (typeof fetch !== 'function') return Promise.resolve({ matched: false, serverReachable: false });
+              var urls = [];
+              function addCand(u, b) {
+                if (!u) return;
+                if (urls.some(function (x) { return x.url === u; })) return;
+                urls.push({ url: u, backend: b });
               }
-              var postVoiceUnlock = function (u) {
-                return fetch(u, {
+              if (cnVoiceUnlockUrl) addCand(cnVoiceUnlockUrl, cnVoiceUnlockUrl.indexOf('.php') !== -1 ? 'php' : 'node');
+              if (cnVoiceBackend === 'php') {
+                addCand('./api/preview.php?action=voice-unlock', 'php');
+                addCand('./api/voice.php?action=unlock', 'php');
+                addCand('./api/preview/voice-unlock', 'node');
+                addCand('./api/voice/unlock', 'node');
+              } else {
+                addCand('./api/preview/voice-unlock', 'node');
+                addCand('./api/voice/unlock', 'node');
+                addCand('./api/preview.php?action=voice-unlock', 'php');
+                addCand('./api/voice.php?action=unlock', 'php');
+              }
+              var reachable = false;
+              var runAt = function (idx) {
+                if (idx >= urls.length) return Promise.resolve({ matched: false, serverReachable: reachable });
+                var item = urls[idx];
+                return fetch(item.url, {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ code: val.slice(0, 220) })
+                  body: JSON.stringify({ code: rawCode.slice(0, 220) })
                 }).then(function (r) {
                   var ct = (r.headers && r.headers.get && r.headers.get('content-type')) || '';
                   if (!r.ok || ct.toLowerCase().indexOf('application/json') === -1) return null;
                   return r.json();
-                }).catch(function () { return null; });
+                }).catch(function () { return null; }).then(function (d) {
+                  if (!d || d.ok !== true) return runAt(idx + 1);
+                  reachable = true;
+                  cnVoiceBackend = item.backend;
+                  cnVoiceUnlockUrl = item.url;
+                  if (d.matched === true && d.voiceUnlockToken && d.reply) {
+                    return { matched: true, serverReachable: true, voiceUnlockToken: d.voiceUnlockToken, reply: d.reply };
+                  }
+                  if (d.matched === false) {
+                    return { matched: false, serverReachable: true };
+                  }
+                  return runAt(idx + 1);
+                });
               };
-              postVoiceUnlock(cnVoiceUnlockUrl).then(function (d) {
-                if (d) return d;
-                if (cnVoiceUnlockUrl === './api/preview/voice-unlock') {
-                  return postVoiceUnlock('./api/preview.php?action=voice-unlock').then(function (pd) {
-                    if (pd) {
-                      cnVoiceUnlockUrl = './api/preview.php?action=voice-unlock';
-                      cnVoiceBackend = 'php';
-                    }
-                    return pd;
-                  });
-                }
-                return null;
-              }).then(function (d) {
-                if (d && d.ok && d.matched && d.voiceUnlockToken && d.reply) {
-                  cnApplyVoiceUnlock(d.voiceUnlockToken, d.reply);
+              return runAt(0);
+            }
+
+            if (!cnLiveReplyUrl || typeof fetch !== 'function') {
+              if (typeof fetch !== 'function') {
+                if (cnTryLocalVoiceUnlockFallback()) return;
+                cnScheduleFallbackReply(val, srv, chId, key, now, arr.length);
+                return;
+              }
+              cnRequestServerVoiceUnlock(val).then(function (res) {
+                if (res && res.matched && res.voiceUnlockToken && res.reply) {
+                  cnApplyVoiceUnlock(res.voiceUnlockToken, res.reply);
                   return;
                 }
-                if (cnTryLocalVoiceUnlockFallback()) return;
+                if ((!res || !res.serverReachable) && cnTryLocalVoiceUnlockFallback()) return;
                 cnScheduleFallbackReply(val, srv, chId, key, now, arr.length);
               }).catch(function () {
                 if (cnTryLocalVoiceUnlockFallback()) return;
@@ -6461,7 +6547,15 @@
                   cnApplyVoiceUnlock(data.voiceUnlockToken, data.reply);
                   return;
                 }
-                if (cnTryLocalVoiceUnlockFallback()) return;
+                if (cnMatchesLocalVoiceUnlockCode(val)) {
+                  return cnRequestServerVoiceUnlock(val).then(function (ures) {
+                    if (ures && ures.matched && ures.voiceUnlockToken && ures.reply) {
+                      cnApplyVoiceUnlock(ures.voiceUnlockToken, ures.reply);
+                      return;
+                    }
+                    if ((!ures || !ures.serverReachable) && cnTryLocalVoiceUnlockFallback()) return;
+                  });
+                }
                 if (data.unlocked && data.unlockToken) {
                   cnSetUnlockToken(data.unlockToken);
                 }
@@ -6485,7 +6579,20 @@
                 renderCyberNet();
               })
               .catch(function () {
-                if (cnTryLocalVoiceUnlockFallback()) return;
+                if (cnMatchesLocalVoiceUnlockCode(val)) {
+                  cnRequestServerVoiceUnlock(val).then(function (ures) {
+                    if (ures && ures.matched && ures.voiceUnlockToken && ures.reply) {
+                      cnApplyVoiceUnlock(ures.voiceUnlockToken, ures.reply);
+                      return;
+                    }
+                    if ((!ures || !ures.serverReachable) && cnTryLocalVoiceUnlockFallback()) return;
+                    cnScheduleFallbackReply(val, srv, chId, key, now, arr.length);
+                  }).catch(function () {
+                    if (cnTryLocalVoiceUnlockFallback()) return;
+                    cnScheduleFallbackReply(val, srv, chId, key, now, arr.length);
+                  });
+                  return;
+                }
                 cnScheduleFallbackReply(val, srv, chId, key, now, arr.length);
               });
           }

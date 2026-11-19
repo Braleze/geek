@@ -13,6 +13,7 @@ import {
 } from './src/utils/previewGeminiService.ts';
 import { verifyPreviewUnlockToken } from './src/utils/previewChatGuard.ts';
 import {
+  LIVE_VOICE_MAX_PARTICIPANTS,
   buildLiveVoiceSnapshot,
   joinLiveVoiceRoom,
   leaveLiveVoiceRoom,
@@ -615,6 +616,36 @@ async function startServer(): Promise<void> {
       }
     }
   }
+
+  app.get('/api/voice/status', (_req, res) => {
+    res.json({
+      ok: true,
+      peersCount: liveVoicePeers.size,
+      maxParticipants: LIVE_VOICE_MAX_PARTICIPANTS,
+      voiceUnlockEnabled: true,
+    });
+  });
+
+  app.post('/api/voice/unlock', (req, res) => {
+    const body = parseBodyObj(req.body);
+    const rawCode =
+      typeof body.code === 'string'
+        ? body.code
+        : typeof body.question === 'string'
+          ? body.question
+          : '';
+    const check = tryVerifyVoiceUnlockCode(rawCode);
+    if (!check.matched) {
+      res.json({ ok: true, matched: false });
+      return;
+    }
+    res.json({
+      ok: true,
+      matched: true,
+      voiceUnlockToken: check.voiceUnlockToken,
+      reply: check.reply,
+    });
+  });
 
   app.post('/api/voice/join', (req, res) => {
     const body = parseBodyObj(req.body);

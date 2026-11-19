@@ -38,7 +38,7 @@ import { usePreBetaCall } from '../hooks/usePreBetaCall';
 import { useLiveVoiceRoom } from '../hooks/useLiveVoiceRoom';
 import { PreBetaWorkspace } from './PreBetaWorkspace';
 import { formatCountdownMs, normalizePreBetaCode } from '../utils/preBetaSession';
-import { probePreviewBackend } from '../utils/previewTransport';
+import { probePreviewBackend, requestServerVoiceUnlock } from '../utils/previewTransport';
 
 const WAVE_DELAYS = ['0s', '.2s', '.4s', '.1s', '.3s', '.5s', '.15s', '.35s', '.05s', '.25s', '.45s', '.12s'];
 
@@ -158,6 +158,8 @@ export function PlatformPreview({
   });
   const [typingPeerName, setTypingPeerName] = useState<string | null>(null);
   const [voiceBackend, setVoiceBackend] = useState<'node' | 'php' | 'local' | undefined>(undefined);
+  const voiceBackendRef = useRef<'node' | 'php' | 'local' | undefined>(undefined);
+  voiceBackendRef.current = voiceBackend;
   const messagesScrollRef = useRef<HTMLDivElement | null>(null);
   const replyCountRef = useRef<number>(0);
   const replyTimersRef = useRef<number[]>([]);
@@ -557,52 +559,45 @@ export function PlatformPreview({
       return true;
     };
 
+    const resolveVoiceUnlockViaServerOrLocal = async (): Promise<boolean> => {
+      const result = await requestServerVoiceUnlock(
+        trimmedRaw,
+        voiceUnlockUrlRef.current,
+        voiceBackendRef.current,
+      );
+      if (!isMountedRef.current) return true;
+      if (result.backend) {
+        setVoiceBackend(result.backend);
+        if (result.unlockUrl) {
+          voiceUnlockUrlRef.current = result.unlockUrl;
+        }
+      }
+      if (result.matched && result.voiceUnlockToken && result.reply) {
+        applyVoiceUnlockResult(
+          result.voiceUnlockToken,
+          result.reply as unknown as PreviewMessage,
+        );
+        return true;
+      }
+      if (!result.serverReachable && tryLocalVoiceUnlockFallback()) {
+        return true;
+      }
+      return false;
+    };
+
     const replyUrl = liveReplyUrlRef.current;
     if (!replyUrl) {
-      const voiceUnlockUrl = voiceUnlockUrlRef.current;
-      if (!voiceUnlockUrl) {
-        if (tryLocalVoiceUnlockFallback()) return;
+      const shouldCheckServerUnlock =
+        Boolean(voiceUnlockUrlRef.current) ||
+        voiceBackendRef.current !== 'local' ||
+        matchesLocalVoiceUnlockCode(trimmedRaw);
+      if (!shouldCheckServerUnlock) {
         scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
         return;
       }
-      const postVoiceUnlock = async (url: string) => {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: trimmedRaw.slice(0, 220) }),
-        });
-        const ct = res.headers.get('content-type') || '';
-        if (!res.ok || !ct.toLowerCase().includes('application/json')) {
-          return null;
-        }
-        return (await res.json()) as {
-          ok?: boolean;
-          matched?: boolean;
-          voiceUnlockToken?: string;
-          reply?: PreviewMessage;
-        };
-      };
-
-      void postVoiceUnlock(voiceUnlockUrl)
-        .then(async (data) => {
-          if (data) return data;
-          if (voiceUnlockUrl === './api/preview/voice-unlock') {
-            const phpData = await postVoiceUnlock('./api/preview.php?action=voice-unlock');
-            if (phpData) {
-              voiceUnlockUrlRef.current = './api/preview.php?action=voice-unlock';
-              setVoiceBackend('php');
-            }
-            return phpData;
-          }
-          return null;
-        })
-        .then((data) => {
-          if (!isMountedRef.current) return;
-          if (data?.ok && data.matched && data.voiceUnlockToken && data.reply) {
-            applyVoiceUnlockResult(data.voiceUnlockToken, data.reply);
-            return;
-          }
-          if (tryLocalVoiceUnlockFallback()) return;
+      void resolveVoiceUnlockViaServerOrLocal()
+        .then((handled) => {
+          if (!isMountedRef.current || handled) return;
           scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
         })
         .catch(() => {
@@ -641,7 +636,10 @@ export function PlatformPreview({
           applyVoiceUnlockResult(data.voiceUnlockToken, data.reply);
           return;
         }
-        if (tryLocalVoiceUnlockFallback()) return;
+        if (matchesLocalVoiceUnlockCode(trimmedRaw)) {
+          const handled = await resolveVoiceUnlockViaServerOrLocal();
+          if (handled) return;
+        }
         if (data.unlocked && data.unlockToken) {
           persistUnlockToken(data.unlockToken);
         }
@@ -661,9 +659,12 @@ export function PlatformPreview({
         });
         setTypingPeerName(null);
       })
-      .catch(() => {
+      .catch(async () => {
         if (!isMountedRef.current) return;
-        if (tryLocalVoiceUnlockFallback()) return;
+        if (matchesLocalVoiceUnlockCode(trimmedRaw)) {
+          const handled = await resolveVoiceUnlockViaServerOrLocal();
+          if (handled) return;
+        }
         scheduleFallbackReply(newMsg.text, targetServerId, targetChannelId, targetKey, replyIdx);
       });
   };
@@ -1158,15 +1159,26 @@ export function PlatformPreview({
                         <div className="min-w-0">
                           <div
                             data-testid="preview-vdock-status"
-                            className="text-[10px] font-extrabold uppercase truncate text-[#10b981]"
+                            data-transport={liveVoice.transportMode ?? 'none'}
+                            className={`text-[10px] font-extrabold uppercase truncate ${
+                              liveVoice.transportMode === 'local'
+                                ? 'text-[#fcee0a]'
+                                : 'text-[#10b981]'
+                            }`}
                           >
-                            {liveVoice.audioMode === 'loopback'
-                              ? '🟢 ЭХО-ТЕСТ · ЛОКАЛЬНО'
-                              : liveVoice.audioMode === 'webrtc'
-                                ? '🟢 В ЭФИРЕ · WebRTC P2P'
-                                : liveVoice.audioMode === 'relay'
-                                  ? '🟢 В ЭФИРЕ · WS RELAY'
-                                  : '🟢 В ЭФИРЕ · ЖДЁМ УЧАСТНИКОВ'}
+                            {liveVoice.transportMode === 'local'
+                              ? '⚠️ ЛОКАЛЬНО · НЕТ СЕРВЕРА'
+                              : liveVoice.audioMode === 'loopback'
+                                ? '🟢 ЭХО-ТЕСТ · ЛОКАЛЬНО'
+                                : liveVoice.audioMode === 'webrtc'
+                                  ? '🟢 В ЭФИРЕ · WebRTC P2P'
+                                  : liveVoice.audioMode === 'relay'
+                                    ? liveVoice.transportMode === 'http-php'
+                                      ? '🟢 В ЭФИРЕ · PHP RELAY'
+                                      : '🟢 В ЭФИРЕ · WS RELAY'
+                                    : liveVoice.transportMode === 'http-php'
+                                      ? '🟢 В ЭФИРЕ · СЕРВЕР PHP'
+                                      : '🟢 В ЭФИРЕ · СЕРВЕР'}
                           </div>
                           <div
                             data-testid="preview-vdock-room"
@@ -1224,6 +1236,15 @@ export function PlatformPreview({
                         >
                           🔊 Нажмите, чтобы разрешить звук
                         </button>
+                      )}
+
+                      {liveVoice.syncNotice && (
+                        <div
+                          data-testid="preview-live-sync-notice"
+                          className="text-[10px] text-[#fcee0a] bg-[#fcee0a]/10 border border-[#fcee0a]/35 rounded px-2 py-1 leading-tight"
+                        >
+                          {liveVoice.syncNotice}
+                        </div>
                       )}
 
                       {liveVoice.error && (

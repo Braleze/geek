@@ -5,8 +5,9 @@ header('Content-Type: application/json; charset=UTF-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 
 const LIVE_VOICE_MAX_PARTICIPANTS = 8;
-const LIVE_VOICE_HTTP_STALE_MS = 12000;
+const LIVE_VOICE_HTTP_STALE_MS = 30000;
 const DEFAULT_VOICE_UNLOCK_CODE = 'gk-voice-7714-test';
+const VOICE_UNLOCK_TOKEN_TTL_MS = 86400000;
 
 function nowMs(): int {
     return (int)round(microtime(true) * 1000);
@@ -95,6 +96,47 @@ function getVoiceUnlockHmacSecret(): string {
     $voiceCode = readEnvSetting('PREVIEW_VOICE_UNLOCK_CODE') ?: DEFAULT_VOICE_UNLOCK_CODE;
     $baseKey = $apiKey !== '' ? $apiKey : 'local-preview-key';
     return $baseKey . '::voice-unlock::' . $voiceCode;
+}
+
+function extractVoiceUnlockCandidate(string $raw): string {
+    $cleaned = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $raw) ?? $raw;
+    $trimmed = trim($cleaned);
+    if (preg_match('/^\/(?:voice|voicetest)\s+(.+)$/iu', $trimmed, $m)) {
+        $trimmed = trim($m[1]);
+    }
+    $trimmed = preg_replace('/[\x{2010}-\x{2015}\x{2212}]/u', '-', $trimmed) ?? $trimmed;
+    $trimmed = trim($trimmed, " \t\n\r\0\x0B`'\"«»");
+    return strtolower($trimmed);
+}
+
+function isValidVoiceUnlockAttempt(string $raw, string $expectedCode): bool {
+    $candidate = extractVoiceUnlockCandidate($raw);
+    $expected = strtolower(trim($expectedCode));
+    if ($candidate === '' || $expected === '') {
+        return false;
+    }
+    return hash_equals(
+        hash('sha256', $candidate, true),
+        hash('sha256', $expected, true)
+    );
+}
+
+function signUnlockToken(string $hmacSecret): string {
+    $expMs = (string)(nowMs() + VOICE_UNLOCK_TOKEN_TTL_MS);
+    $sig = hash_hmac('sha256', $expMs, $hmacSecret);
+    return $expMs . '.' . $sig;
+}
+
+function buildVoiceUnlockSystemMessage(): array {
+    return [
+        'id' => 'voice-unlock-' . nowMs() . '-' . bin2hex(random_bytes(3)),
+        'author' => 'СИСТЕМА GEEK',
+        'initials' => 'СГ',
+        'avatarColor' => '#10b981',
+        'badgeSet' => 'set1',
+        'time' => date('H:i'),
+        'text' => '🎙 Тестовый живой голосовой канал «🔊 Live Голос (Тест)» открыт в списке голосовых каналов! Подключайтесь для проверки WebRTC / WS-голоса, камеры, экрана и Эхо-теста. Чтобы снова скрыть канал, отправьте /voice-lock.',
+    ];
 }
 
 function verifyUnlockToken($token, string $hmacSecret): bool {
@@ -234,14 +276,17 @@ if ($action === '' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
 }
 
 $stateCandidates = [
-    rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . 'geek_live_voice_state_v1.json',
     __DIR__ . DIRECTORY_SEPARATOR . '.geek_live_voice_state_v1.json',
+    dirname(__DIR__) . DIRECTORY_SEPARATOR . '.geek_live_voice_state_v1.json',
+    rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . 'geek_live_voice_state_v1.json',
 ];
 $fp = false;
+$activeStatePath = '';
 foreach ($stateCandidates as $candidatePath) {
     $opened = @fopen($candidatePath, 'c+');
     if ($opened !== false) {
         $fp = $opened;
+        $activeStatePath = $candidatePath;
         break;
     }
 }
@@ -254,6 +299,10 @@ if (!flock($fp, LOCK_EX)) {
     respond(500, ['ok' => false, 'message' => 'Ошибка блокировки хранилища голосового канала.']);
 }
 
+if ($activeStatePath !== '') {
+    clearstatcache(true, $activeStatePath);
+}
+rewind($fp);
 $rawStore = stream_get_contents($fp);
 $store = is_string($rawStore) && $rawStore !== '' ? json_decode($rawStore, true) : null;
 if (!is_array($store)) {
@@ -266,10 +315,17 @@ $now = nowMs();
 pruneStalePeers($store, $now);
 
 $saveAndRespond = static function (int $status, array $payload) use ($fp, &$store): void {
-    ftruncate($fp, 0);
-    rewind($fp);
-    fwrite($fp, json_encode($store, JSON_UNESCAPED_UNICODE));
-    fflush($fp);
+    $jsonFlags = JSON_UNESCAPED_UNICODE;
+    if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+        $jsonFlags |= JSON_INVALID_UTF8_SUBSTITUTE;
+    }
+    $encoded = json_encode($store, $jsonFlags);
+    if ($encoded !== false) {
+        ftruncate($fp, 0);
+        rewind($fp);
+        fwrite($fp, $encoded);
+        fflush($fp);
+    }
     flock($fp, LOCK_UN);
     fclose($fp);
     respond($status, $payload);
@@ -280,10 +336,25 @@ if ($action === 'status') {
         'ok' => true,
         'peersCount' => count($store['peers']),
         'maxParticipants' => LIVE_VOICE_MAX_PARTICIPANTS,
+        'voiceUnlockEnabled' => true,
     ]);
 }
 
 $voiceSecret = getVoiceUnlockHmacSecret();
+
+if ($action === 'unlock') {
+    $voiceCode = readEnvSetting('PREVIEW_VOICE_UNLOCK_CODE') ?: DEFAULT_VOICE_UNLOCK_CODE;
+    $rawCode = (string)($input['code'] ?? ($input['question'] ?? ''));
+    if (!isValidVoiceUnlockAttempt($rawCode, $voiceCode)) {
+        $saveAndRespond(200, ['ok' => true, 'matched' => false]);
+    }
+    $saveAndRespond(200, [
+        'ok' => true,
+        'matched' => true,
+        'voiceUnlockToken' => signUnlockToken($voiceSecret),
+        'reply' => buildVoiceUnlockSystemMessage(),
+    ]);
+}
 
 if ($action === 'join') {
     if (!verifyUnlockToken($input['token'] ?? null, $voiceSecret)) {
@@ -343,7 +414,7 @@ if ($action === 'join') {
         }
     }
 
-    $signals = $store['signalsByPeerId'][$peerId] ?? [];
+    $signals = array_values($store['signalsByPeerId'][$peerId] ?? []);
     unset($store['signalsByPeerId'][$peerId]);
 
     $saveAndRespond(200, [
@@ -363,7 +434,7 @@ if ($action === 'poll') {
         $saveAndRespond(409, ['ok' => false, 'reason' => 'NOT_IN_ROOM', 'message' => 'Вы не в голосовом канале.']);
     }
     $store['peers'][$peerId]['lastSeenAt'] = $now;
-    $signals = $store['signalsByPeerId'][$peerId] ?? [];
+    $signals = array_values($store['signalsByPeerId'][$peerId] ?? []);
     unset($store['signalsByPeerId'][$peerId]);
     $saveAndRespond(200, [
         'ok' => true,

@@ -24,6 +24,7 @@ const ICE_SERVERS: RTCIceServer[] = [
 ];
 
 export type LiveVoiceAudioMode = 'idle' | 'waiting' | 'webrtc' | 'relay' | 'loopback';
+export type LiveVoiceTransportMode = 'ws' | 'http-node' | 'http-php' | 'local' | null;
 
 function buildLiveVoiceWsUrl(): string {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -62,6 +63,8 @@ export function useLiveVoiceRoom({
   const [remoteVideoPeers, setRemoteVideoPeers] = useState<RemoteVideoEntry[]>([]);
   const [loopbackActive, setLoopbackActive] = useState(false);
   const [audioMode, setAudioMode] = useState<LiveVoiceAudioMode>('idle');
+  const [transportMode, setTransportMode] = useState<LiveVoiceTransportMode>(null);
+  const [syncNotice, setSyncNotice] = useState<string | null>(null);
   const [audioUnlockNeeded, setAudioUnlockNeeded] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -78,11 +81,13 @@ export function useLiveVoiceRoom({
     httpBackendRef.current = preferredBackend;
   }
   const tokenRef = useRef<string | null>(null);
+  const joinedNickRef = useRef<string>('Вы (Гость)');
   const wsRef = useRef<WebSocket | null>(null);
   const wsConnectPromiseRef = useRef<Promise<WebSocket> | null>(null);
   const localSessionRef = useRef<LocalVoiceSession | null>(null);
   const pollTimerRef = useRef<number | null>(null);
-  const pollIntervalMsRef = useRef<number>(800);
+  const pollSessionRef = useRef<number>(0);
+  const pollIntervalMsRef = useRef<number>(700);
   const myPeerIdRef = useRef<string | null>(null);
   myPeerIdRef.current = myPeerId;
   const peersRef = useRef<LiveVoicePublicPeer[]>([]);
@@ -145,8 +150,9 @@ export function useLiveVoiceRoom({
   }, []);
 
   const stopPolling = useCallback(() => {
+    pollSessionRef.current += 1;
     if (pollTimerRef.current !== null) {
-      window.clearInterval(pollTimerRef.current);
+      window.clearTimeout(pollTimerRef.current);
       pollTimerRef.current = null;
     }
   }, []);
@@ -1009,19 +1015,33 @@ export function useLiveVoiceRoom({
   );
 
   const startHttpPolling = useCallback(
-    (token: string, peerId: string) => {
+    (token: string, initialPeerId: string) => {
       stopPolling();
+      const sessionId = pollSessionRef.current;
+      let activePeerId = initialPeerId;
+      let rejoinAttempts = 0;
+
+      const scheduleNext = () => {
+        if (pollSessionRef.current !== sessionId || !connectedRef.current) return;
+        pollTimerRef.current = window.setTimeout(() => {
+          void pollOnce();
+        }, pollIntervalMsRef.current);
+      };
 
       const pollOnce = async () => {
-        if (!connectedRef.current) return;
+        if (pollSessionRef.current !== sessionId || !connectedRef.current) return;
         try {
           const response = await fetch(liveVoiceHttpUrls(httpBackendRef.current).poll, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, peerId }),
+            body: JSON.stringify({ token, peerId: activePeerId }),
           });
+          if (pollSessionRef.current !== sessionId || !connectedRef.current) return;
           const ct = response.headers.get('content-type') || '';
-          if (!ct.toLowerCase().includes('application/json')) return;
+          if (!ct.toLowerCase().includes('application/json')) {
+            scheduleNext();
+            return;
+          }
           const payload = (await response.json()) as {
             ok?: boolean;
             reason?: string;
@@ -1029,7 +1049,54 @@ export function useLiveVoiceRoom({
             peers?: LiveVoicePublicPeer[];
             signals?: Array<Record<string, unknown>>;
           };
+          if (pollSessionRef.current !== sessionId || !connectedRef.current) return;
           if (!payload.ok) {
+            if (payload.reason === 'NOT_IN_ROOM' && rejoinAttempts < 2) {
+              rejoinAttempts += 1;
+              try {
+                const rejoinRes = await fetch(liveVoiceHttpUrls(httpBackendRef.current).join, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    token,
+                    peerId: activePeerId,
+                    nick: joinedNickRef.current,
+                    hasAudio: Boolean(localMicStreamRef.current),
+                    micMuted: micMutedRef.current,
+                    deafened: deafenedRef.current,
+                    camActive: camActiveRef.current,
+                    screenActive: screenActiveRef.current,
+                  }),
+                });
+                const rejoinCt = rejoinRes.headers.get('content-type') || '';
+                if (rejoinCt.toLowerCase().includes('application/json')) {
+                  const rejoinData = (await rejoinRes.json()) as {
+                    ok?: boolean;
+                    peerId?: string;
+                    peers?: LiveVoicePublicPeer[];
+                    signals?: Array<Record<string, unknown>>;
+                  };
+                  if (rejoinData.ok && rejoinData.peerId) {
+                    activePeerId = rejoinData.peerId;
+                    myPeerIdRef.current = rejoinData.peerId;
+                    setMyPeerId(rejoinData.peerId);
+                    if (Array.isArray(rejoinData.peers)) {
+                      peersRef.current = rejoinData.peers;
+                      setPeers(rejoinData.peers);
+                    }
+                    if (Array.isArray(rejoinData.signals)) {
+                      for (const sig of rejoinData.signals) {
+                        handleServerPacket(sig);
+                      }
+                    }
+                    scheduleNext();
+                    return;
+                  }
+                }
+              } catch {
+                // Fall through to disconnect
+              }
+            }
             if (payload.reason === 'UNAUTHORIZED') {
               onUnauthorizedRef.current?.();
             }
@@ -1037,12 +1104,15 @@ export function useLiveVoiceRoom({
               stopPolling();
               cleanupAllPeers();
               stopLocalMedia();
+              connectedRef.current = false;
               setConnected(false);
+              setTransportMode(null);
               setPeers([]);
               setError(payload.message ?? 'Сессия голосового канала завершена.');
             }
             return;
           }
+          rejoinAttempts = 0;
           if (Array.isArray(payload.peers)) {
             peersRef.current = payload.peers;
             setPeers(payload.peers);
@@ -1057,19 +1127,14 @@ export function useLiveVoiceRoom({
             }
           }
           const wantFast = (payload.peers?.length ?? 0) >= 2 && audioModeRef.current === 'relay';
-          const desiredMs = wantFast ? 280 : 800;
-          if (desiredMs !== pollIntervalMsRef.current) {
-            pollIntervalMsRef.current = desiredMs;
-            startHttpPolling(token, peerId);
-          }
+          pollIntervalMsRef.current = wantFast ? 280 : 700;
         } catch {
           // Transient poll glitch
         }
+        scheduleNext();
       };
 
-      pollTimerRef.current = window.setInterval(() => {
-        void pollOnce();
-      }, pollIntervalMsRef.current);
+      scheduleNext();
     },
     [
       cleanupAllPeers,
@@ -1148,6 +1213,8 @@ export function useLiveVoiceRoom({
           connectedRef.current = true;
           setConnected(true);
           setConnecting(false);
+          setTransportMode('ws');
+          setSyncNotice(null);
           setError(null);
           if (nextPeers.length >= 2) {
             scheduleRelayFallback();
@@ -1160,6 +1227,8 @@ export function useLiveVoiceRoom({
           connectedRef.current = false;
           setConnected(false);
           setConnecting(false);
+          setTransportMode(null);
+          setSyncNotice(null);
           setPeers([]);
           cleanupAllPeers();
           return;
@@ -1214,18 +1283,22 @@ export function useLiveVoiceRoom({
       }
 
       tokenRef.current = token;
+      joinedNickRef.current = nick;
       stopPolling();
       stopLocalSession();
       setConnecting(true);
       setError(null);
+      setSyncNotice(null);
       cleanupAllPeers();
 
       const gotMic = await acquireMicBestEffort();
 
-      const enterLocalRoomFallback = (): boolean => {
+      const enterLocalRoomFallback = (notice: string): boolean => {
         stopPolling();
         stopLocalSession();
         transportRef.current = 'local';
+        setTransportMode('local');
+        setSyncNotice(notice);
         const session = joinLocalBroadcastVoiceRoom(
           {
             nick,
@@ -1253,11 +1326,13 @@ export function useLiveVoiceRoom({
         return true;
       };
 
-      if (token.startsWith('local-') || preferredBackendRef.current === 'local') {
-        return enterLocalRoomFallback();
+      if (token.startsWith('local-')) {
+        return enterLocalRoomFallback(
+          'Локальный режим (только этот браузер). Введите секретный код в чат повторно для синхронизации через сервер.',
+        );
       }
 
-      if (preferredBackendRef.current !== 'php') {
+      if (preferredBackendRef.current !== 'php' && preferredBackendRef.current !== 'local') {
         try {
           const ws = await ensureSocketConnected();
           transportRef.current = 'ws';
@@ -1282,46 +1357,70 @@ export function useLiveVoiceRoom({
       }
 
       const tryHttpJoin = async (backend: 'node' | 'php') => {
-        const res = await fetch(liveVoiceHttpUrls(backend).join, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            token,
-            nick,
-            hasAudio: gotMic,
-            micMuted: micMutedRef.current,
-            deafened: deafenedRef.current,
-            camActive: camActiveRef.current,
-            screenActive: screenActiveRef.current,
-          }),
-        });
-        const ct = res.headers.get('content-type') || '';
-        if (!ct.toLowerCase().includes('application/json')) {
-          return null;
+        try {
+          const res = await fetch(liveVoiceHttpUrls(backend).join, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token,
+              nick,
+              hasAudio: gotMic,
+              micMuted: micMutedRef.current,
+              deafened: deafenedRef.current,
+              camActive: camActiveRef.current,
+              screenActive: screenActiveRef.current,
+            }),
+          });
+          const ct = res.headers.get('content-type') || '';
+          if (!ct.toLowerCase().includes('application/json')) {
+            return { payload: null, status: res.status };
+          }
+          const payload = (await res.json()) as {
+            ok?: boolean;
+            reason?: string;
+            message?: string;
+            peerId?: string;
+            peers?: LiveVoicePublicPeer[];
+            signals?: Array<Record<string, unknown>>;
+          };
+          return { payload, status: res.status };
+        } catch {
+          return { payload: null, status: 0 };
         }
-        return (await res.json()) as {
+      };
+
+      try {
+        transportRef.current = 'http';
+        pollIntervalMsRef.current = 450;
+        const order: Array<'node' | 'php'> =
+          preferredBackendRef.current === 'php' ? ['php', 'node'] : ['node', 'php'];
+        let activeBackend: 'node' | 'php' = order[0];
+        let payload: {
           ok?: boolean;
           reason?: string;
           message?: string;
           peerId?: string;
           peers?: LiveVoicePublicPeer[];
           signals?: Array<Record<string, unknown>>;
-        };
-      };
+        } | null = null;
+        let lastStatus = 0;
 
-      try {
-        transportRef.current = 'http';
-        pollIntervalMsRef.current = 450;
-        const initialBackend: 'node' | 'php' =
-          preferredBackendRef.current === 'php' ? 'php' : 'node';
-        let activeBackend: 'node' | 'php' = initialBackend;
-        let payload = await tryHttpJoin(initialBackend);
-        if (!payload && initialBackend === 'node') {
-          activeBackend = 'php';
-          payload = await tryHttpJoin('php');
+        for (const candidateBackend of order) {
+          const attempt = await tryHttpJoin(candidateBackend);
+          lastStatus = attempt.status;
+          if (attempt.payload) {
+            activeBackend = candidateBackend;
+            payload = attempt.payload;
+            break;
+          }
         }
+
         if (!payload) {
-          return enterLocalRoomFallback();
+          return enterLocalRoomFallback(
+            lastStatus > 0
+              ? `Сервер /api/voice.php не вернул JSON (HTTP ${lastStatus}) — включён локальный режим.`
+              : 'Нет связи с сервером /api/voice.php — включён локальный режим.',
+          );
         }
         httpBackendRef.current = activeBackend;
         if (!payload.ok || !payload.peerId) {
@@ -1336,7 +1435,9 @@ export function useLiveVoiceRoom({
             setError(payload.message ?? 'Голосовой канал заполнен.');
             return false;
           }
-          return enterLocalRoomFallback();
+          return enterLocalRoomFallback(
+            payload.message ?? 'Сервер голосового канала недоступен — включён локальный режим.',
+          );
         }
         myPeerIdRef.current = payload.peerId;
         setMyPeerId(payload.peerId);
@@ -1346,6 +1447,8 @@ export function useLiveVoiceRoom({
         connectedRef.current = true;
         setConnected(true);
         setConnecting(false);
+        setTransportMode(activeBackend === 'php' ? 'http-php' : 'http-node');
+        setSyncNotice(null);
         setError(null);
         if (Array.isArray(payload.signals)) {
           for (const sig of payload.signals) {
@@ -1359,7 +1462,9 @@ export function useLiveVoiceRoom({
         startHttpPolling(token, payload.peerId);
         return true;
       } catch {
-        return enterLocalRoomFallback();
+        return enterLocalRoomFallback(
+          'Ошибка подключения к серверу /api/voice.php — включён локальный режим.',
+        );
       }
     },
     [
@@ -1402,6 +1507,8 @@ export function useLiveVoiceRoom({
     connectedRef.current = false;
     setConnected(false);
     setConnecting(false);
+    setTransportMode(null);
+    setSyncNotice(null);
     setMyPeerId(null);
     setPeers([]);
     setError(null);
@@ -1690,6 +1797,8 @@ export function useLiveVoiceRoom({
     remoteVideoPeers,
     loopbackActive,
     audioMode,
+    transportMode,
+    syncNotice,
     audioUnlockNeeded,
     error,
     setError,
