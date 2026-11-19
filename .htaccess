@@ -1,13 +1,36 @@
-DirectoryIndex index.html
+DirectoryIndex index.php index.html
 Options -Indexes
 
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Force HTTPS on REG.RU Host-0 (Nginx -> Apache proxy safe)
+  RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1)(:\d+)?$ [NC]
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https [NC]
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  # Block private files before any internal rewrites
+  RewriteRule ^(site/)?api/(config|config\.example|bootstrap)\.php$ - [R=404,L]
+  RewriteRule ^(site/)?api/\.data(/|$) - [R=404,L]
+  RewriteRule ^(src|node_modules)(/|$) - [R=404,L]
+
+  # Route /api/*.php requests to compiled site/api/*.php when whole project ZIP is uploaded
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^api/([a-zA-Z0-9_-]+\.php)$ site/api/$1 [L,QSA]
+</IfModule>
+
+# Block direct HTTP access to source code, server configs, private PHP configs, and SQLite DB files
 RedirectMatch 404 ^/\.git
 RedirectMatch 404 ^/\.env
-RedirectMatch 404 ^/src/
-RedirectMatch 404 ^/api/\.data(/|$)
-RedirectMatch 404 ^/api/(config|config\.example|bootstrap)\.php$
+RedirectMatch 404 ^/(src|node_modules)(/|$)
+RedirectMatch 404 ^/(server\.ts|package\.json|package-lock\.json|tsconfig\.json|vite\.config\.ts|metadata\.json)$
+RedirectMatch 404 ^/(site/)?api/\.data(/|$)
+RedirectMatch 404 ^/(site/)?api/(config|config\.example|bootstrap)\.php$
+RedirectMatch 404 ^/config\.php$
 RedirectMatch 404 \.(sqlite|sqlite3|db|wal|shm|sql)$
-RedirectMatch 404 ^/(package\.json|package-lock\.json|tsconfig\.json|vite\.config\.ts|metadata\.json)$
+RedirectMatch 404 ^/\.prebeta-state\.json$
+RedirectMatch 404 \.geek_live_voice_state_v1\.json$
 
 <IfModule mod_mime.c>
   AddType application/javascript .js .mjs
@@ -20,8 +43,15 @@ RedirectMatch 404 ^/(package\.json|package-lock\.json|tsconfig\.json|vite\.confi
   AddType audio/mp4 .m4a
 </IfModule>
 
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json image/svg+xml
+</IfModule>
+
 <IfModule mod_headers.c>
   <FilesMatch "\.(html|php)$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+  <FilesMatch "\.(js|css|svg|png|jpg|jpeg|webp|woff2|mp3|ogg|m4a)$">
+    Header set Cache-Control "public, max-age=2592000, immutable"
   </FilesMatch>
 </IfModule>

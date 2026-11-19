@@ -44,7 +44,7 @@ gkRespondJson($dbOk ? 200 : 500, [
         'mbstring' => extension_loaded('mbstring'),
     ],
     'features' => [
-        'configPhpPresent' => @is_file(__DIR__ . '/config.php'),
+        'configPhpPresent' => gkFindUserConfigPath() !== null,
         'geminiConfigured' => gkSetting('gemini_api_key', 'GEMINI_API_KEY', '') !== '',
         'turnConfigured' => count(gkResolveIceServers()) > 0,
     ],

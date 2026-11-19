@@ -57,6 +57,20 @@ function gkUtf8Upper(string $s): string {
     return function_exists('mb_strtoupper') ? mb_strtoupper($s, 'UTF-8') : strtoupper($s);
 }
 
+function gkFindUserConfigPath(): ?string {
+    $candidates = [
+        __DIR__ . '/config.php',
+        dirname(__DIR__, 2) . '/api/config.php',
+        dirname(__DIR__, 2) . '/config.php',
+    ];
+    foreach ($candidates as $path) {
+        if (@is_file($path) && @is_readable($path)) {
+            return $path;
+        }
+    }
+    return null;
+}
+
 function gkLoadConfig(): array {
     static $cached = null;
     if ($cached !== null) {
@@ -90,8 +104,8 @@ function gkLoadConfig(): array {
         }
     }
 
-    $userFile = __DIR__ . '/config.php';
-    if (@is_file($userFile) && @is_readable($userFile)) {
+    $userFile = gkFindUserConfigPath();
+    if ($userFile !== null) {
         $loadedUser = @include $userFile;
         if (is_array($loadedUser)) {
             $defaults = array_merge($defaults, $loadedUser);
