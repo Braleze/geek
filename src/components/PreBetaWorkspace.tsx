@@ -147,7 +147,7 @@ export function PreBetaWorkspace({
     const isActiveQuota = quota.status === 'ACTIVE' && Boolean(quota.code);
 
     return (
-      <div className="flex-1 flex flex-col justify-between bg-[#08101c]/95 p-4 sm:p-6 min-w-0">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col justify-between gap-4 bg-[#08101c]/95 p-4 sm:p-6 overflow-y-auto geek-chat-scroll">
 
         <div className="space-y-5">
           {/* Header Banner */}
@@ -346,7 +346,7 @@ export function PreBetaWorkspace({
           </div>
         </div>
 
-        <div className="mt-5 pt-3 border-t border-[#00f0ff]/15 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono-tech text-[#63809b]">
+        <div className="shrink-0 mt-2 pt-3 border-t border-[#00f0ff]/15 flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono-tech text-[#63809b]">
           <span>ПРОТОКОЛ: {transportLabel}</span>
           <span>ОГРАНИЧЕНИЕ PRE-BETA: 30:00 (ПАУЗА ПРИ ВЫХОДЕ) · 2 УЧАСТНИКА</span>
         </div>
@@ -361,7 +361,7 @@ export function PreBetaWorkspace({
   return (
     <>
       {/* Left Pre-Beta Room Sidebar */}
-      <aside className="lg:w-[272px] bg-[#060b14]/92 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 flex flex-col justify-between shrink-0">
+      <aside className="lg:w-[272px] bg-[#060b14]/92 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 flex flex-col justify-between shrink-0 min-h-0">
 
         <div className="flex-1 min-h-0 overflow-y-auto geek-chat-scroll">
           <div className="px-3.5 py-2.5 border-b border-[#ff2a85]/25 flex items-center justify-between gap-2">
@@ -569,7 +569,7 @@ export function PreBetaWorkspace({
       </aside>
 
       {/* Main Live Dialogue Chat Stream */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#08101c]/90">
+      <div className="flex-1 flex flex-col min-w-0 min-h-[380px] lg:min-h-0 bg-[#08101c]/90">
         <div className="shrink-0 m-3 mb-0 px-3 py-2 rounded-[10px] bg-[#0a1320]/90 border border-[#ff2a85]/35 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-[#ff2a85] text-lg font-black">#</span>
@@ -674,7 +674,7 @@ export function PreBetaWorkspace({
       {showMembers && (
         <aside
           aria-label="Участники Pre-Beta диалога"
-          className="lg:w-[225px] bg-[#060b14]/92 border-t lg:border-t-0 lg:border-l border-[#00f0ff]/15 px-2.5 py-3 shrink-0 lg:overflow-y-auto geek-chat-scroll"
+          className="lg:w-[225px] bg-[#060b14]/92 border-t lg:border-t-0 lg:border-l border-[#00f0ff]/15 px-2.5 py-3 shrink-0 min-h-0 lg:overflow-y-auto geek-chat-scroll"
         >
           <div className="text-[10.5px] font-extrabold uppercase text-[#00f0ff] px-1.5 pb-2 flex items-center gap-1.5">
             <Users className="w-3.5 h-3.5" />

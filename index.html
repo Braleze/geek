@@ -980,6 +980,7 @@
       }
       .gk-cn-members {
         width: 225px;
+        min-height: 0;
         background: rgba(6, 11, 20, 0.92);
         border-left: 1px solid rgba(0, 240, 255, 0.16);
         padding: 12px 10px;
@@ -1686,8 +1687,10 @@
         color: #fff;
       }
       .gk-pb-pane {
-        flex: 1;
+        flex: 1 1 0%;
         min-width: 0;
+        min-height: 0;
+        overflow: hidden;
         display: none;
       }
       .gk-pb-pane.is-visible {
@@ -1695,7 +1698,10 @@
         flex-direction: column;
       }
       .gk-pb-lobby {
-        flex: 1;
+        flex: 1 1 0%;
+        min-width: 0;
+        min-height: 0;
+        overflow-y: auto;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -1723,12 +1729,14 @@
       }
       .gk-pb-active-wrap {
         display: flex;
-        flex: 1;
+        flex: 1 1 0%;
         min-width: 0;
+        min-height: 0;
+        overflow: hidden;
       }
       @media (min-width: 1025px) {
-        .gk-cn-workspace { height: 720px; }
-        .gk-cn-shell.is-fullscreen .gk-cn-workspace { height: auto; flex: 1 1 0%; min-height: 0; }
+        .gk-cn-workspace { height: 720px; min-height: 0; overflow: hidden; }
+        .gk-cn-shell.is-fullscreen .gk-cn-workspace { height: auto; flex: 1 1 0%; min-height: 0; overflow: hidden; }
         .gk-cn-messages { max-height: none; }
         .gk-cn-members { overflow-y: auto; }
       }
@@ -1736,6 +1744,8 @@
         .gk-nav { display: none; }
         .gk-cn-shell.is-fullscreen .gk-cn-workspace { flex: 1 1 0%; min-height: 0; overflow-y: auto; }
         .gk-cn-workspace, .gk-pb-active-wrap { flex-direction: column; }
+        .gk-pb-pane, .gk-pb-active-wrap { flex: 1 0 auto; overflow: visible; }
+        .gk-cn-chat { min-height: 360px; }
         .gk-cn-messages { max-height: 380px; }
         .gk-cn-rail {
           width: 100%;
@@ -1996,7 +2006,7 @@
                 </nav>
                 <div id="gk-cn-prebeta-pane" class="gk-pb-pane">
                   <audio id="gk-pb-remote-audio" autoplay playsinline style="display:none;"></audio>
-                  <div id="gk-pb-lobby-view" class="gk-pb-lobby">
+                  <div id="gk-pb-lobby-view" class="gk-pb-lobby geek-chat-scroll">
                     <div style="display:flex;flex-direction:column;gap:14px;">
                       <div style="border-radius:12px;border:1px solid rgba(255,42,133,0.45);background:linear-gradient(90deg,rgba(255,42,133,0.12),#0a1320,rgba(0,240,255,0.12));padding:16px;display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">
                         <div style="max-width:600px;">
@@ -2004,9 +2014,9 @@
                           <h3 style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:18px;color:#fff;margin:4px 0 0;">Живой тест голоса и чата до релиза</h3>
                           <p style="font-size:12px;color:#cbd5e1;margin:6px 0 0;line-height:1.5;">Получите уникальный одноразовый код, отправьте его другу и общайтесь напрямую в этом превью. Лимит до релиза: <strong style="color:#fcee0a;">30 минут всего</strong>, максимум <strong style="color:#00f0ff;">2 человека</strong> в одном диалоге.</p>
                         </div>
-                        <div style="border-radius:8px;background:rgba(4,7,13,0.92);border:1px solid rgba(252,238,10,0.45);padding:8px 14px;text-align:right;">
+                        <div style="border-radius:8px;background:rgba(4,7,13,0.92);border:1px solid rgba(252,238,10,0.45);padding:8px 14px;text-align:right;flex-shrink:0;">
                           <div style="font-family:'Share Tech Mono',monospace;font-size:9.5px;color:#fcee0a;text-transform:uppercase;">ЛИМИТ ДО РЕЛИЗА</div>
-                          <div id="gk-pb-quota-timer" data-testid="prebeta-quota-timer" style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:18px;color:#fff;">30:00</div>
+                          <div id="gk-pb-quota-timer" data-testid="prebeta-quota-timer" style="font-family:'Orbitron',sans-serif;font-weight:900;font-size:18px;color:#fff;white-space:nowrap;">30:00</div>
                         </div>
                       </div>
                       <div style="border-radius:12px;background:#060b14;border:1px solid rgba(0,240,255,0.22);padding:12px;display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
@@ -2044,14 +2054,14 @@
                         </form>
                       </div>
                     </div>
-                    <div style="padding-top:12px;border-top:1px solid rgba(0,240,255,0.15);display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#63809b;">
+                    <div style="flex-shrink:0;padding-top:12px;border-top:1px solid rgba(0,240,255,0.15);display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px;font-family:'Share Tech Mono',monospace;font-size:11px;color:#63809b;">
                       <span>ПРОТОКОЛ: WEBSOCKET СИГНАЛИНГ + WEBRTC P2P AUDIO</span>
                       <span>ОГРАНИЧЕНИЕ PRE-BETA: 30:00 ДО РЕЛИЗА · 2 УЧАСТНИКА</span>
                     </div>
                   </div>
                   <div id="gk-pb-active-view" class="gk-pb-active-wrap" style="display:none;">
                     <aside class="gk-cn-channels">
-                      <div>
+                      <div class="geek-chat-scroll" style="flex:1 1 0%;min-height:0;overflow-y:auto;">
                         <div class="gk-cn-srv-head" style="border-bottom-color:rgba(255,42,133,0.25);">
                           <div style="min-width:0;">
                             <div style="font-size:9px;font-weight:800;text-transform:uppercase;color:#ff7aa8;">PRE-BETA КАНАЛ 1-НА-1</div>
@@ -2074,7 +2084,7 @@
                           <div id="gk-pb-peers-sidebar" style="padding-left:4px;"></div>
                         </div>
                       </div>
-                      <div>
+                      <div style="flex-shrink:0;">
                         <div class="gk-cn-vdock">
                           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
                             <div style="min-width:0;">
@@ -2100,14 +2110,14 @@
                     </aside>
                     <div class="gk-cn-chat">
                       <div class="gk-cn-streamhead" style="border-color:rgba(255,42,133,0.35);">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                          <span style="color:#ff2a85;font-size:18px;font-weight:900;">#</span>
-                          <div>
-                            <div id="gk-pb-chat-topic" style="font-size:9.5px;font-weight:800;color:#ff7aa8;">PRE-BETA ЖИВОЙ ДИАЛОГ</div>
-                            <div style="font-size:14px;font-weight:800;color:#fff;">прямая-связь-1-на-1</div>
+                        <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1;">
+                          <span style="color:#ff2a85;font-size:18px;font-weight:900;flex-shrink:0;">#</span>
+                          <div style="min-width:0;">
+                            <div id="gk-pb-chat-topic" style="font-size:9.5px;font-weight:800;color:#ff7aa8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">PRE-BETA ЖИВОЙ ДИАЛОГ</div>
+                            <div style="font-size:14px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">прямая-связь-1-на-1</div>
                           </div>
                         </div>
-                        <span id="gk-pb-chat-timer" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;">⏱ 30:00</span>
+                        <span id="gk-pb-chat-timer" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#fcee0a;white-space:nowrap;flex-shrink:0;">⏱ 30:00</span>
                       </div>
                       <div id="gk-pb-messages" data-testid="prebeta-messages" class="gk-cn-messages geek-chat-scroll"></div>
                       <div class="gk-cn-console">
@@ -5112,6 +5122,7 @@
               });
             }
             if (pbNetLabel) pbNetLabel.textContent = pbActive ? 'PRE-BETA 1-НА-1 // 30 МИН' : 'P2P СИНХРОНИЗАЦИЯ';
+            if (cnNodeIdEl && pbActive) cnNodeIdEl.textContent = 'pre-beta-1on1';
 
             if (pbPaneEl) pbPaneEl.classList.toggle('is-visible', pbActive);
             if (pbDemoChannels) pbDemoChannels.style.display = pbActive ? 'none' : 'flex';
@@ -5242,7 +5253,7 @@
                   hd.appendChild(au);
                   hd.appendChild(tm);
                   var tx = document.createElement('p');
-                  tx.style.cssText = 'margin:4px 0 0;font-size:13.5px;color:#e6f7ff;line-height:1.45;';
+                  tx.style.cssText = 'margin:4px 0 0;font-size:13.5px;color:#e6f7ff;line-height:1.45;overflow-wrap:anywhere;word-break:break-word;';
                   tx.textContent = m.text;
                   bd.appendChild(hd);
                   bd.appendChild(tx);

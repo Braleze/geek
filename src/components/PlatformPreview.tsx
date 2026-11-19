@@ -870,7 +870,7 @@ export function PlatformPreview({
           className={`flex flex-col lg:flex-row ${
             isFullscreen
               ? 'flex-1 min-h-0 overflow-y-auto lg:overflow-hidden'
-              : 'min-h-[520px] lg:h-[720px]'
+              : 'min-h-[520px] lg:h-[720px] lg:overflow-hidden'
           }`}
         >
           {/* 1. Left Hexagonal Servers Rail */}
