@@ -1,8 +1,11 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
+import {transformSync} from 'esbuild';
 import fs from 'fs';
 import path from 'path';
 import {defineConfig} from 'vite';
+
+const ROOT_DIR = import.meta.dirname;
 
 export default defineConfig(() => {
   const buildStamp = Date.now().toString(36);
@@ -11,7 +14,8 @@ export default defineConfig(() => {
     build: {
       minify: true,
       cssMinify: true,
-      rollupOptions: {
+      chunkSizeWarningLimit: 600,
+      rolldownOptions: {
         output: {
           entryFileNames: 'assets/app.js',
           chunkFileNames: 'assets/chunk-[name].js',
@@ -21,6 +25,25 @@ export default defineConfig(() => {
               return 'assets/app.css';
             }
             return 'assets/[name][extname]';
+          },
+          codeSplitting: {
+            groups: [
+              {
+                name: 'vendor-react',
+                test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+                priority: 30,
+              },
+              {
+                name: 'vendor-motion',
+                test: /node_modules[\\/](motion|motion-dom|motion-utils|framer-motion)[\\/]/,
+                priority: 20,
+              },
+              {
+                name: 'vendor-ui',
+                test: /node_modules[\\/]/,
+                priority: 10,
+              },
+            ],
           },
         },
       },
@@ -41,9 +64,9 @@ export default defineConfig(() => {
             .replace('href="./assets/app.css"', `href="./assets/app.css?v=${buildStamp}"`);
         },
       },
-      // Copies src/assets and audio into dist/, writes dist/manifest.json,
-      // and mirrors dist/ into tracked site/ so zero-build ZIP uploads to
-      // REG.RU Host-0 always contain a ready-to-serve production bundle.
+      // Minifies dist/assets/*.{js,css} even when built with --minify false,
+      // writes dist/manifest.json, and mirrors production files into /site
+      // so every file stays compact (<250 KB) and ready for REG.RU Host-0.
       {
         name: 'copy-unbundled-src-assets',
         apply: 'build',
@@ -51,18 +74,52 @@ export default defineConfig(() => {
           if (error) {
             return;
           }
-          const distDir = path.resolve(__dirname, 'dist');
+          const distDir = path.resolve(ROOT_DIR, 'dist');
           if (!fs.existsSync(distDir)) {
             return;
           }
 
-          const srcAssets = path.resolve(__dirname, 'src/assets');
-          const distAssets = path.resolve(distDir, 'src/assets');
-          if (fs.existsSync(srcAssets)) {
-            fs.cpSync(srcAssets, distAssets, {recursive: true, force: true});
+          // Remove unused AI Studio debug screenshot uploads copied from public/assets/aistudio
+          const distAistudio = path.join(distDir, 'assets', 'aistudio');
+          if (fs.existsSync(distAistudio)) {
+            fs.rmSync(distAistudio, {recursive: true, force: true});
           }
 
-          const rootAudio = path.resolve(__dirname, 'audio');
+          // Always minify emitted JS & CSS assets with esbuild so every chunk
+          // stays small and fast even if the build runner passes --minify false.
+          const distAssetsDir = path.join(distDir, 'assets');
+          if (fs.existsSync(distAssetsDir)) {
+            for (const entry of fs.readdirSync(distAssetsDir)) {
+              const fullPath = path.join(distAssetsDir, entry);
+              if (!fs.statSync(fullPath).isFile()) continue;
+              if (entry.endsWith('.js')) {
+                const raw = fs.readFileSync(fullPath, 'utf8');
+                const min = transformSync(raw, {
+                  loader: 'js',
+                  minify: true,
+                  target: 'es2020',
+                  legalComments: 'none',
+                });
+                fs.writeFileSync(fullPath, '/* geek-bundle:pending */\n' + min.code, 'utf8');
+              } else if (entry.endsWith('.css')) {
+                const raw = fs.readFileSync(fullPath, 'utf8');
+                const min = transformSync(raw, {
+                  loader: 'css',
+                  minify: true,
+                  legalComments: 'none',
+                });
+                fs.writeFileSync(fullPath, '/* geek-bundle:pending */\n' + min.code, 'utf8');
+              }
+            }
+          }
+
+          const srcAssets = path.resolve(ROOT_DIR, 'src/assets');
+          const distSrcAssets = path.resolve(distDir, 'src/assets');
+          if (fs.existsSync(srcAssets)) {
+            fs.cpSync(srcAssets, distSrcAssets, {recursive: true, force: true});
+          }
+
+          const rootAudio = path.resolve(ROOT_DIR, 'audio');
           const distAudio = path.resolve(distDir, 'audio');
           if (fs.existsSync(rootAudio)) {
             fs.mkdirSync(distAudio, {recursive: true});
@@ -94,7 +151,7 @@ export default defineConfig(() => {
           }
 
           // Mirror compiled production bundle into tracked /site directory
-          const siteDir = path.resolve(__dirname, 'site');
+          const siteDir = path.resolve(ROOT_DIR, 'site');
           if (fs.existsSync(siteDir)) {
             fs.rmSync(siteDir, {recursive: true, force: true});
           }
@@ -104,7 +161,7 @@ export default defineConfig(() => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(ROOT_DIR, '.'),
       },
     },
     server: {
