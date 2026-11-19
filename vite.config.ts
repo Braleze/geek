@@ -5,8 +5,26 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
+  const buildStamp = Date.now().toString(36);
   return {
     base: './',
+    build: {
+      minify: true,
+      cssMinify: true,
+      rollupOptions: {
+        output: {
+          entryFileNames: 'assets/app.js',
+          chunkFileNames: 'assets/chunk-[name].js',
+          assetFileNames: (assetInfo) => {
+            const name = assetInfo.names?.[0] ?? assetInfo.name ?? '';
+            if (name.endsWith('.css')) {
+              return 'assets/app.css';
+            }
+            return 'assets/[name][extname]';
+          },
+        },
+      },
+    },
     plugins: [
       react(),
       tailwindcss(),
@@ -14,10 +32,13 @@ export default defineConfig(() => {
         name: 'strip-root-fallback-in-build',
         apply: 'build',
         transformIndexHtml(html: string): string {
-          return html.replace(
-            /\s*<!--\s*HOST0_ROOT_FALLBACK_START\s*-->[\s\S]*?<!--\s*HOST0_ROOT_FALLBACK_END\s*-->\s*/g,
-            '\n',
-          );
+          return html
+            .replace(
+              /\s*<!--\s*HOST0_ROOT_FALLBACK_START\s*-->[\s\S]*?<!--\s*HOST0_ROOT_FALLBACK_END\s*-->\s*/g,
+              '\n',
+            )
+            .replace('src="./assets/app.js"', `src="./assets/app.js?v=${buildStamp}"`)
+            .replace('href="./assets/app.css"', `href="./assets/app.css?v=${buildStamp}"`);
         },
       },
       // Copies src/assets and audio into dist/, writes dist/manifest.json,
@@ -59,11 +80,11 @@ export default defineConfig(() => {
           const distHtmlPath = path.join(distDir, 'index.html');
           if (fs.existsSync(distHtmlPath)) {
             const builtHtml = fs.readFileSync(distHtmlPath, 'utf8');
-            const jsMatch = builtHtml.match(/src="\.\/(assets\/[^"]+\.js)"/);
-            const cssMatch = builtHtml.match(/href="\.\/(assets\/[^"]+\.css)"/);
+            const jsMatch = builtHtml.match(/src="\.\/(assets\/[^"?]+\.js(?:\?[^"]*)?)"/);
+            const cssMatch = builtHtml.match(/href="\.\/(assets\/[^"?]+\.css(?:\?[^"]*)?)"/);
             const manifest = {
-              js: jsMatch ? jsMatch[1] : null,
-              css: cssMatch ? cssMatch[1] : null,
+              js: jsMatch ? jsMatch[1] : 'assets/app.js',
+              css: cssMatch ? cssMatch[1] : 'assets/app.css',
             };
             fs.writeFileSync(
               path.join(distDir, 'manifest.json'),

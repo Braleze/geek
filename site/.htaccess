@@ -40,7 +40,10 @@ RedirectMatch 404 \.geek_live_voice_state_v1\.json$
   <FilesMatch "\.(html|php)$">
     Header set Cache-Control "no-cache, no-store, must-revalidate"
   </FilesMatch>
-  <FilesMatch "\.(js|css|svg|png|jpg|jpeg|webp|woff2|mp3|ogg|m4a)$">
-    Header set Cache-Control "public, max-age=2592000, immutable"
+  <FilesMatch "\.(js|css)$">
+    Header set Cache-Control "public, max-age=3600, must-revalidate"
+  </FilesMatch>
+  <FilesMatch "\.(svg|png|jpg|jpeg|webp|woff2|mp3|ogg|m4a)$">
+    Header set Cache-Control "public, max-age=2592000"
   </FilesMatch>
 </IfModule>
