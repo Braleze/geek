@@ -810,7 +810,7 @@ export function PlatformPreview({
         data-testid="preview-shell"
         className={
           isFullscreen
-            ? 'fixed inset-0 z-50 w-screen h-dvh geek-pcb-bg flex flex-col overflow-hidden text-[#e6f7ff]'
+            ? 'fixed inset-0 z-50 w-screen h-dvh geek-pcb-bg flex flex-col overflow-hidden text-[#e6f7ff] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]'
             : 'geek-pcb-bg rounded-2xl border border-[#00f0ff]/35 shadow-neon-cyan overflow-hidden text-[#e6f7ff] flex flex-col'
         }
       >

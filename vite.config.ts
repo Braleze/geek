@@ -4,6 +4,7 @@ import {transformSync} from 'esbuild';
 import fs from 'fs';
 import path from 'path';
 import {defineConfig} from 'vite';
+import {VitePWA} from 'vite-plugin-pwa';
 
 const ROOT_DIR = import.meta.dirname;
 
@@ -64,16 +65,12 @@ export default defineConfig(() => {
             .replace('href="./assets/app.css"', `href="./assets/app.css?v=${buildStamp}"`);
         },
       },
-      // Minifies dist/assets/*.{js,css} even when built with --minify false,
-      // writes dist/manifest.json, and mirrors production files into /site
-      // so every file stays compact (<250 KB) and ready for REG.RU Host-0.
+      // Prepares minified dist/assets/*.{js,css}, strips debug screenshots, and writes
+      // dist/manifest.json BEFORE VitePWA builds the Workbox precache manifest.
       {
-        name: 'copy-unbundled-src-assets',
+        name: 'prepare-host0-dist-assets',
         apply: 'build',
-        closeBundle(error?: Error): void {
-          if (error) {
-            return;
-          }
+        writeBundle(): void {
           const distDir = path.resolve(ROOT_DIR, 'dist');
           if (!fs.existsSync(distDir)) {
             return;
@@ -149,13 +146,148 @@ export default defineConfig(() => {
               'utf8',
             );
           }
-
-          // Mirror compiled production bundle into tracked /site directory
-          const siteDir = path.resolve(ROOT_DIR, 'site');
-          if (fs.existsSync(siteDir)) {
-            fs.rmSync(siteDir, {recursive: true, force: true});
-          }
-          fs.cpSync(distDir, siteDir, {recursive: true, force: true});
+        },
+      },
+      VitePWA({
+        registerType: 'autoUpdate',
+        manifest: {
+          id: '/',
+          name: 'Geek — Голос и чат',
+          short_name: 'Geek',
+          description:
+            'Платформа нового поколения для связи и комьюнити: P2P-голос, тестовый Live-канал и Pre-Beta связь 1-на-1.',
+          theme_color: '#0b0714',
+          background_color: '#0b0714',
+          display: 'standalone',
+          orientation: 'portrait',
+          scope: '/',
+          start_url: '/',
+          lang: 'ru',
+          icons: [
+            {
+              src: './pwa-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: './pwa-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any',
+            },
+            {
+              src: './pwa-maskable-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable',
+            },
+          ],
+          shortcuts: [
+            {
+              name: 'Pre-Beta связь 1-на-1',
+              short_name: 'Pre-Beta',
+              description: 'Быстрый вход в защищённый звонок 1-на-1',
+              url: '/#prebeta',
+              icons: [{src: './pwa-192x192.png', sizes: '192x192', type: 'image/png'}],
+            },
+            {
+              name: 'Live чат и голос',
+              short_name: 'Live чат',
+              description: 'Открыть клиент Geek и тестовый голосовой канал',
+              url: '/?view=app#preview',
+              icons: [{src: './pwa-192x192.png', sizes: '192x192', type: 'image/png'}],
+            },
+          ],
+        },
+        workbox: {
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          globIgnores: ['**/api/**', '**/aistudio/**', 'manifest.json', 'src/**'],
+          navigateFallback: null,
+          cleanupOutdatedCaches: true,
+          clientsClaim: true,
+          skipWaiting: true,
+          manifestTransforms: [
+            async (entries) => {
+              const seen = new Set<string>();
+              const manifest = [];
+              for (const entry of entries) {
+                if (seen.has(entry.url)) continue;
+                seen.add(entry.url);
+                manifest.push({
+                  ...entry,
+                  revision: entry.revision ?? buildStamp,
+                });
+              }
+              return {manifest, warnings: []};
+            },
+          ],
+          runtimeCaching: [
+            {
+              urlPattern: /\/api\//i,
+              handler: 'NetworkOnly',
+            },
+            {
+              urlPattern: /\.php(\?.*)?$/i,
+              handler: 'NetworkOnly',
+            },
+            {
+              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'google-fonts-cache',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 * 365,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+            {
+              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'gstatic-fonts-cache',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 * 365,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+          ],
+        },
+        devOptions: {
+          enabled: true,
+          type: 'module',
+        },
+      }),
+      // Mirrors the complete production bundle (including sw.js, workbox-*.js,
+      // registerSW.js, and manifest.webmanifest) into /site for REG.RU Host-0.
+      {
+        name: 'mirror-dist-to-site',
+        apply: 'build',
+        closeBundle: {
+          order: 'post',
+          sequential: true,
+          handler(error?: Error): void {
+            if (error) {
+              return;
+            }
+            const distDir = path.resolve(ROOT_DIR, 'dist');
+            if (!fs.existsSync(distDir)) {
+              return;
+            }
+            const siteDir = path.resolve(ROOT_DIR, 'site');
+            if (fs.existsSync(siteDir)) {
+              fs.rmSync(siteDir, {recursive: true, force: true});
+            }
+            fs.cpSync(distDir, siteDir, {recursive: true, force: true});
+          },
         },
       },
     ],

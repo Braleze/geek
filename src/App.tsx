@@ -5,6 +5,9 @@ import { PlatformPreview } from './components/PlatformPreview';
 import { RoadmapSection } from './components/RoadmapSection';
 import { FaqSection } from './components/FaqSection';
 import { FeedbackSection } from './components/FeedbackSection';
+import { OfflineIndicator } from './components/OfflineIndicator';
+import { PWAInstallButton } from './components/PWAInstallButton';
+import { resolveLaunchTarget } from './utils/pwa';
 
 const FEATURES = [
   {
@@ -69,6 +72,21 @@ export default function App() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
+  // Support Android/iOS home-screen PWA shortcut (?view=app#preview)
+  useEffect(() => {
+    const target = resolveLaunchTarget({
+      search: window.location.search,
+      hash: window.location.hash,
+    });
+    if (target === 'preview') {
+      const timer = window.setTimeout(() => {
+        document.getElementById('preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 90);
+      return () => window.clearTimeout(timer);
+    }
+    return undefined;
+  }, []);
+
   const handleShareSite = async () => {
     const shareUrl = window.location.origin + window.location.pathname;
     try {
@@ -114,17 +132,17 @@ export default function App() {
       />
 
       {/* Header */}
-      <header className="sticky top-0 z-30 w-full backdrop-blur-md bg-[#0b0714]/75 border-b border-white/5">
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center gap-4">
-          <a href="#top" className="flex items-center space-x-3 shrink-0 group">
-            <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#150f24] border border-[#00f0ff]/50 flex items-center justify-center shadow-neon-cyan overflow-hidden p-0.5">
+      <header className="sticky top-0 z-30 w-full backdrop-blur-md bg-[#0b0714]/75 border-b border-white/5 pt-[env(safe-area-inset-top)]">
+        <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-3.5 sm:py-4 flex justify-between items-center gap-2 sm:gap-4">
+          <a href="#top" className="flex items-center space-x-2 sm:space-x-3 shrink-0 group">
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#150f24] border border-[#00f0ff]/50 flex items-center justify-center shadow-neon-cyan overflow-hidden p-0.5">
               <GeekLogo size={40} className="w-full h-full" />
             </div>
             <div>
-              <span className="font-cyber font-black text-xl sm:text-2xl tracking-wider text-white block leading-none">
+              <span className="font-cyber font-black text-lg sm:text-2xl tracking-wider text-white block leading-none">
                 GEEK
               </span>
-              <span className="block text-[10px] font-mono-tech text-[#00f0ff] tracking-widest uppercase mt-1">
+              <span className="block text-[9px] sm:text-[10px] font-mono-tech text-[#00f0ff] tracking-widest uppercase mt-0.5 sm:mt-1">
                 VOICE &amp; CHAT
               </span>
             </div>
@@ -148,12 +166,13 @@ export default function App() {
             </a>
           </nav>
 
-        <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          <PWAInstallButton variant="header" />
           <button
             type="button"
             onClick={handleOpenPreBeta}
             data-testid="header-prebeta-btn"
-            className="cyber-btn px-2.5 sm:px-4 py-2 sm:py-2.5 text-[10.5px] sm:text-xs font-cyber font-bold tracking-wider bg-[#150f24] border border-[#00f0ff]/70 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#0b0714] shadow-neon-cyan flex items-center gap-1.5 sm:gap-2 whitespace-nowrap cursor-pointer"
+            className="cyber-btn px-2 sm:px-4 py-2 sm:py-2.5 text-[10px] sm:text-xs font-cyber font-bold tracking-wider bg-[#150f24] border border-[#00f0ff]/70 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#0b0714] shadow-neon-cyan flex items-center gap-1 sm:gap-2 whitespace-nowrap cursor-pointer"
           >
             <PhoneCall className="w-3.5 h-3.5 shrink-0" />
             <span className="sm:hidden">СВЯЗЬ</span>
@@ -164,12 +183,12 @@ export default function App() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Telegram канал Geek"
-            className="cyber-btn px-2.5 sm:px-5 py-2 sm:py-2.5 text-[10.5px] sm:text-xs font-cyber font-bold tracking-wider bg-[#150f24] border border-[#ff007f]/60 text-[#ff007f] hover:bg-[#ff007f] hover:text-white shadow-neon-pink flex items-center gap-1.5 sm:gap-2 whitespace-nowrap"
+            className="cyber-btn px-2 sm:px-4 py-2 sm:py-2.5 text-[10px] sm:text-xs font-cyber font-bold tracking-wider bg-[#150f24] border border-[#ff007f]/60 text-[#ff007f] hover:bg-[#ff007f] hover:text-white shadow-neon-pink flex items-center gap-1 sm:gap-2 whitespace-nowrap"
           >
             <Send className="w-3.5 h-3.5 shrink-0" />
             <span className="sm:hidden">TG</span>
             <span className="hidden sm:inline">TELEGRAM</span>
-            <span className="hidden md:inline">КАНАЛ</span>
+            <span className="hidden xl:inline">КАНАЛ</span>
           </a>
         </div>
         </div>
@@ -245,6 +264,8 @@ export default function App() {
                 <Send className="w-4 h-4" />
                 <span>ПРИСОЕДИНИТЬСЯ К ТГ КАНАЛУ</span>
               </a>
+
+              <PWAInstallButton variant="hero" />
 
               <button
                 type="button"
@@ -334,7 +355,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="relative z-20 w-full max-w-7xl mx-auto px-6 py-8 border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-400 font-mono-tech">
+      <footer className="relative z-20 w-full max-w-7xl mx-auto px-6 pt-8 pb-[calc(2rem+env(safe-area-inset-bottom))] border-t border-white/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-400 font-mono-tech">
         <div className="flex items-center space-x-2">
           <span>&copy; 2026 GEEK PLATFORM. ВСЕ ПРАВА ЗАЩИЩЕНЫ.</span>
         </div>
@@ -370,11 +391,13 @@ export default function App() {
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
           aria-label="Вернуться наверх"
           className="fixed bottom-6 right-6 z-30 w-11 h-11 rounded-xl bg-[#150f24]/95 border border-[#00f0ff]/60 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#0b0714] shadow-neon-cyan flex items-center justify-center transition-all cursor-pointer"
+          style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
           <ArrowUp className="w-5 h-5" />
         </button>
       )}
 
+      <OfflineIndicator />
     </div>
   );
 }
