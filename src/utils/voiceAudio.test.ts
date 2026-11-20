@@ -8,7 +8,7 @@ import {
   encodeInt16ToBase64,
   isWebRtcAudioLive,
   resampleFloat32ToInt16,
-} from './preBetaAudio.ts';
+} from './voiceAudio.ts';
 
 test('resampleFloat32ToInt16 preserves exact sample rate ratio across frames without drift', () => {
   const state = createResamplerState();

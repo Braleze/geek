@@ -58,15 +58,24 @@ test('generatePreviewPeerReply answers user questions in-character from L30nel, 
   assert.equal(voiceReply.author, 'Sergo');
   assert.match(voiceReply.text, /WebRTC P2P/i);
 
-  const preBetaReply = generatePreviewPeerReply('Как позвонить другу 1-на-1?', 'cy-4371', 'общий', fixed, 2);
-  assert.ok(preBetaReply);
-  assert.equal(preBetaReply.author, 'L30nel');
-  assert.match(preBetaReply.text, /GK-XXXX-XXXX/);
+  const launchReply = generatePreviewPeerReply('Где откроется приложение?', 'cy-4371', 'общий', fixed, 2);
+  assert.ok(launchReply);
+  assert.equal(launchReply.author, 'L30nel');
+  assert.match(launchReply.text, /1 декабря 2026/);
+  assert.match(launchReply.text, /app\.geek-voice\.ru/);
+  assert.equal(/pre-?beta|GK-XXXX-XXXX/i.test(launchReply.text), false);
 
-  const customReply = generatePreviewPeerReply('Есть ли поддержка кастомных тем?', 'ma-club', 'идеи-комьюнити', fixed, 3);
+  const releaseReply = generatePreviewPeerReply('Когда официальный релиз Geek?', 'cy-4371', 'общий', fixed, 3);
+  assert.ok(releaseReply);
+  assert.match(releaseReply.text, /1 декабря 2026/);
+  assert.match(releaseReply.text, /app\.geek-voice\.ru/);
+  assert.equal(/pre-?beta/i.test(releaseReply.text), false);
+
+  const customReply = generatePreviewPeerReply('Есть ли поддержка кастомных тем?', 'ma-club', 'идеи-комьюнити', fixed, 4);
   assert.ok(customReply);
   assert.equal(customReply.author, 'Max');
   assert.ok(customReply.text.length > 20);
+  assert.equal(/pre-?beta/i.test(customReply.text), false);
 });
 
 test('preview messages contain no removed keypad Easter egg clues or secret codes', () => {
@@ -137,12 +146,11 @@ test('preview starts outside any voice channel and keeps guest only in the joine
   );
 });
 
-test('L30nel plays MP3 audio only when user is connected to Ночной эфир outside Pre-Beta mode', () => {
-  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: null, preBetaMode: false }), false);
-  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: 'cy-4371', preBetaMode: false }), true);
-  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: 'hc-node', preBetaMode: false }), false);
-  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: 'ma-club', preBetaMode: false }), false);
-  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: 'cy-4371', preBetaMode: true }), false);
+test('L30nel plays MP3 audio only when user is connected to Ночной эфир', () => {
+  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: null }), false);
+  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: 'cy-4371' }), true);
+  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: 'hc-node' }), false);
+  assert.equal(shouldPlayL30nelVoiceAudio({ voiceServerId: 'ma-club' }), false);
 });
 
 test('resolvePreviewShortcutAction handles Escape and Alt binds across EN/RU layouts', () => {

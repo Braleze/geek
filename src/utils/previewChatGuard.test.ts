@@ -105,13 +105,18 @@ test('normalizePeerNick, history sanitization, system prompt, and safe fallback 
   const sys = buildPreviewGeminiSystemInstruction('Ночной клуб', 'игровая-комната', 'L30nel');
   assert.match(sys, /L30nel, Sergo или Max/);
   assert.match(sys, /Никогда не упоминай ИИ/i);
+  assert.match(sys, /1 декабря 2026/);
+  assert.match(sys, /app\.geek-voice\.ru/);
+  assert.equal(/pre-?beta|GK-XXXX-XXXX/i.test(sys), false);
 
-  const prompt = buildPreviewGeminiPromptContents('Когда бета?', history, 'игровая-комната');
+  const prompt = buildPreviewGeminiPromptContents('Когда релиз?', history, 'игровая-комната');
   assert.match(prompt, /\[L30nel\]: Привет!/);
-  assert.match(prompt, /Когда бета\?/);
+  assert.match(prompt, /Когда релиз\?/);
 
   const fallback = resolveSafeOffTopicReply('cy-4371', 'общий', 'L30nel');
   assert.equal(fallback.author, 'Sergo');
+  assert.match(fallback.text, /1 декабря 2026/);
+  assert.equal(/pre-?beta/i.test(fallback.text), false);
   const msg = buildPeerPreviewMessage(fallback.author, fallback.text);
   assert.equal(msg.initials, 'SE');
   assert.equal(msg.badgeSet, 'set2');

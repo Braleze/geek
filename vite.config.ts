@@ -143,7 +143,7 @@ export default defineConfig(() => {
           name: 'Geek — Голос и чат',
           short_name: 'Geek',
           description:
-            'Платформа нового поколения для связи и комьюнити: P2P-голос, тестовый Live-канал и Pre-Beta связь 1-на-1.',
+            'Платформа нового поколения для связи и комьюнити: P2P-голос, чаты и приватные серверы.',
           theme_color: '#0b0714',
           background_color: '#0b0714',
           display: 'standalone',
@@ -172,13 +172,6 @@ export default defineConfig(() => {
             },
           ],
           shortcuts: [
-            {
-              name: 'Pre-Beta связь 1-на-1',
-              short_name: 'Pre-Beta',
-              description: 'Быстрый вход в защищённый звонок 1-на-1',
-              url: '/#prebeta',
-              icons: [{src: './pwa-192x192.png', sizes: '192x192', type: 'image/png'}],
-            },
             {
               name: 'Live чат и голос',
               short_name: 'Live чат',

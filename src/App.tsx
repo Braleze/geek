@@ -1,5 +1,5 @@
 import { useEffect, useState, type CSSProperties, type PointerEvent } from 'react';
-import { ArrowUp, Bolt, Hash, Mic, PhoneCall, Send, ShieldCheck } from 'lucide-react';
+import { ArrowUp, Bolt, Hash, Mic, Send, ShieldCheck } from 'lucide-react';
 import { GeekLogo } from './components/GeekLogo';
 import { LaunchCountdownCard } from './components/LaunchCountdownCard';
 import { PlatformPreview } from './components/PlatformPreview';
@@ -48,21 +48,7 @@ const FEATURES = [
 export default function App() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [preBetaOpenSignal, setPreBetaOpenSignal] = useState(0);
   const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
-
-  const handleOpenPreBeta = () => {
-    window.__GEEK_OPEN_PREBETA_ON_MOUNT__ = true;
-    try {
-      if (window.location.hash !== '#prebeta') {
-        window.history.replaceState(null, '', '#prebeta');
-      }
-    } catch {
-      // Ignore history restriction
-    }
-    setPreBetaOpenSignal((prev) => prev + 1);
-    document.getElementById('preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
 
   // Track scroll position for floating Back-to-Top button
   useEffect(() => {
@@ -169,16 +155,6 @@ export default function App() {
 
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           <PWAInstallButton variant="header" />
-          <button
-            type="button"
-            onClick={handleOpenPreBeta}
-            data-testid="header-prebeta-btn"
-            className="cyber-btn px-2 sm:px-4 py-2 sm:py-2.5 text-[10px] sm:text-xs font-cyber font-bold tracking-wider bg-[#150f24] border border-[#00f0ff]/70 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#0b0714] shadow-neon-cyan flex items-center gap-1 sm:gap-2 whitespace-nowrap cursor-pointer"
-          >
-            <PhoneCall className="w-3.5 h-3.5 shrink-0" />
-            <span className="sm:hidden">СВЯЗЬ</span>
-            <span className="hidden sm:inline">PRE-BETA СВЯЗЬ</span>
-          </button>
           <a
             href="https://t.me/geek_mes"
             target="_blank"
@@ -232,7 +208,6 @@ export default function App() {
 
         {/* Launch Countdown & Post-Launch Redirect Card */}
         <LaunchCountdownCard
-          onOpenPreBeta={handleOpenPreBeta}
           onShareSite={handleShareSite}
           linkCopied={linkCopied}
         />
@@ -297,7 +272,6 @@ export default function App() {
 
         {/* Interactive Platform Workspace Preview */}
         <PlatformPreview
-          openPreBetaSignal={preBetaOpenSignal}
           onFullscreenChange={setIsPreviewFullscreen}
         />
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowUpRight, Check, Clock, PhoneCall, Send, Share2 } from 'lucide-react';
+import { ArrowUpRight, Check, Clock, Send, Share2 } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 import {
   LAUNCH_REDIRECT_URL,
@@ -9,7 +9,6 @@ import {
 } from '../utils/launchCountdown';
 
 interface LaunchCountdownCardProps {
-  onOpenPreBeta: () => void;
   onShareSite: () => void;
   linkCopied: boolean;
 }
@@ -20,7 +19,6 @@ const MINUTE_FORMS: readonly [string, string, string] = ['минута', 'мин
 const SECOND_FORMS: readonly [string, string, string] = ['секунда', 'секунды', 'секунд'];
 
 export function LaunchCountdownCard({
-  onOpenPreBeta,
   onShareSite,
   linkCopied,
 }: LaunchCountdownCardProps) {
@@ -166,21 +164,11 @@ export function LaunchCountdownCard({
 
         {/* Secondary actions row */}
         <div className="w-full mt-2 pt-5 border-t border-white/10 flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={onOpenPreBeta}
-            data-testid="hero-prebeta-btn"
-            className="cyber-btn w-full sm:w-auto px-5 py-3.5 rounded-xl bg-[#00f0ff] text-[#0b0714] font-cyber font-black text-xs sm:text-sm tracking-wider hover:brightness-110 transform hover:scale-[1.02] transition-all duration-200 shadow-neon-cyan flex items-center justify-center gap-2 whitespace-nowrap cursor-pointer"
-          >
-            <PhoneCall className="w-4 h-4 shrink-0" />
-            <span>PRE-BETA СВЯЗЬ · 30 МИН</span>
-          </button>
-
           <a
             href="https://t.me/geek_mes"
             target="_blank"
             rel="noopener noreferrer"
-            className="cyber-btn w-full sm:w-auto px-5 py-3.5 rounded-xl bg-[#150f24] border border-[#ff007f]/60 text-[#ff007f] hover:bg-[#ff007f] hover:text-white font-cyber font-bold text-xs sm:text-sm tracking-wider transition-colors flex items-center justify-center gap-2 whitespace-nowrap"
+            className="cyber-btn w-full sm:w-auto px-5 py-3.5 rounded-xl bg-gradient-to-r from-[#ff007f] to-[#db2777] text-white font-cyber font-bold text-xs sm:text-sm tracking-wider hover:brightness-110 transform hover:scale-[1.02] transition-all duration-200 shadow-pink-button-glow flex items-center justify-center gap-2 whitespace-nowrap"
           >
             <Send className="w-4 h-4 shrink-0" />
             <span>TELEGRAM-КАНАЛ</span>

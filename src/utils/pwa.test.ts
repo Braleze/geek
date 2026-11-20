@@ -85,8 +85,6 @@ test('defaultInstallGuideTab defaults to ios on iOS and android elsewhere', () =
 });
 
 test('resolveLaunchTarget routes PWA shortcuts and query params cleanly', () => {
-  assert.equal(resolveLaunchTarget({ search: '', hash: '#prebeta' }), 'prebeta');
-  assert.equal(resolveLaunchTarget({ search: '?prebeta=GEEK-1234', hash: '' }), 'prebeta');
   assert.equal(resolveLaunchTarget({ search: '?view=app', hash: '#preview' }), 'preview');
   assert.equal(resolveLaunchTarget({ search: '?view=app', hash: '' }), 'preview');
   assert.equal(resolveLaunchTarget({ search: '', hash: '#preview' }), 'preview');

@@ -303,37 +303,6 @@ function gkDb(): PDO {
 function gkEnsureSchema(PDO $pdo, string $driver): void {
     if ($driver === 'mysql') {
         $pdo->exec("
-            CREATE TABLE IF NOT EXISTS prebeta_quotas (
-                client_id VARCHAR(64) NOT NULL PRIMARY KEY,
-                issued_code VARCHAR(16) NOT NULL,
-                created_at BIGINT NOT NULL,
-                remaining_ms BIGINT NOT NULL,
-                expires_at BIGINT NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS prebeta_rooms (
-                code VARCHAR(16) NOT NULL PRIMARY KEY,
-                host_client_id VARCHAR(64) NOT NULL,
-                created_at BIGINT NOT NULL,
-                updated_at BIGINT NOT NULL,
-                state_json MEDIUMTEXT NOT NULL
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
-        $pdo->exec("
-            CREATE TABLE IF NOT EXISTS prebeta_signals (
-                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                room_code VARCHAR(16) NOT NULL,
-                to_peer_id VARCHAR(64) NOT NULL,
-                from_peer_id VARCHAR(64) NOT NULL,
-                signal_type VARCHAR(24) NOT NULL,
-                payload_json MEDIUMTEXT NULL,
-                created_at BIGINT NOT NULL,
-                INDEX idx_pb_sig_peer (to_peer_id, id),
-                INDEX idx_pb_sig_created (created_at)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ");
-        $pdo->exec("
             CREATE TABLE IF NOT EXISTS voice_peers (
                 peer_id VARCHAR(64) NOT NULL PRIMARY KEY,
                 nick VARCHAR(64) NOT NULL,
@@ -380,38 +349,6 @@ function gkEnsureSchema(PDO $pdo, string $driver): void {
     }
 
     // SQLite schema
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS prebeta_quotas (
-            client_id TEXT PRIMARY KEY,
-            issued_code TEXT NOT NULL,
-            created_at INTEGER NOT NULL,
-            remaining_ms INTEGER NOT NULL,
-            expires_at INTEGER NULL
-        )
-    ");
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS prebeta_rooms (
-            code TEXT PRIMARY KEY,
-            host_client_id TEXT NOT NULL,
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL,
-            state_json TEXT NOT NULL
-        )
-    ");
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS prebeta_signals (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            room_code TEXT NOT NULL,
-            to_peer_id TEXT NOT NULL,
-            from_peer_id TEXT NOT NULL,
-            signal_type TEXT NOT NULL,
-            payload_json TEXT NULL,
-            created_at INTEGER NOT NULL
-        )
-    ");
-    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_pb_sig_peer ON prebeta_signals (to_peer_id, id)");
-    $pdo->exec("CREATE INDEX IF NOT EXISTS idx_pb_sig_created ON prebeta_signals (created_at)");
-
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS voice_peers (
             peer_id TEXT PRIMARY KEY,

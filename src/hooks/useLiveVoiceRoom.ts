@@ -15,7 +15,7 @@ import {
   isWebRtcAudioLive,
   resampleFloat32ToInt16,
   type ResamplerState,
-} from '../utils/preBetaAudio';
+} from '../utils/voiceAudio';
 import { liveVoiceHttpUrls } from '../utils/previewTransport';
 import {
   joinLocalBroadcastVoiceRoom,

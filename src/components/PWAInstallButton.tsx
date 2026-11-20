@@ -132,9 +132,9 @@ export function PWAInstallButton({ variant = 'header' }: PWAInstallButtonProps) 
         {/* Scrollable Modal Body */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 sm:px-6 py-4 space-y-4 geek-chat-scroll">
           <p className="text-xs text-slate-300 leading-relaxed">
-            Приложение откроется на весь экран без адресной строки и сохранит полный доступ к{' '}
-            <span className="text-[#00f0ff] font-semibold">Live Голос (Тест)</span> и{' '}
-            <span className="text-[#ff7aa8] font-semibold">Pre-Beta связи 1-на-1</span>.
+            Приложение откроется на весь экран без адресной строки и сохранит быстрый доступ к{' '}
+            <span className="text-[#00f0ff] font-semibold">интерактивному клиенту</span> и{' '}
+            <span className="text-[#ff7aa8] font-semibold">таймеру запуска Geek</span>.
           </p>
 
           {/* Platform Switcher Tabs */}
@@ -202,7 +202,7 @@ export function PWAInstallButton({ variant = 'header' }: PWAInstallButtonProps) 
                   3
                 </span>
                 <span>
-                  Подтвердите установку — иконка <strong>Geek</strong> появится на рабочем столе (долгое нажатие откроет быстрые ярлыки <strong>Pre-Beta</strong> и <strong>Live чат</strong>).
+                  Подтвердите установку — иконка <strong>Geek</strong> появится на рабочем столе (долгое нажатие откроет быстрый ярлык <strong>Live чат</strong>).
                 </span>
               </li>
             </ol>

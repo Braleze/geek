@@ -13,7 +13,7 @@ export type InstallUiMode =
 
 export type InstallGuideTab = 'android' | 'ios' | 'desktop';
 
-export type LaunchTarget = 'prebeta' | 'preview' | 'top';
+export type LaunchTarget = 'preview' | 'top';
 
 export function detectPwaPlatform(userAgent: string, maxTouchPoints = 0): PwaPlatformInfo {
   const ua = userAgent || '';
@@ -62,14 +62,8 @@ export function defaultInstallGuideTab(input: {
 
 export function resolveLaunchTarget(input: { search: string; hash: string }): LaunchTarget {
   const hash = (input.hash || '').trim().toLowerCase();
-  if (hash === '#prebeta') {
-    return 'prebeta';
-  }
   try {
     const params = new URLSearchParams(input.search || '');
-    if (params.get('prebeta')) {
-      return 'prebeta';
-    }
     if (params.get('view') === 'app' || hash === '#preview') {
       return 'preview';
     }

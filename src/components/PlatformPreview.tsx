@@ -11,7 +11,6 @@ import {
   Monitor,
   PanelLeft,
   Paperclip,
-  PhoneCall,
   Radio,
   Users,
   Video,
@@ -41,10 +40,7 @@ import {
   type PreviewServerId,
 } from '../utils/platformPreview';
 import { TrackAudioPlayer } from '../utils/audioTracks';
-import { usePreBetaCall } from '../hooks/usePreBetaCall';
 import { useLiveVoiceRoom } from '../hooks/useLiveVoiceRoom';
-import { PreBetaWorkspace } from './PreBetaWorkspace';
-import { formatCountdownMs, normalizePreBetaCode } from '../utils/preBetaSession';
 import { probePreviewBackend, requestServerVoiceUnlock } from '../utils/previewTransport';
 import { computeLiveVoiceInitials } from '../utils/liveVoiceRoom';
 
@@ -131,16 +127,12 @@ function CyberBadge({ setKey }: { setKey: PreviewBadgeSet }) {
 }
 
 export function PlatformPreview({
-  openPreBetaSignal = 0,
   onFullscreenChange,
 }: {
-  openPreBetaSignal?: number;
   onFullscreenChange?: (fullscreen: boolean) => void;
 }) {
   const [activeServerId, setActiveServerId] = useState<PreviewServerId>('cy-4371');
-  const [preBetaMode, setPreBetaMode] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [initialPreBetaCode, setInitialPreBetaCode] = useState<string>('');
   const [activeChannelByServer, setActiveChannelByServer] = useState<Record<PreviewServerId, string>>({
     'cy-4371': 'игровая-комната',
     'hc-node': 'код-и-архитектура',
@@ -250,7 +242,6 @@ export function PlatformPreview({
 
   const syncL30nelVoiceAudio = (
     targetVoiceServerId: PreviewServerId | null,
-    isPreBeta: boolean,
     isDeafened: boolean,
   ) => {
     if (!l30nelAudioPlayerRef.current) {
@@ -258,52 +249,12 @@ export function PlatformPreview({
     }
     const player = l30nelAudioPlayerRef.current;
     player.setMuted(isDeafened);
-    if (shouldPlayL30nelVoiceAudio({ voiceServerId: targetVoiceServerId, preBetaMode: isPreBeta })) {
+    if (shouldPlayL30nelVoiceAudio({ voiceServerId: targetVoiceServerId })) {
       player.start();
     } else {
       player.stop();
     }
   };
-
-  const preBeta = usePreBetaCall();
-
-  useEffect(() => {
-    const syncFromUrlOrIntent = () => {
-      let shouldOpen = Boolean(window.__GEEK_OPEN_PREBETA_ON_MOUNT__);
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const codeParam = params.get('prebeta');
-        if (codeParam) {
-          const normalized = normalizePreBetaCode(codeParam);
-          if (normalized) {
-            setInitialPreBetaCode(normalized);
-            shouldOpen = true;
-          }
-        }
-        if (window.location.hash === '#prebeta') {
-          shouldOpen = true;
-        }
-      } catch {
-        // Ignore malformed URL params
-      }
-      if (shouldOpen) {
-        setPreBetaMode(true);
-        window.setTimeout(() => {
-          document.getElementById('preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 60);
-      }
-    };
-
-    syncFromUrlOrIntent();
-    window.addEventListener('hashchange', syncFromUrlOrIntent);
-    return () => window.removeEventListener('hashchange', syncFromUrlOrIntent);
-  }, []);
-
-  useEffect(() => {
-    if (openPreBetaSignal > 0) {
-      setPreBetaMode(true);
-    }
-  }, [openPreBetaSignal]);
 
   const activeServer =
     PREVIEW_SERVERS.find((srv) => srv.id === activeServerId) ?? PREVIEW_SERVERS[0];
@@ -338,14 +289,14 @@ export function PlatformPreview({
       setCamActive(false);
       setScreenActive(false);
     }
-    syncL30nelVoiceAudio(next, preBetaMode, deafened);
+    syncL30nelVoiceAudio(next, deafened);
   };
 
   const handleLeaveVoice = () => {
     setVoiceServerId(null);
     setCamActive(false);
     setScreenActive(false);
-    syncL30nelVoiceAudio(null, preBetaMode, deafened);
+    syncL30nelVoiceAudio(null, deafened);
   };
 
   const handleToggleLiveVoice = () => {
@@ -363,8 +314,8 @@ export function PlatformPreview({
   };
 
   useEffect(() => {
-    syncL30nelVoiceAudio(voiceServerId, preBetaMode, deafened);
-  }, [voiceServerId, preBetaMode, deafened]);
+    syncL30nelVoiceAudio(voiceServerId, deafened);
+  }, [voiceServerId, deafened]);
 
   useEffect(() => {
     return () => {
@@ -463,7 +414,6 @@ export function PlatformPreview({
   };
 
   const handleSelectServer = (srvId: PreviewServerId) => {
-    setPreBetaMode(false);
     setActiveServerId(srvId);
     if (isCompactViewport) {
       setPanels((prev) => ({ ...prev, showMembers: false }));
@@ -773,10 +723,7 @@ export function PlatformPreview({
   };
 
   const handleCopyInvite = async () => {
-    const shareUrl =
-      preBetaMode && preBeta.roomSnapshot
-        ? `${window.location.origin}${window.location.pathname}?prebeta=${encodeURIComponent(preBeta.roomSnapshot.code)}#preview`
-        : `${window.location.origin}${window.location.pathname}?room=${activeServer.id}`;
+    const shareUrl = `${window.location.origin}${window.location.pathname}?room=${activeServer.id}`;
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(shareUrl);
@@ -807,63 +754,29 @@ export function PlatformPreview({
           </h2>
         </div>
         <p className="text-sm text-slate-400 max-w-md">
-          Переключайте серверы, тестируйте чат или запустите живую Pre-Beta связь 1-на-1 по уникальному коду.
+          Переключайте серверы, тестируйте чат и голосовые каналы прямо в интерактивном превью клиента Geek.
         </p>
       </div>
 
-      {/* Prominent Mode Switcher Bar */}
+      {/* Preview Controls Bar */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 rounded-2xl bg-[#0b1220]/90 border border-[#00f0ff]/25 p-2.5">
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={() => setPreBetaMode(false)}
-            aria-pressed={!preBetaMode}
-            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-cyber font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap ${
-              !preBetaMode
-                ? 'bg-[#00f0ff]/20 border border-[#00f0ff] text-white'
-                : 'bg-[#060b14] border border-white/10 text-slate-300 hover:text-white'
-            }`}
-          >
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="px-3 sm:px-4 py-2 rounded-xl font-cyber font-bold text-[11px] sm:text-xs uppercase tracking-wider bg-[#00f0ff]/15 border border-[#00f0ff]/55 text-white whitespace-nowrap">
             Обзор клиента
-          </button>
-          <button
-            type="button"
-            onClick={() => setPreBetaMode(true)}
-            aria-pressed={preBetaMode}
-            data-testid="prebeta-banner-btn"
-            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-cyber font-black text-[11px] sm:text-xs uppercase tracking-wider flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer ${
-              preBetaMode
-                ? 'bg-[#00f0ff] border border-[#00f0ff] text-[#031518] shadow-[0_0_24px_rgba(0,240,255,0.65)]'
-                : 'bg-gradient-to-r from-[#ff007f] to-[#ff2a85] border border-[#ff8ac4]/70 text-white shadow-[0_0_24px_rgba(255,0,127,0.55)] hover:brightness-110'
-            }`}
-          >
-            <PhoneCall className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-            <span className="sm:hidden">
-              {preBeta.roomSnapshot
-                ? `PRE-BETA · ${formatCountdownMs(preBeta.remainingMs)}`
-                : 'PRE-BETA 1-НА-1'}
-            </span>
-            <span className="hidden sm:inline whitespace-nowrap">
-              {preBeta.roomSnapshot
-                ? `PRE-BETA СВЯЗЬ АКТИВНА · ${formatCountdownMs(preBeta.remainingMs)}`
-                : 'PRE-BETA СВЯЗЬ 1-НА-1 · 30 МИН ДО РЕЛИЗА'}
-            </span>
-          </button>
-        </div>
-        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
-          <span className="text-[10.5px] sm:text-[11px] font-mono-tech text-[#fcee0a] px-1 sm:px-2">
-            1 код · макс. 2 участника · 30:00
           </span>
-          <button
-            type="button"
-            onClick={() => setIsFullscreen(true)}
-            data-testid="preview-banner-fullscreen-btn"
-            className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-[#00f0ff]/12 border border-[#00f0ff]/45 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#031518] font-cyber font-bold text-[10.5px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0"
-          >
-            <Maximize2 className="w-3.5 h-3.5 shrink-0" />
-            <span>На весь экран</span>
-          </button>
+          <span className="text-[10.5px] sm:text-[11px] font-mono-tech text-[#fcee0a] px-1 sm:px-2">
+            3 сервера · живой чат · P2P-голос
+          </span>
         </div>
+        <button
+          type="button"
+          onClick={() => setIsFullscreen(true)}
+          data-testid="preview-banner-fullscreen-btn"
+          className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-[#00f0ff]/12 border border-[#00f0ff]/45 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#031518] font-cyber font-bold text-[10.5px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+        >
+          <Maximize2 className="w-3.5 h-3.5 shrink-0" />
+          <span>На весь экран</span>
+        </button>
       </div>
 
       {/* Authentic GEEK // CYBER.NET Application Window */}
@@ -891,30 +804,9 @@ export function PlatformPreview({
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => setPreBetaMode((prev) => !prev)}
-              aria-pressed={preBetaMode}
-              data-testid="prebeta-mode-btn"
-              className={`inline-flex items-center gap-1 text-[10px] sm:text-[10.5px] font-extrabold px-2 sm:px-2.5 py-1 rounded-md border transition-all cursor-pointer whitespace-nowrap ${
-                preBetaMode
-                  ? 'bg-[#00f0ff] border-[#00f0ff] text-[#031518] shadow-[0_0_16px_rgba(0,240,255,0.6)]'
-                  : 'bg-gradient-to-r from-[#ff007f] to-[#ff2a85] border-[#ff8ac4]/60 text-white shadow-[0_0_16px_rgba(255,0,127,0.5)] hover:brightness-110'
-              }`}
-            >
-              <PhoneCall className="w-3 h-3 shrink-0" />
-              <span className="sm:hidden">
-                {preBeta.roomSnapshot ? formatCountdownMs(preBeta.remainingMs) : '1-НА-1'}
-              </span>
-              <span className="hidden sm:inline">
-                {preBeta.roomSnapshot
-                  ? `PRE-BETA LIVE (${formatCountdownMs(preBeta.remainingMs)})`
-                  : 'PRE-BETA СВЯЗЬ · 30 МИН'}
-              </span>
-            </button>
             <span className="hidden md:inline-flex items-center gap-1.5 bg-[#10b981]/10 border border-[#10b981]/40 text-[#6ee7b7] text-[10.5px] font-bold px-2.5 py-1 rounded-md whitespace-nowrap">
               <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
-              <span>{preBetaMode ? 'pre-beta-1on1' : activeServer.id}</span>
+              <span>{activeServer.id}</span>
             </span>
             <button
               type="button"
@@ -955,62 +847,54 @@ export function PlatformPreview({
         {/* Sub Sync Bar with Collapsible Channels & Online Members Controls */}
         <div className="shrink-0 min-h-[36px] bg-[#060b14]/95 border-b border-[#00f0ff]/15 px-2.5 sm:px-3.5 py-1 flex items-center justify-between gap-2 text-[11px]">
           <div className="flex items-center gap-2 min-w-0">
-            {(!preBetaMode || Boolean(preBeta.roomSnapshot)) && (
-              <button
-                type="button"
-                onClick={handleToggleChannels}
-                aria-pressed={showChannels}
-                data-testid="preview-toggle-channels-btn"
-                title={showChannels ? 'Свернуть список каналов' : 'Открыть список каналов'}
-                className={`border text-[10px] sm:text-[10.5px] font-bold px-2 sm:px-2.5 py-1 rounded flex items-center gap-1.5 cursor-pointer transition-colors shrink-0 whitespace-nowrap ${
-                  showChannels
-                    ? 'bg-[#00f0ff]/20 border-[#00f0ff]/60 text-white'
-                    : 'bg-[#00f0ff]/8 border-[#00f0ff]/25 hover:border-[#00f0ff]/55 text-[#b4cde0] hover:text-white'
-                }`}
-              >
-                <PanelLeft className="w-3.5 h-3.5 text-[#00f0ff] shrink-0" />
-                <span>{preBetaMode ? 'КАНАЛ' : 'КАНАЛЫ'}</span>
-                {!showChannels && (connectedVoiceServer || liveVoice.connected) && (
-                  <span
-                    className="w-2 h-2 rounded-full bg-[#10b981] shadow-[0_0_6px_#10b981]"
-                    aria-label="Вы в голосовом канале"
-                  />
-                )}
-              </button>
-            )}
-            <div className="flex items-center gap-1.5 font-bold text-[#00f0ff] min-w-0 truncate">
-              <span className="shrink-0 hidden sm:inline">●</span>
-              <span className="hidden md:inline shrink-0">АКТИВНАЯ СЕТЬ:</span>
-              <span className="text-white font-extrabold truncate text-[10.5px] sm:text-[11px]">
-                {preBetaMode
-                  ? 'PRE-BETA 1-НА-1'
-                  : isCompactViewport
-                    ? `${activeServer.name}`
-                    : 'P2P СИНХРОНИЗАЦИЯ'}
-              </span>
-            </div>
-          </div>
-
-          {(!preBetaMode || Boolean(preBeta.roomSnapshot)) && (
             <button
               type="button"
-              onClick={handleToggleMembers}
-              aria-pressed={showMembers}
-              data-testid="preview-toggle-members-btn"
-              title={showMembers ? 'Свернуть список онлайна' : 'Показать список онлайна'}
+              onClick={handleToggleChannels}
+              aria-pressed={showChannels}
+              data-testid="preview-toggle-channels-btn"
+              title={showChannels ? 'Свернуть список каналов' : 'Открыть список каналов'}
               className={`border text-[10px] sm:text-[10.5px] font-bold px-2 sm:px-2.5 py-1 rounded flex items-center gap-1.5 cursor-pointer transition-colors shrink-0 whitespace-nowrap ${
-                showMembers
+                showChannels
                   ? 'bg-[#00f0ff]/20 border-[#00f0ff]/60 text-white'
                   : 'bg-[#00f0ff]/8 border-[#00f0ff]/25 hover:border-[#00f0ff]/55 text-[#b4cde0] hover:text-white'
               }`}
             >
-              <Users className="w-3.5 h-3.5 text-[#00f0ff] shrink-0" />
-              <span>ОНЛАЙН</span>
-              <span className="px-1 py-[0.5px] rounded bg-[#10b981]/20 text-[#6ee7b7] text-[9.5px] font-mono-tech">
-                {preBetaMode ? (preBeta.roomSnapshot?.participants.length ?? 0) : onlineMembers.length}
-              </span>
+              <PanelLeft className="w-3.5 h-3.5 text-[#00f0ff] shrink-0" />
+              <span>КАНАЛЫ</span>
+              {!showChannels && (connectedVoiceServer || liveVoice.connected) && (
+                <span
+                  className="w-2 h-2 rounded-full bg-[#10b981] shadow-[0_0_6px_#10b981]"
+                  aria-label="Вы в голосовом канале"
+                />
+              )}
             </button>
-          )}
+            <div className="flex items-center gap-1.5 font-bold text-[#00f0ff] min-w-0 truncate">
+              <span className="shrink-0 hidden sm:inline">●</span>
+              <span className="hidden md:inline shrink-0">АКТИВНАЯ СЕТЬ:</span>
+              <span className="text-white font-extrabold truncate text-[10.5px] sm:text-[11px]">
+                {isCompactViewport ? `${activeServer.name}` : 'P2P СИНХРОНИЗАЦИЯ'}
+              </span>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleToggleMembers}
+            aria-pressed={showMembers}
+            data-testid="preview-toggle-members-btn"
+            title={showMembers ? 'Свернуть список онлайна' : 'Показать список онлайна'}
+            className={`border text-[10px] sm:text-[10.5px] font-bold px-2 sm:px-2.5 py-1 rounded flex items-center gap-1.5 cursor-pointer transition-colors shrink-0 whitespace-nowrap ${
+              showMembers
+                ? 'bg-[#00f0ff]/20 border-[#00f0ff]/60 text-white'
+                : 'bg-[#00f0ff]/8 border-[#00f0ff]/25 hover:border-[#00f0ff]/55 text-[#b4cde0] hover:text-white'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5 text-[#00f0ff] shrink-0" />
+            <span>ОНЛАЙН</span>
+            <span className="px-1 py-[0.5px] rounded bg-[#10b981]/20 text-[#6ee7b7] text-[9.5px] font-mono-tech">
+              {onlineMembers.length}
+            </span>
+          </button>
         </div>
 
         {/* Main 4-Pane Workspace */}
@@ -1038,7 +922,7 @@ export function PlatformPreview({
             <div className="w-px h-5 lg:w-6 lg:h-px bg-[#00f0ff]/20 shrink-0" />
 
             {PREVIEW_SERVERS.map((srv) => {
-              const isAct = !preBetaMode && srv.id === activeServer.id;
+              const isAct = srv.id === activeServer.id;
               const hasVoiceHere = voiceServerId === srv.id;
               return (
                 <div key={srv.id} className="relative lg:w-full flex items-center justify-center shrink-0">
@@ -1071,46 +955,10 @@ export function PlatformPreview({
                 </div>
               );
             })}
-
-            <div className="w-px h-5 lg:w-6 lg:h-px bg-[#ff2a85]/35 shrink-0" />
-
-            <div className="relative lg:w-full flex items-center justify-center shrink-0">
-              <span
-                className={`hidden lg:block absolute left-0 w-[3px] rounded-r bg-[#ff2a85] transition-all ${
-                  preBetaMode ? 'h-8 opacity-100' : 'h-2 opacity-0'
-                }`}
-              />
-              <button
-                type="button"
-                onClick={() => setPreBetaMode(true)}
-                aria-label="Pre-Beta живая связь 1-на-1"
-                aria-pressed={preBetaMode}
-                title="PRE-BETA // Связь 1-на-1 (30 мин до релиза)"
-                data-testid="prebeta-rail-btn"
-                className={`w-10 h-10 lg:w-11 lg:h-11 geek-hex font-extrabold text-xs flex items-center justify-center transition-all cursor-pointer ${
-                  preBetaMode
-                    ? 'bg-[#ff2a85] text-white shadow-[0_0_18px_rgba(255,42,133,0.8)]'
-                    : 'bg-[#2b0f26] text-[#ff7aa8] shadow-[0_0_12px_rgba(255,42,133,0.35)] hover:bg-[#ff2a85] hover:text-white'
-                }`}
-              >
-                PB
-              </button>
-            </div>
           </div>
 
           {/* Inner 3-pane host: drawers anchor cleanly below mobile server rail and never overlap chat */}
           <div className="relative flex-1 min-w-0 min-h-0 flex overflow-hidden">
-          {preBetaMode ? (
-            <PreBetaWorkspace
-              controller={preBeta}
-              initialJoinCode={initialPreBetaCode}
-              showChannels={showChannels}
-              onCloseChannels={handleCloseChannels}
-              showMembers={showMembers}
-              onCloseMembers={handleCloseMembers}
-            />
-          ) : (
-            <>
           {(showChannels || showMembers) && (
             <div
               aria-hidden="true"
@@ -2010,8 +1858,6 @@ export function PlatformPreview({
                 </>
               )}
             </aside>
-          )}
-            </>
           )}
           </div>
         </div>

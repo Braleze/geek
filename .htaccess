@@ -45,7 +45,6 @@ RedirectMatch 404 ^/(site/)?api/\.data(/|$)
 RedirectMatch 404 ^/(site/)?api/(config|config\.example|bootstrap)\.php$
 RedirectMatch 404 ^/config\.php$
 RedirectMatch 404 \.(sqlite|sqlite3|db|wal|shm|sql)$
-RedirectMatch 404 ^/\.prebeta-state\.json$
 RedirectMatch 404 \.geek_live_voice_state_v1\.json$
 
 <IfModule mod_mime.c>
