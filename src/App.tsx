@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties, type PointerEvent } from 'react';
-import { ArrowUp, Bolt, Check, Hash, Mic, PhoneCall, Send, Share2, ShieldCheck } from 'lucide-react';
+import { ArrowUp, Bolt, Hash, Mic, PhoneCall, Send, ShieldCheck } from 'lucide-react';
 import { GeekLogo } from './components/GeekLogo';
+import { LaunchCountdownCard } from './components/LaunchCountdownCard';
 import { PlatformPreview } from './components/PlatformPreview';
 import { RoadmapSection } from './components/RoadmapSection';
 import { FaqSection } from './components/FaqSection';
@@ -229,56 +230,12 @@ export default function App() {
           Кристально чистый голос, абсолютная конфиденциальность и нулевой пинг.
         </p>
 
-        {/* Prominent Telegram CTA Box */}
-        <div className="w-full max-w-xl p-6 md:p-8 rounded-3xl bg-gradient-to-b from-[#150f24] to-[#100a1d] border border-[#ff007f]/50 shadow-neon-pink relative overflow-hidden backdrop-blur-xl mb-14">
-          <div className="absolute -right-16 -top-16 w-48 h-48 bg-[#ff007f]/20 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col items-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-[#ff007f]/15 border border-[#ff007f]/40 text-[#ff007f] flex items-center justify-center shadow-neon-pink">
-              <Send className="w-6 h-6" />
-            </div>
-            <h2 className="font-cyber font-bold text-xl md:text-2xl text-white">
-              Следи за запуском в Telegram
-            </h2>
-            <p className="text-sm text-gray-400 max-w-md">
-              Первыми узнай о дате закрытого бета-тестирования, получи эксклюзивный доступ и
-              ранние привилегии на сервере.
-            </p>
-            <div className="w-full flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3 pt-1">
-              <button
-                type="button"
-                onClick={handleOpenPreBeta}
-                data-testid="hero-prebeta-btn"
-                className="cyber-btn w-full sm:w-auto px-6 py-4 rounded-xl bg-[#00f0ff] text-[#0b0714] font-cyber font-black text-xs sm:text-sm tracking-wider hover:brightness-110 transform hover:scale-[1.02] transition-all duration-200 shadow-neon-cyan flex items-center justify-center gap-2.5 whitespace-nowrap cursor-pointer"
-              >
-                <PhoneCall className="w-4 h-4 shrink-0" />
-                <span>PRE-BETA СВЯЗЬ · 30 МИН</span>
-              </button>
-
-              <a
-                href="https://t.me/geek_mes"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="cyber-btn w-full sm:w-auto px-7 py-4 rounded-xl bg-gradient-to-r from-[#00f0ff] via-[#ff007f] to-[#fcee0a] text-[#0b0714] font-cyber font-black text-sm tracking-wider hover:opacity-95 transform hover:scale-[1.02] transition-all duration-200 shadow-pink-button-glow flex items-center justify-center gap-3 whitespace-nowrap"
-              >
-                <Send className="w-4 h-4" />
-                <span>ПРИСОЕДИНИТЬСЯ К ТГ КАНАЛУ</span>
-              </a>
-
-              <PWAInstallButton variant="hero" />
-
-              <button
-                type="button"
-                onClick={handleShareSite}
-                aria-label="Скопировать ссылку на сайт Geek"
-                className="cyber-btn w-full sm:w-auto px-5 py-4 rounded-xl bg-[#150f24] border border-[#00f0ff]/55 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#0b0714] font-cyber font-bold text-xs tracking-wider flex items-center justify-center gap-2 transition-colors whitespace-nowrap cursor-pointer"
-              >
-                {linkCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
-                <span>{linkCopied ? 'ССЫЛКА СКОПИРОВАНА' : 'ПОДЕЛИТЬСЯ'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* Launch Countdown & Post-Launch Redirect Card */}
+        <LaunchCountdownCard
+          onOpenPreBeta={handleOpenPreBeta}
+          onShareSite={handleShareSite}
+          linkCopied={linkCopied}
+        />
 
         {/* Features Grid */}
         <section
