@@ -109,17 +109,57 @@
     <script>
       (function () {
         var bootErr = '';
+        function hardFlushAndReload() {
+          var finish = function () {
+            try {
+              var u = new URL(location.href);
+              u.searchParams.set('_r', String(Date.now()));
+              location.replace(u.toString());
+            } catch (_e) {
+              location.reload();
+            }
+          };
+          var tasks = [];
+          if ('caches' in window) {
+            tasks.push(
+              caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+              }).catch(function () {})
+            );
+          }
+          if ('serviceWorker' in navigator) {
+            tasks.push(
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                return Promise.all(regs.map(function (r) { return r.unregister(); }));
+              }).catch(function () {})
+            );
+          }
+          Promise.all(tasks).finally(finish);
+        }
+        function tryAutoHeal(msg) {
+          if (!msg || !/does not provide an export|Failed to fetch dynamically imported module|Importing a module script failed/i.test(msg)) {
+            return;
+          }
+          try {
+            if (!sessionStorage.getItem('geek_boot_healed_v2')) {
+              sessionStorage.setItem('geek_boot_healed_v2', '1');
+              hardFlushAndReload();
+            }
+          } catch (_e) {}
+        }
         window.addEventListener('error', function (ev) {
           if (!window.__GEEK_REACT_MOUNTED__) {
             var targetSrc = ev && ev.target && (ev.target.src || ev.target.href);
             bootErr = targetSrc
               ? 'Не удалось загрузить файл: ' + targetSrc
               : (ev && ev.message) || 'Ошибка запуска скрипта';
+            tryAutoHeal(bootErr);
           }
         }, true);
         window.addEventListener('unhandledrejection', function (ev) {
           if (!window.__GEEK_REACT_MOUNTED__ && !bootErr) {
             bootErr = String((ev && ev.reason && ev.reason.message) || (ev && ev.reason) || 'Ошибка загрузки модуля');
+            tryAutoHeal(bootErr);
           }
         });
         window.addEventListener('DOMContentLoaded', function () {
@@ -142,26 +182,7 @@
             }
             var btn = document.getElementById('geek-hard-reload-btn');
             if (btn) {
-              btn.addEventListener('click', function () {
-                var tasks = [];
-                if ('caches' in window) {
-                  tasks.push(
-                    caches.keys().then(function (keys) {
-                      return Promise.all(keys.map(function (k) { return caches.delete(k); }));
-                    }).catch(function () {})
-                  );
-                }
-                if ('serviceWorker' in navigator) {
-                  tasks.push(
-                    navigator.serviceWorker.getRegistrations().then(function (regs) {
-                      return Promise.all(regs.map(function (r) { return r.unregister(); }));
-                    }).catch(function () {})
-                  );
-                }
-                Promise.all(tasks).finally(function () {
-                  location.reload();
-                });
-              });
+              btn.addEventListener('click', hardFlushAndReload);
             }
           }, 3500);
         });
