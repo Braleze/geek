@@ -136,8 +136,8 @@ export default function App() {
       <header className="sticky top-0 z-30 w-full backdrop-blur-md bg-[#0b0714]/75 border-b border-white/5 pt-[env(safe-area-inset-top)]">
         <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-3.5 sm:py-4 flex justify-between items-center gap-2 sm:gap-4">
           <a href="#top" className="flex items-center space-x-2 sm:space-x-3 shrink-0 group">
-            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#150f24] border border-[#00f0ff]/50 flex items-center justify-center shadow-neon-cyan overflow-hidden p-0.5">
-              <GeekLogo size={40} className="w-full h-full" />
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-[#0b0714] border border-[#00f0ff]/60 flex items-center justify-center shadow-neon-cyan overflow-hidden">
+              <GeekLogo size={44} decorative className="w-full h-full rounded-[10px]" />
             </div>
             <div>
               <span className="font-cyber font-black text-lg sm:text-2xl tracking-wider text-white block leading-none">
@@ -207,9 +207,9 @@ export default function App() {
           <div className="absolute -bottom-4 -left-4 w-10 h-10 border-b-2 border-l-2 border-[#fcee0a] z-20 pointer-events-none" />
           <div className="absolute -bottom-4 -right-4 w-10 h-10 border-b-2 border-r-2 border-[#00f0ff] z-20 pointer-events-none" />
 
-          <div className="p-3 bg-gradient-to-br from-[#00f0ff] via-[#ff007f] to-[#fcee0a] rounded-3xl shadow-neon-cyan block">
-            <div className="bg-[#150f24] rounded-2xl p-5 overflow-hidden border border-white/10">
-              <GeekLogo className="w-40 h-40 md:w-52 md:h-52" />
+          <div className="p-1.5 bg-gradient-to-br from-[#00f0ff] via-[#ff007f] to-[#fcee0a] rounded-[28px] shadow-neon-cyan block">
+            <div className="bg-[#0b0714] rounded-[23px] p-1.5 overflow-hidden border border-white/10">
+              <GeekLogo className="w-44 h-44 md:w-56 md:h-56 rounded-[18px]" />
             </div>
           </div>
         </div>

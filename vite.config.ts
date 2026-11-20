@@ -57,10 +57,17 @@ export default defineConfig(() => {
             return;
           }
 
-          // Remove unused AI Studio debug screenshot uploads copied from public/assets/aistudio
+          // Remove unused AI Studio debug screenshot uploads while preserving the active Geek logo
           const distAistudio = path.join(distDir, 'assets', 'aistudio');
+          const keptAistudioFiles = new Set([
+            'WiP45eXOWi_QBpD7zXe83QyBCQ5yQGXbUUa-efCNqGBQIx_u3L8-lDvUsWZi3Xzn_RZqPWLXo5RURXT4mC2G_DpD_cc38201b.jpg',
+          ]);
           if (fs.existsSync(distAistudio)) {
-            fs.rmSync(distAistudio, {recursive: true, force: true});
+            for (const entry of fs.readdirSync(distAistudio)) {
+              if (!keptAistudioFiles.has(entry)) {
+                fs.rmSync(path.join(distAistudio, entry), {recursive: true, force: true});
+              }
+            }
           }
 
           // Always minify emitted JS & CSS assets with esbuild so every chunk

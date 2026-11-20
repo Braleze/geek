@@ -19,6 +19,10 @@ Options -Indexes
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteRule ^api/([a-zA-Z0-9_-]+\.php)$ site/api/$1 [L,QSA]
 
+  # Route uploaded brand logo from assets/aistudio/ to public/assets/aistudio/ (preserved in project ZIP)
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^(site/)?assets/aistudio/(.+)$ public/assets/aistudio/$2 [L]
+
   # Route root PWA files & Workbox precached assets to site/ so SW keeps root "/" scope
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteRule ^(manifest\.webmanifest|sw\.js|registerSW\.js|workbox-[a-zA-Z0-9._-]+\.js)$ site/$1 [L]
