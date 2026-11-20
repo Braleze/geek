@@ -290,6 +290,23 @@ export default defineConfig(() => {
           },
         },
       },
+      // Guard Vite 8 @vite/client ws.send() against undefined socket if HMR WS is unavailable/closed
+      {
+        name: 'guard-vite-client-ws-send',
+        apply: 'serve',
+        transform(code: string, id: string): string | null {
+          if (!id.includes('vite/dist/client/client.mjs')) {
+            return null;
+          }
+          if (!code.includes('ws.send(JSON.stringify(data))')) {
+            return null;
+          }
+          return code.replace(
+            'ws.send(JSON.stringify(data))',
+            'if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(data))',
+          );
+        },
+      },
     ],
     resolve: {
       alias: {
@@ -297,6 +314,7 @@ export default defineConfig(() => {
       },
     },
     server: {
+      allowedHosts: true,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',

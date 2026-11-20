@@ -187,3 +187,47 @@ test('matchesLocalVoiceUnlockCode accepts exact, pasted, quoted, uppercase, and 
   assert.match(sysMsg.text, /Live Голос \(Тест\)/);
 });
 
+import { getInitialPreviewPanels, togglePreviewPanel } from './platformPreview';
+
+test('preview sidebars default to collapsed on mobile and expanded on desktop', () => {
+  assert.deepEqual(getInitialPreviewPanels(390), {
+    showChannels: false,
+    showMembers: false,
+  });
+  assert.deepEqual(getInitialPreviewPanels(768), {
+    showChannels: false,
+    showMembers: false,
+  });
+  assert.deepEqual(getInitialPreviewPanels(1024), {
+    showChannels: true,
+    showMembers: true,
+  });
+  assert.deepEqual(getInitialPreviewPanels(1440), {
+    showChannels: true,
+    showMembers: true,
+  });
+});
+
+test('togglePreviewPanel keeps mobile drawers mutually exclusive and desktop panels independent', () => {
+  // Mobile (compact viewport): opening channels keeps members closed; opening members closes channels
+  let mobile = getInitialPreviewPanels(390);
+  mobile = togglePreviewPanel(mobile, 'channels', true);
+  assert.deepEqual(mobile, { showChannels: true, showMembers: false });
+
+  mobile = togglePreviewPanel(mobile, 'members', true);
+  assert.deepEqual(mobile, { showChannels: false, showMembers: true });
+
+  mobile = togglePreviewPanel(mobile, 'members', true);
+  assert.deepEqual(mobile, { showChannels: false, showMembers: false });
+
+  // Desktop: channels and members collapse/expand independently
+  let desktop = getInitialPreviewPanels(1440);
+  desktop = togglePreviewPanel(desktop, 'channels', false);
+  assert.deepEqual(desktop, { showChannels: false, showMembers: true });
+
+  desktop = togglePreviewPanel(desktop, 'members', false);
+  assert.deepEqual(desktop, { showChannels: false, showMembers: false });
+
+  desktop = togglePreviewPanel(desktop, 'channels', false);
+  assert.deepEqual(desktop, { showChannels: true, showMembers: false });
+});

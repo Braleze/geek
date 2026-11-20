@@ -610,3 +610,36 @@ export function buildLocalVoiceUnlockMessage(now: Date = new Date()): PreviewMes
   };
 }
 
+export const PREVIEW_DESKTOP_BREAKPOINT = 1024;
+
+export interface PreviewPanelsState {
+  showChannels: boolean;
+  showMembers: boolean;
+}
+
+export function getInitialPreviewPanels(viewportWidth: number): PreviewPanelsState {
+  const isDesktop = viewportWidth >= PREVIEW_DESKTOP_BREAKPOINT;
+  return {
+    showChannels: isDesktop,
+    showMembers: isDesktop,
+  };
+}
+
+export function togglePreviewPanel(
+  current: PreviewPanelsState,
+  panel: 'channels' | 'members',
+  isCompactViewport: boolean,
+): PreviewPanelsState {
+  if (panel === 'channels') {
+    const nextChannels = !current.showChannels;
+    return {
+      showChannels: nextChannels,
+      showMembers: isCompactViewport && nextChannels ? false : current.showMembers,
+    };
+  }
+  const nextMembers = !current.showMembers;
+  return {
+    showChannels: isCompactViewport && nextMembers ? false : current.showChannels,
+    showMembers: nextMembers,
+  };
+}

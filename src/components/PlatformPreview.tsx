@@ -9,6 +9,7 @@ import {
   MicOff,
   Minimize2,
   Monitor,
+  PanelLeft,
   Paperclip,
   PhoneCall,
   Radio,
@@ -16,22 +17,27 @@ import {
   Video,
   Volume2,
   VolumeX,
+  X,
   Zap,
 } from 'lucide-react';
 import {
   BADGE_META,
+  PREVIEW_DESKTOP_BREAKPOINT,
   PREVIEW_QUICK_QUESTIONS,
   PREVIEW_SERVERS,
   buildLocalVoiceUnlockMessage,
   createUserPreviewMessage,
   generatePreviewPeerReply,
+  getInitialPreviewPanels,
   getVoicePeersForServer,
   matchesLocalVoiceUnlockCode,
   resolvePreviewShortcutAction,
   shouldPlayL30nelVoiceAudio,
+  togglePreviewPanel,
   toggleVoiceForViewedServer,
   type PreviewBadgeSet,
   type PreviewMessage,
+  type PreviewPanelsState,
   type PreviewServerId,
 } from '../utils/platformPreview';
 import { TrackAudioPlayer } from '../utils/audioTracks';
@@ -147,7 +153,16 @@ export function PlatformPreview({
   const [deafened, setDeafened] = useState(false);
   const [camActive, setCamActive] = useState(false);
   const [screenActive, setScreenActive] = useState(false);
-  const [showMembers, setShowMembers] = useState(true);
+  const [isCompactViewport, setIsCompactViewport] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth < PREVIEW_DESKTOP_BREAKPOINT : false,
+  );
+  const [panels, setPanels] = useState<PreviewPanelsState>(() =>
+    getInitialPreviewPanels(
+      typeof window !== 'undefined' ? window.innerWidth : PREVIEW_DESKTOP_BREAKPOINT,
+    ),
+  );
+  const showChannels = panels.showChannels;
+  const showMembers = panels.showMembers;
   const [inviteCopied, setInviteCopied] = useState(false);
   const [showQuickQuestions, setShowQuickQuestions] = useState(false);
   const UNLOCK_STORAGE_KEY = 'geek_preview_unlock_token';
@@ -412,9 +427,47 @@ export function PlatformPreview({
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [isFullscreen, liveVoice, voiceServerId]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia(`(max-width: ${PREVIEW_DESKTOP_BREAKPOINT - 1}px)`);
+    const syncViewport = (compact: boolean) => {
+      setIsCompactViewport(compact);
+      setPanels(getInitialPreviewPanels(compact ? 390 : PREVIEW_DESKTOP_BREAKPOINT));
+    };
+    const onChange = (event: MediaQueryListEvent) => {
+      syncViewport(event.matches);
+    };
+    if (mq.matches !== isCompactViewport) {
+      syncViewport(mq.matches);
+    }
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+    // Only bind listener once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleToggleChannels = () => {
+    setPanels((prev) => togglePreviewPanel(prev, 'channels', isCompactViewport));
+  };
+
+  const handleToggleMembers = () => {
+    setPanels((prev) => togglePreviewPanel(prev, 'members', isCompactViewport));
+  };
+
+  const handleCloseChannels = () => {
+    setPanels((prev) => ({ ...prev, showChannels: false }));
+  };
+
+  const handleCloseMembers = () => {
+    setPanels((prev) => ({ ...prev, showMembers: false }));
+  };
+
   const handleSelectServer = (srvId: PreviewServerId) => {
     setPreBetaMode(false);
     setActiveServerId(srvId);
+    if (isCompactViewport) {
+      setPanels((prev) => ({ ...prev, showMembers: false }));
+    }
   };
 
   const handleSelectChannel = (chId: string) => {
@@ -422,6 +475,9 @@ export function PlatformPreview({
       ...prev,
       [activeServer.id]: chId,
     }));
+    if (isCompactViewport) {
+      setPanels((prev) => ({ ...prev, showChannels: false }));
+    }
   };
 
   useEffect(() => {
@@ -756,48 +812,53 @@ export function PlatformPreview({
       </div>
 
       {/* Prominent Mode Switcher Bar */}
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#0b1220]/90 border border-[#00f0ff]/25 p-2.5">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 rounded-2xl bg-[#0b1220]/90 border border-[#00f0ff]/25 p-2.5">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setPreBetaMode(false)}
             aria-pressed={!preBetaMode}
-            className={`px-4 py-2.5 rounded-xl font-cyber font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap ${
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-cyber font-bold text-[11px] sm:text-xs uppercase tracking-wider transition-colors cursor-pointer whitespace-nowrap ${
               !preBetaMode
                 ? 'bg-[#00f0ff]/20 border border-[#00f0ff] text-white'
                 : 'bg-[#060b14] border border-white/10 text-slate-300 hover:text-white'
             }`}
           >
-            Обзор клиента (Демо-серверы)
+            Обзор клиента
           </button>
           <button
             type="button"
             onClick={() => setPreBetaMode(true)}
             aria-pressed={preBetaMode}
             data-testid="prebeta-banner-btn"
-            className={`px-4 py-2.5 rounded-xl font-cyber font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+            className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-cyber font-black text-[11px] sm:text-xs uppercase tracking-wider flex items-center gap-1.5 sm:gap-2 transition-all cursor-pointer ${
               preBetaMode
                 ? 'bg-[#00f0ff] border border-[#00f0ff] text-[#031518] shadow-[0_0_24px_rgba(0,240,255,0.65)]'
                 : 'bg-gradient-to-r from-[#ff007f] to-[#ff2a85] border border-[#ff8ac4]/70 text-white shadow-[0_0_24px_rgba(255,0,127,0.55)] hover:brightness-110'
             }`}
           >
-            <PhoneCall className="w-4 h-4 shrink-0" />
-            <span>
+            <PhoneCall className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span className="sm:hidden">
+              {preBeta.roomSnapshot
+                ? `PRE-BETA · ${formatCountdownMs(preBeta.remainingMs)}`
+                : 'PRE-BETA 1-НА-1'}
+            </span>
+            <span className="hidden sm:inline whitespace-nowrap">
               {preBeta.roomSnapshot
                 ? `PRE-BETA СВЯЗЬ АКТИВНА · ${formatCountdownMs(preBeta.remainingMs)}`
                 : 'PRE-BETA СВЯЗЬ 1-НА-1 · 30 МИН ДО РЕЛИЗА'}
             </span>
           </button>
         </div>
-        <div className="flex flex-wrap items-center gap-2.5">
-          <span className="text-[11px] font-mono-tech text-[#fcee0a] px-2">
-            1 одноразовый код · макс. 2 участника · лимит 30:00
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 w-full sm:w-auto">
+          <span className="text-[10.5px] sm:text-[11px] font-mono-tech text-[#fcee0a] px-1 sm:px-2">
+            1 код · макс. 2 участника · 30:00
           </span>
           <button
             type="button"
             onClick={() => setIsFullscreen(true)}
             data-testid="preview-banner-fullscreen-btn"
-            className="px-3.5 py-2 rounded-xl bg-[#00f0ff]/12 border border-[#00f0ff]/45 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#031518] font-cyber font-bold text-[11px] uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-[#00f0ff]/12 border border-[#00f0ff]/45 text-[#00f0ff] hover:bg-[#00f0ff] hover:text-[#031518] font-cyber font-bold text-[10.5px] sm:text-[11px] uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap shrink-0"
           >
             <Maximize2 className="w-3.5 h-3.5 shrink-0" />
             <span>На весь экран</span>
@@ -815,47 +876,51 @@ export function PlatformPreview({
         }
       >
         {/* Top App Bar */}
-        <div className="shrink-0 min-h-[44px] bg-[#04070d]/95 border-b border-[#00f0ff]/15 px-3.5 py-1.5 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="flex items-center gap-1.5 font-black text-xs tracking-wider text-white whitespace-nowrap shrink-0">
+        <div className="shrink-0 min-h-[42px] bg-[#04070d]/95 border-b border-[#00f0ff]/15 px-2.5 sm:px-3.5 py-1.5 flex items-center justify-between gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+            <div className="flex items-center gap-1 font-black text-xs tracking-wider text-white whitespace-nowrap shrink-0">
               <Zap className="w-3.5 h-3.5 text-[#00f0ff]" />
               <span>GEEK</span>
             </div>
-            <span className="bg-[#ff2a85]/20 border border-[#ff2a85]/50 text-[#ff7aa8] text-[9px] font-extrabold px-1.5 py-0.5 rounded whitespace-nowrap shrink-0">
+            <span className="hidden xs:inline-block sm:inline-block bg-[#ff2a85]/20 border border-[#ff2a85]/50 text-[#ff7aa8] text-[9px] font-extrabold px-1.5 py-0.5 rounded whitespace-nowrap shrink-0">
               CYBER.NET
             </span>
-            <span className="hidden sm:inline-block bg-[#00f0ff]/5 border border-[#00f0ff]/15 text-[#63809b] text-[10px] font-bold px-2.5 py-0.5 rounded whitespace-nowrap">
+            <span className="hidden md:inline-block bg-[#00f0ff]/5 border border-[#00f0ff]/15 text-[#63809b] text-[10px] font-bold px-2.5 py-0.5 rounded whitespace-nowrap">
               МЕСТО ДЛЯ СВОИХ // P2P ПРОТОКОЛ
             </span>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setPreBetaMode((prev) => !prev)}
               aria-pressed={preBetaMode}
               data-testid="prebeta-mode-btn"
-              className={`inline-flex items-center gap-1.5 text-[10.5px] font-extrabold px-2.5 py-1 rounded-md border transition-all cursor-pointer whitespace-nowrap ${
+              className={`inline-flex items-center gap-1 text-[10px] sm:text-[10.5px] font-extrabold px-2 sm:px-2.5 py-1 rounded-md border transition-all cursor-pointer whitespace-nowrap ${
                 preBetaMode
                   ? 'bg-[#00f0ff] border-[#00f0ff] text-[#031518] shadow-[0_0_16px_rgba(0,240,255,0.6)]'
                   : 'bg-gradient-to-r from-[#ff007f] to-[#ff2a85] border-[#ff8ac4]/60 text-white shadow-[0_0_16px_rgba(255,0,127,0.5)] hover:brightness-110'
               }`}
             >
-              <PhoneCall className="w-3 h-3" />
-              <span>
+              <PhoneCall className="w-3 h-3 shrink-0" />
+              <span className="sm:hidden">
+                {preBeta.roomSnapshot ? formatCountdownMs(preBeta.remainingMs) : '1-НА-1'}
+              </span>
+              <span className="hidden sm:inline">
                 {preBeta.roomSnapshot
                   ? `PRE-BETA LIVE (${formatCountdownMs(preBeta.remainingMs)})`
                   : 'PRE-BETA СВЯЗЬ · 30 МИН'}
               </span>
             </button>
-            <span className="inline-flex items-center gap-1.5 bg-[#10b981]/10 border border-[#10b981]/40 text-[#6ee7b7] text-[10.5px] font-bold px-2.5 py-1 rounded-md whitespace-nowrap">
+            <span className="hidden md:inline-flex items-center gap-1.5 bg-[#10b981]/10 border border-[#10b981]/40 text-[#6ee7b7] text-[10.5px] font-bold px-2.5 py-1 rounded-md whitespace-nowrap">
               <span className="w-1.5 h-1.5 rounded-full bg-[#10b981]" />
               <span>{preBetaMode ? 'pre-beta-1on1' : activeServer.id}</span>
             </span>
             <button
               type="button"
               onClick={handleCopyInvite}
-              className="bg-gradient-to-br from-[#ff2a85]/35 to-[#9d174d]/50 border border-[#ff2a85] text-white text-[10.5px] font-extrabold px-2.5 py-1 rounded-md hover:brightness-110 transition-all cursor-pointer whitespace-nowrap"
+              aria-label="Скопировать ссылку-приглашение"
+              className="hidden sm:inline-flex bg-gradient-to-br from-[#ff2a85]/35 to-[#9d174d]/50 border border-[#ff2a85] text-white text-[10.5px] font-extrabold px-2.5 py-1 rounded-md hover:brightness-110 transition-all cursor-pointer whitespace-nowrap"
             >
               {inviteCopied ? '✓ СКОПИРОВАНО' : '+ ПРИГЛАСИТЬ'}
             </button>
@@ -865,7 +930,7 @@ export function PlatformPreview({
               aria-pressed={isFullscreen}
               data-testid="preview-fullscreen-btn"
               title={isFullscreen ? 'Свернуть превью (Esc)' : 'Развернуть превью на всю страницу (Alt+F)'}
-              className={`inline-flex items-center gap-1.5 text-[10.5px] font-extrabold px-2.5 py-1 rounded-md border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
+              className={`inline-flex items-center gap-1 text-[10px] sm:text-[10.5px] font-extrabold px-2 sm:px-2.5 py-1 rounded-md border transition-colors cursor-pointer whitespace-nowrap shrink-0 ${
                 isFullscreen
                   ? 'bg-[#00f0ff] border-[#00f0ff] text-[#031518] hover:brightness-110'
                   : 'bg-[#0b1626] border-[#00f0ff]/45 text-[#00f0ff] hover:bg-[#00f0ff]/15 hover:text-white'
@@ -879,56 +944,98 @@ export function PlatformPreview({
               ) : (
                 <>
                   <Maximize2 className="w-3 h-3 shrink-0" />
-                  <span>РАЗВЕРНУТЬ</span>
+                  <span className="hidden sm:inline">РАЗВЕРНУТЬ</span>
+                  <span className="sm:hidden">ЭКРАН</span>
                 </>
               )}
             </button>
           </div>
         </div>
 
-        {/* Sub Sync Bar */}
-        <div className="shrink-0 h-8 bg-[#060b14]/95 border-b border-[#00f0ff]/15 px-3.5 flex items-center justify-between gap-2 text-[11px]">
-          <div className="flex items-center gap-1.5 font-bold text-[#00f0ff] min-w-0 truncate">
-            <span className="shrink-0">●</span>
-            <span className="hidden sm:inline shrink-0">АКТИВНАЯ СЕТЬ:</span>
-            <span className="text-white font-extrabold truncate">
-              {preBetaMode ? 'PRE-BETA 1-НА-1 // 30 МИН' : 'P2P СИНХРОНИЗАЦИЯ'}
-            </span>
+        {/* Sub Sync Bar with Collapsible Channels & Online Members Controls */}
+        <div className="shrink-0 min-h-[36px] bg-[#060b14]/95 border-b border-[#00f0ff]/15 px-2.5 sm:px-3.5 py-1 flex items-center justify-between gap-2 text-[11px]">
+          <div className="flex items-center gap-2 min-w-0">
+            {(!preBetaMode || Boolean(preBeta.roomSnapshot)) && (
+              <button
+                type="button"
+                onClick={handleToggleChannels}
+                aria-pressed={showChannels}
+                data-testid="preview-toggle-channels-btn"
+                title={showChannels ? 'Свернуть список каналов' : 'Открыть список каналов'}
+                className={`border text-[10px] sm:text-[10.5px] font-bold px-2 sm:px-2.5 py-1 rounded flex items-center gap-1.5 cursor-pointer transition-colors shrink-0 whitespace-nowrap ${
+                  showChannels
+                    ? 'bg-[#00f0ff]/20 border-[#00f0ff]/60 text-white'
+                    : 'bg-[#00f0ff]/8 border-[#00f0ff]/25 hover:border-[#00f0ff]/55 text-[#b4cde0] hover:text-white'
+                }`}
+              >
+                <PanelLeft className="w-3.5 h-3.5 text-[#00f0ff] shrink-0" />
+                <span>{preBetaMode ? 'КАНАЛ' : 'КАНАЛЫ'}</span>
+                {!showChannels && (connectedVoiceServer || liveVoice.connected) && (
+                  <span
+                    className="w-2 h-2 rounded-full bg-[#10b981] shadow-[0_0_6px_#10b981]"
+                    aria-label="Вы в голосовом канале"
+                  />
+                )}
+              </button>
+            )}
+            <div className="flex items-center gap-1.5 font-bold text-[#00f0ff] min-w-0 truncate">
+              <span className="shrink-0 hidden sm:inline">●</span>
+              <span className="hidden md:inline shrink-0">АКТИВНАЯ СЕТЬ:</span>
+              <span className="text-white font-extrabold truncate text-[10.5px] sm:text-[11px]">
+                {preBetaMode
+                  ? 'PRE-BETA 1-НА-1'
+                  : isCompactViewport
+                    ? `${activeServer.name}`
+                    : 'P2P СИНХРОНИЗАЦИЯ'}
+              </span>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowMembers((prev) => !prev)}
-            aria-pressed={showMembers}
-            className="bg-[#00f0ff]/10 border border-[#00f0ff]/20 hover:border-[#00f0ff]/50 text-[#e6f7ff] text-[10.5px] font-bold px-2.5 py-1 rounded flex items-center gap-1.5 cursor-pointer transition-colors shrink-0 whitespace-nowrap"
-          >
-            <Users className="w-3 h-3 text-[#00f0ff]" />
-            <span>УЧАСТНИКИ</span>
-          </button>
+
+          {(!preBetaMode || Boolean(preBeta.roomSnapshot)) && (
+            <button
+              type="button"
+              onClick={handleToggleMembers}
+              aria-pressed={showMembers}
+              data-testid="preview-toggle-members-btn"
+              title={showMembers ? 'Свернуть список онлайна' : 'Показать список онлайна'}
+              className={`border text-[10px] sm:text-[10.5px] font-bold px-2 sm:px-2.5 py-1 rounded flex items-center gap-1.5 cursor-pointer transition-colors shrink-0 whitespace-nowrap ${
+                showMembers
+                  ? 'bg-[#00f0ff]/20 border-[#00f0ff]/60 text-white'
+                  : 'bg-[#00f0ff]/8 border-[#00f0ff]/25 hover:border-[#00f0ff]/55 text-[#b4cde0] hover:text-white'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5 text-[#00f0ff] shrink-0" />
+              <span>ОНЛАЙН</span>
+              <span className="px-1 py-[0.5px] rounded bg-[#10b981]/20 text-[#6ee7b7] text-[9.5px] font-mono-tech">
+                {preBetaMode ? (preBeta.roomSnapshot?.participants.length ?? 0) : onlineMembers.length}
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Main 4-Pane Workspace */}
         <div
           data-testid="preview-workspace"
-          className={`flex flex-col lg:flex-row ${
+          className={`flex flex-col lg:flex-row overflow-hidden ${
             isFullscreen
-              ? 'flex-1 min-h-0 overflow-y-auto lg:overflow-hidden'
-              : 'min-h-[520px] lg:h-[720px] lg:overflow-hidden'
+              ? 'flex-1 min-h-0'
+              : 'h-[600px] sm:h-[680px] lg:h-[720px]'
           }`}
         >
           {/* 1. Left Hexagonal Servers Rail */}
           <div
             role="navigation"
             aria-label="Серверы Geek"
-            className="bg-[#04070d]/95 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 px-3 py-2.5 lg:py-3 lg:px-0 lg:w-[68px] flex lg:flex-col items-center gap-2.5 shrink-0 overflow-x-auto"
+            className="bg-[#04070d]/95 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 px-2.5 py-2 lg:py-3 lg:px-0 lg:w-[68px] flex lg:flex-col items-center gap-2 lg:gap-2.5 shrink-0 overflow-x-auto"
           >
             <div
-              className="w-10 h-10 geek-hex bg-[#0d1829] text-[#fcee09] flex items-center justify-center shrink-0"
+              className="w-9 h-9 lg:w-10 lg:h-10 geek-hex bg-[#0d1829] text-[#fcee09] flex items-center justify-center shrink-0"
               title="Профиль GEEK // CYBER.NET"
             >
               <Zap className="w-4 h-4" />
             </div>
 
-            <div className="w-px h-6 lg:w-6 lg:h-px bg-[#00f0ff]/20 shrink-0" />
+            <div className="w-px h-5 lg:w-6 lg:h-px bg-[#00f0ff]/20 shrink-0" />
 
             {PREVIEW_SERVERS.map((srv) => {
               const isAct = !preBetaMode && srv.id === activeServer.id;
@@ -946,7 +1053,7 @@ export function PlatformPreview({
                     aria-label={`Сервер ${srv.name}`}
                     aria-pressed={isAct}
                     title={hasVoiceHere ? `${srv.name} (Вы в голосовом канале)` : srv.name}
-                    className={`w-11 h-11 geek-hex font-extrabold text-xs flex items-center justify-center transition-all cursor-pointer ${
+                    className={`w-10 h-10 lg:w-11 lg:h-11 geek-hex font-extrabold text-xs flex items-center justify-center transition-all cursor-pointer ${
                       isAct
                         ? 'bg-[#00f0ff] text-[#031518] shadow-[0_0_14px_rgba(0,240,255,0.6)]'
                         : 'bg-[#0c1626] text-[#b4cde0] hover:bg-[#00f0ff] hover:text-[#031518]'
@@ -958,14 +1065,14 @@ export function PlatformPreview({
                     <span
                       data-testid={`rail-voice-dot-${srv.id}`}
                       title={`Вы в голосовом канале: ${srv.voiceChannel}`}
-                      className="pointer-events-none absolute -top-0.5 right-1 lg:right-2 w-2.5 h-2.5 rounded-full bg-[#10b981] border border-[#04070d] shadow-[0_0_8px_#10b981]"
+                      className="pointer-events-none absolute -top-0.5 right-0.5 lg:right-2 w-2.5 h-2.5 rounded-full bg-[#10b981] border border-[#04070d] shadow-[0_0_8px_#10b981]"
                     />
                   )}
                 </div>
               );
             })}
 
-            <div className="w-px h-6 lg:w-6 lg:h-px bg-[#ff2a85]/35 shrink-0" />
+            <div className="w-px h-5 lg:w-6 lg:h-px bg-[#ff2a85]/35 shrink-0" />
 
             <div className="relative lg:w-full flex items-center justify-center shrink-0">
               <span
@@ -980,7 +1087,7 @@ export function PlatformPreview({
                 aria-pressed={preBetaMode}
                 title="PRE-BETA // Связь 1-на-1 (30 мин до релиза)"
                 data-testid="prebeta-rail-btn"
-                className={`w-11 h-11 geek-hex font-extrabold text-xs flex items-center justify-center transition-all cursor-pointer ${
+                className={`w-10 h-10 lg:w-11 lg:h-11 geek-hex font-extrabold text-xs flex items-center justify-center transition-all cursor-pointer ${
                   preBetaMode
                     ? 'bg-[#ff2a85] text-white shadow-[0_0_18px_rgba(255,42,133,0.8)]'
                     : 'bg-[#2b0f26] text-[#ff7aa8] shadow-[0_0_12px_rgba(255,42,133,0.35)] hover:bg-[#ff2a85] hover:text-white'
@@ -991,17 +1098,38 @@ export function PlatformPreview({
             </div>
           </div>
 
+          {/* Inner 3-pane host: drawers anchor cleanly below mobile server rail and never overlap chat */}
+          <div className="relative flex-1 min-w-0 min-h-0 flex overflow-hidden">
           {preBetaMode ? (
             <PreBetaWorkspace
               controller={preBeta}
               initialJoinCode={initialPreBetaCode}
+              showChannels={showChannels}
+              onCloseChannels={handleCloseChannels}
               showMembers={showMembers}
+              onCloseMembers={handleCloseMembers}
             />
           ) : (
             <>
+          {(showChannels || showMembers) && (
+            <div
+              aria-hidden="true"
+              data-testid="preview-drawer-backdrop"
+              onClick={() => {
+                handleCloseChannels();
+                handleCloseMembers();
+              }}
+              className="lg:hidden absolute inset-0 z-20 bg-black/65 backdrop-blur-[2px]"
+            />
+          )}
 
-          {/* 2. Channels Sidebar + Voice Dock + User Bar */}
-          <aside className="lg:w-[276px] bg-[#060b14]/92 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 flex flex-col justify-between shrink-0 min-h-0">
+          {/* 2. Channels Sidebar + Voice Dock + User Bar (collapsible on desktop & slide-over drawer on mobile) */}
+          {showChannels && (
+          <aside
+            aria-label="Каналы сервера"
+            data-testid="preview-channels-panel"
+            className="absolute inset-y-0 left-0 z-30 w-[min(86vw,300px)] shadow-[8px_0_32px_rgba(0,0,0,0.75)] lg:static lg:z-auto lg:w-[276px] lg:shadow-none bg-[#060b14]/98 lg:bg-[#060b14]/92 border-r border-[#00f0ff]/30 lg:border-[#00f0ff]/15 flex flex-col justify-between shrink-0 min-h-0"
+          >
             <div className="flex-1 min-h-0 overflow-y-auto geek-chat-scroll">
               {/* Server Title Header */}
               <div className="px-3.5 py-2.5 border-b border-[#00f0ff]/15 flex items-center justify-between gap-2">
@@ -1013,9 +1141,21 @@ export function PlatformPreview({
                     {activeServer.name}
                   </div>
                 </div>
-                <span className="bg-[#00f0ff]/10 border border-[#00f0ff]/40 text-[#00f0ff] text-[9.5px] font-bold px-2 py-0.5 rounded shrink-0">
-                  {activeServer.id}
-                </span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="bg-[#00f0ff]/10 border border-[#00f0ff]/40 text-[#00f0ff] text-[9.5px] font-bold px-2 py-0.5 rounded shrink-0">
+                    {activeServer.id}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCloseChannels}
+                    aria-label="Свернуть список каналов"
+                    data-testid="preview-close-channels-btn"
+                    title="Свернуть список каналов"
+                    className="w-6 h-6 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
               {/* Radio / Packet Card from design */}
@@ -1608,46 +1748,60 @@ export function PlatformPreview({
               </div>
             </div>
           </aside>
+          )}
 
           {/* 3. Main Chat Stream & Console */}
           <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#040912]/70">
             {/* Audio Stream Header Card with Wave Equalizer */}
-            <div className="shrink-0 m-3.5 mb-0 px-3.5 py-2 rounded-[10px] bg-[#0a1320]/90 border border-[#00f0ff]/15 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <span className="text-[#00f0ff] text-lg font-black">#</span>
+            <div className="shrink-0 m-2.5 sm:m-3.5 mb-0 px-3 sm:px-3.5 py-2 rounded-[10px] bg-[#0a1320]/90 border border-[#00f0ff]/15 flex items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-[#00f0ff] text-lg font-black shrink-0">#</span>
                 <div className="min-w-0">
-                  <div className="text-[9.5px] font-extrabold uppercase text-[#00f0ff] truncate">
+                  <div className="text-[9px] sm:text-[9.5px] font-extrabold uppercase text-[#00f0ff] truncate">
                     АКТИВНЫЙ ПОТОК // {activeServer.name.toUpperCase()}
                   </div>
-                  <div className="text-sm font-extrabold text-white truncate">
+                  <div className="text-xs sm:text-sm font-extrabold text-white truncate">
                     {activeChannel.name}
                   </div>
                 </div>
               </div>
 
-              {/* Equalizer wave */}
-              <div className="hidden sm:flex items-center justify-center gap-[3px] h-5" aria-hidden="true">
-                {WAVE_DELAYS.map((delay, i) => {
-                  const isLiveAudioWave =
-                    (connectedVoiceServer && !deafened) ||
-                    (liveVoice.connected && !liveVoice.deafened);
-                  return (
-                    <span
-                      key={i}
-                      className={`w-[3px] h-full bg-[#00f0ff] rounded-sm ${
-                        isLiveAudioWave ? 'geek-eq-bar-live opacity-80' : 'opacity-30 scale-y-25'
-                      }`}
-                      style={isLiveAudioWave ? { animationDelay: delay } : undefined}
-                    />
-                  );
-                })}
+              <div className="flex items-center gap-2 shrink-0">
+                {!showChannels && (connectedVoiceServer || liveVoice.connected) && (
+                  <button
+                    type="button"
+                    onClick={handleToggleChannels}
+                    className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#10b981]/15 border border-[#10b981]/50 text-[#6ee7b7] text-[10px] font-extrabold cursor-pointer hover:bg-[#10b981]/25 transition-colors whitespace-nowrap"
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#10b981] animate-pulse" />
+                    <span>{liveVoice.connected ? 'LIVE ГОЛОС' : 'В ЭФИРЕ'}</span>
+                  </button>
+                )}
+
+                {/* Equalizer wave */}
+                <div className="hidden sm:flex items-center justify-center gap-[3px] h-5" aria-hidden="true">
+                  {WAVE_DELAYS.map((delay, i) => {
+                    const isLiveAudioWave =
+                      (connectedVoiceServer && !deafened) ||
+                      (liveVoice.connected && !liveVoice.deafened);
+                    return (
+                      <span
+                        key={i}
+                        className={`w-[3px] h-full bg-[#00f0ff] rounded-sm ${
+                          isLiveAudioWave ? 'geek-eq-bar-live opacity-80' : 'opacity-30 scale-y-25'
+                        }`}
+                        style={isLiveAudioWave ? { animationDelay: delay } : undefined}
+                      />
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
             {/* Messages Container (stretches flush to input border) */}
             <div
               ref={messagesScrollRef}
-              className="flex-1 min-h-0 px-3.5 py-3 space-y-2.5 overflow-y-auto geek-chat-scroll max-h-[420px] lg:max-h-none"
+              className="flex-1 min-h-0 px-2.5 sm:px-3.5 py-3 space-y-2.5 overflow-y-auto geek-chat-scroll"
               data-testid="preview-messages"
             >
               {allMessages.map((msg) => (
@@ -1756,7 +1910,7 @@ export function PlatformPreview({
 
               <form onSubmit={handleSend} className="flex items-center gap-2">
                 <span
-                  className="w-9 h-9 rounded-md bg-[#00f0ff]/10 border border-[#00f0ff]/40 text-[#00f0ff] flex items-center justify-center shrink-0"
+                  className="hidden sm:flex w-9 h-9 rounded-md bg-[#00f0ff]/10 border border-[#00f0ff]/40 text-[#00f0ff] items-center justify-center shrink-0"
                   aria-hidden="true"
                 >
                   <Paperclip className="w-4 h-4" />
@@ -1773,7 +1927,7 @@ export function PlatformPreview({
                 <button
                   type="submit"
                   data-testid="preview-chat-send"
-                  className="bg-[#00f0ff] text-[#031518] px-4 py-2 rounded-md font-extrabold text-[11.5px] uppercase hover:brightness-110 transition-all cursor-pointer shrink-0"
+                  className="bg-[#00f0ff] text-[#031518] px-3 sm:px-4 py-2 rounded-md font-extrabold text-[11px] sm:text-[11.5px] uppercase hover:brightness-110 transition-all cursor-pointer shrink-0"
                 >
                   ОТПРАВИТЬ
                 </button>
@@ -1781,14 +1935,27 @@ export function PlatformPreview({
             </div>
           </div>
 
-          {/* 4. Right Members Panel (toggleable) */}
+          {/* 4. Right Members Panel (collapsible on desktop & slide-over drawer on mobile) */}
           {showMembers && (
             <aside
               aria-label="Участники сервера"
-              className="lg:w-[244px] bg-[#060b14]/92 border-t lg:border-t-0 lg:border-l border-[#00f0ff]/15 px-3 py-3 shrink-0 lg:overflow-y-auto geek-chat-scroll"
+              data-testid="preview-members-panel"
+              className="absolute inset-y-0 right-0 z-30 w-[min(82vw,270px)] shadow-[-8px_0_32px_rgba(0,0,0,0.75)] lg:static lg:z-auto lg:w-[244px] lg:shadow-none bg-[#060b14]/98 lg:bg-[#060b14]/92 border-l border-[#00f0ff]/30 lg:border-[#00f0ff]/15 px-3 py-3 shrink-0 min-h-0 overflow-y-auto geek-chat-scroll"
             >
-              <div className="text-[10.5px] font-extrabold uppercase text-[#00f0ff] px-1.5 pb-1.5">
-                ⬢ В сети — {onlineMembers.length}
+              <div className="flex items-center justify-between gap-2 px-1.5 pb-2">
+                <div className="text-[10.5px] font-extrabold uppercase text-[#00f0ff] truncate">
+                  ⬢ В сети — {onlineMembers.length}
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCloseMembers}
+                  aria-label="Свернуть список онлайна"
+                  data-testid="preview-close-members-btn"
+                  title="Свернуть список онлайна"
+                  className="w-6 h-6 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer transition-colors shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
               <div className="space-y-1 mb-3">
                 {onlineMembers.map((m) => (
@@ -1846,6 +2013,7 @@ export function PlatformPreview({
           )}
             </>
           )}
+          </div>
         </div>
 
         {/* Bottom Shortcut Binds Strip */}

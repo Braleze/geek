@@ -1237,7 +1237,9 @@ async function startServer(): Promise<void> {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: process.env.DISABLE_HMR === 'true' ? false : undefined,
+        allowedHosts: true,
+        ws: { server: httpServer },
+        hmr: process.env.DISABLE_HMR === 'true' ? false : true,
       },
       appType: 'spa',
     });

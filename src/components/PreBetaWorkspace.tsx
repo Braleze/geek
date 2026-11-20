@@ -17,6 +17,7 @@ import {
   Users,
   Volume2,
   VolumeX,
+  X,
 } from 'lucide-react';
 import { formatCountdownMs } from '../utils/preBetaSession';
 import type { usePreBetaCall } from '../hooks/usePreBetaCall';
@@ -26,7 +27,10 @@ type PreBetaController = ReturnType<typeof usePreBetaCall>;
 interface PreBetaWorkspaceProps {
   controller: PreBetaController;
   initialJoinCode?: string;
+  showChannels: boolean;
+  onCloseChannels: () => void;
   showMembers: boolean;
+  onCloseMembers: () => void;
 }
 
 function getInitials(nick: string): string {
@@ -40,7 +44,10 @@ function getInitials(nick: string): string {
 export function PreBetaWorkspace({
   controller,
   initialJoinCode = '',
+  showChannels,
+  onCloseChannels,
   showMembers,
+  onCloseMembers,
 }: PreBetaWorkspaceProps) {
   const {
     nick,
@@ -360,32 +367,59 @@ export function PreBetaWorkspace({
 
   return (
     <>
-      {/* Left Pre-Beta Room Sidebar */}
-      <aside className="lg:w-[272px] bg-[#060b14]/92 border-b lg:border-b-0 lg:border-r border-[#00f0ff]/15 flex flex-col justify-between shrink-0 min-h-0">
+      {(showChannels || showMembers) && (
+        <div
+          aria-hidden="true"
+          data-testid="prebeta-drawer-backdrop"
+          onClick={() => {
+            onCloseChannels();
+            onCloseMembers();
+          }}
+          className="lg:hidden absolute inset-0 z-20 bg-black/65 backdrop-blur-[2px]"
+        />
+      )}
 
-        <div className="flex-1 min-h-0 overflow-y-auto geek-chat-scroll">
-          <div className="px-3.5 py-2.5 border-b border-[#ff2a85]/25 flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-[9px] font-extrabold uppercase tracking-wider text-[#ff7aa8]">
-                PRE-BETA КАНАЛ 1-НА-1
+      {/* Left Pre-Beta Room Sidebar */}
+      {showChannels && (
+        <aside
+          aria-label="Канал Pre-Beta"
+          data-testid="prebeta-channels-panel"
+          className="absolute inset-y-0 left-0 z-30 w-[min(86vw,296px)] shadow-[8px_0_32px_rgba(0,0,0,0.75)] lg:static lg:z-auto lg:w-[272px] lg:shadow-none bg-[#060b14]/98 lg:bg-[#060b14]/92 border-r border-[#00f0ff]/30 lg:border-[#00f0ff]/15 flex flex-col justify-between shrink-0 min-h-0"
+        >
+          <div className="flex-1 min-h-0 overflow-y-auto geek-chat-scroll">
+            <div className="px-3.5 py-2.5 border-b border-[#ff2a85]/25 flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="text-[9px] font-extrabold uppercase tracking-wider text-[#ff7aa8]">
+                  PRE-BETA КАНАЛ 1-НА-1
+                </div>
+                <div
+                  data-testid="prebeta-active-code"
+                  className="text-[14px] font-cyber font-black text-white truncate mt-0.5 tracking-wider"
+                >
+                  {roomSnapshot.code}
+                </div>
               </div>
-              <div
-                data-testid="prebeta-active-code"
-                className="text-[14px] font-cyber font-black text-white truncate mt-0.5 tracking-wider"
-              >
-                {roomSnapshot.code}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => void handleCopyText(roomSnapshot.code, 'code')}
+                  aria-label="Скопировать код комнаты"
+                  className="bg-[#00f0ff]/10 border border-[#00f0ff]/40 text-[#00f0ff] text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 cursor-pointer hover:bg-[#00f0ff] hover:text-[#031518] transition-colors shrink-0"
+                >
+                  {copiedCode ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedCode ? 'ОК' : 'КОД'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onCloseChannels}
+                  aria-label="Свернуть панель канала"
+                  title="Свернуть панель канала"
+                  className="w-6 h-6 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={() => void handleCopyText(roomSnapshot.code, 'code')}
-              aria-label="Скопировать код комнаты"
-              className="bg-[#00f0ff]/10 border border-[#00f0ff]/40 text-[#00f0ff] text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1 cursor-pointer hover:bg-[#00f0ff] hover:text-[#031518] transition-colors shrink-0"
-            >
-              {copiedCode ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-              <span>{copiedCode ? 'ОК' : 'КОД'}</span>
-            </button>
-          </div>
 
           {/* Countdown & Share Link Card */}
           <div className="mx-2.5 mt-2.5 mb-2 p-2.5 rounded-lg bg-gradient-to-br from-[#ff2a85]/15 to-[#0a1320]/90 border border-[#ff2a85]/45 space-y-2">
@@ -567,10 +601,11 @@ export function PreBetaWorkspace({
           </div>
         </div>
       </aside>
+      )}
 
       {/* Main Live Dialogue Chat Stream */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-[380px] lg:min-h-0 bg-[#08101c]/90">
-        <div className="shrink-0 m-3 mb-0 px-3 py-2 rounded-[10px] bg-[#0a1320]/90 border border-[#ff2a85]/35 flex items-center justify-between gap-3">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0 bg-[#08101c]/90">
+        <div className="shrink-0 m-2.5 sm:m-3 mb-0 px-3 py-2 rounded-[10px] bg-[#0a1320]/90 border border-[#ff2a85]/35 flex items-center justify-between gap-2.5">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-[#ff2a85] text-lg font-black">#</span>
             <div className="min-w-0">
@@ -592,7 +627,7 @@ export function PreBetaWorkspace({
         <div
           ref={messagesContainerRef}
           data-testid="prebeta-messages"
-          className="flex-1 min-h-0 px-3 py-3 space-y-2 overflow-y-auto geek-chat-scroll max-h-[380px] lg:max-h-none"
+          className="flex-1 min-h-0 px-2.5 sm:px-3 py-3 space-y-2 overflow-y-auto geek-chat-scroll"
         >
           {roomSnapshot.messages.map((msg) => {
             const timeStr = new Date(msg.timestamp).toLocaleTimeString('ru-RU', {
@@ -645,28 +680,28 @@ export function PreBetaWorkspace({
           </div>
           <form onSubmit={handleSendChat} data-testid="prebeta-chat-form" className="flex items-center gap-2">
             <span
-              className="w-9 h-9 rounded-md bg-[#00f0ff]/10 border border-[#00f0ff]/40 text-[#00f0ff] flex items-center justify-center shrink-0"
+              className="hidden sm:flex w-9 h-9 rounded-md bg-[#00f0ff]/10 border border-[#00f0ff]/40 text-[#00f0ff] items-center justify-center shrink-0"
               aria-hidden="true"
             >
               <Paperclip className="w-4 h-4" />
             </span>
-              <input
-                type="text"
-                value={chatDraft}
-                onChange={(e) => setChatDraft(e.target.value)}
-                placeholder="Написать собеседнику в реальном времени..."
-                aria-label="Сообщение в живой Pre-Beta диалог"
-                data-testid="prebeta-chat-input"
-                className="flex-1 min-w-0 bg-[#050a12] border border-[#00f0ff]/20 focus:border-[#00f0ff] focus:outline-none rounded-md px-3 py-2 text-sm text-[#e6f7ff] placeholder:text-[#63809b]"
-              />
-              <button
-                type="submit"
-                data-testid="prebeta-chat-send"
-                className="bg-[#00f0ff] text-[#031518] px-3.5 py-2 rounded-md font-extrabold text-[11.5px] uppercase hover:brightness-110 transition-all cursor-pointer shrink-0"
-              >
-                ОТПРАВИТЬ
-              </button>
-            </form>
+            <input
+              type="text"
+              value={chatDraft}
+              onChange={(e) => setChatDraft(e.target.value)}
+              placeholder="Написать собеседнику..."
+              aria-label="Сообщение в живой Pre-Beta диалог"
+              data-testid="prebeta-chat-input"
+              className="flex-1 min-w-0 bg-[#050a12] border border-[#00f0ff]/20 focus:border-[#00f0ff] focus:outline-none rounded-md px-3 py-2 text-sm text-[#e6f7ff] placeholder:text-[#63809b]"
+            />
+            <button
+              type="submit"
+              data-testid="prebeta-chat-send"
+              className="bg-[#00f0ff] text-[#031518] px-3 sm:px-3.5 py-2 rounded-md font-extrabold text-[11px] sm:text-[11.5px] uppercase hover:brightness-110 transition-all cursor-pointer shrink-0"
+            >
+              ОТПРАВИТЬ
+            </button>
+          </form>
         </div>
       </div>
 
@@ -674,11 +709,23 @@ export function PreBetaWorkspace({
       {showMembers && (
         <aside
           aria-label="Участники Pre-Beta диалога"
-          className="lg:w-[225px] bg-[#060b14]/92 border-t lg:border-t-0 lg:border-l border-[#00f0ff]/15 px-2.5 py-3 shrink-0 min-h-0 lg:overflow-y-auto geek-chat-scroll"
+          data-testid="prebeta-members-panel"
+          className="absolute inset-y-0 right-0 z-30 w-[min(82vw,260px)] shadow-[-8px_0_32px_rgba(0,0,0,0.75)] lg:static lg:z-auto lg:w-[225px] lg:shadow-none bg-[#060b14]/98 lg:bg-[#060b14]/92 border-l border-[#00f0ff]/30 lg:border-[#00f0ff]/15 px-2.5 py-3 shrink-0 min-h-0 overflow-y-auto geek-chat-scroll"
         >
-          <div className="text-[10.5px] font-extrabold uppercase text-[#00f0ff] px-1.5 pb-2 flex items-center gap-1.5">
-            <Users className="w-3.5 h-3.5" />
-            <span>В ДИАЛОГЕ — {peers.length}/2</span>
+          <div className="flex items-center justify-between gap-2 px-1.5 pb-2">
+            <div className="text-[10.5px] font-extrabold uppercase text-[#00f0ff] flex items-center gap-1.5 min-w-0">
+              <Users className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">В ДИАЛОГЕ — {peers.length}/2</span>
+            </div>
+            <button
+              type="button"
+              onClick={onCloseMembers}
+              aria-label="Свернуть список участников"
+              title="Свернуть список участников"
+              className="w-6 h-6 rounded bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center cursor-pointer transition-colors shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
           <div className="space-y-1.5">
             {peers.map((peer) => (
