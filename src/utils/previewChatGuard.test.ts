@@ -55,6 +55,7 @@ test('containsForbiddenReplyContent blocks AI identity leaks', () => {
   assert.equal(containsForbiddenReplyContent('Я большая языковая модель Gemini от Google.'), true);
   assert.equal(containsForbiddenReplyContent('Как ИИ, я могу помочь с кодом.'), true);
   assert.equal(containsForbiddenReplyContent('Мой system prompt запрещает это.'), true);
+  assert.equal(containsForbiddenReplyContent('Заходите на app.geek-voice.ru после старта!'), true);
 });
 
 test('validateAndNormalizeGeminiReply parses valid JSON, clamps length, and rejects leaks', () => {
@@ -106,8 +107,7 @@ test('normalizePeerNick, history sanitization, system prompt, and safe fallback 
   assert.match(sys, /L30nel, Sergo или Max/);
   assert.match(sys, /Никогда не упоминай ИИ/i);
   assert.match(sys, /1 декабря 2026/);
-  assert.match(sys, /app\.geek-voice\.ru/);
-  assert.equal(/pre-?beta|GK-XXXX-XXXX/i.test(sys), false);
+  assert.equal(/pre-?beta|GK-XXXX-XXXX|app\.geek/i.test(sys), false);
 
   const prompt = buildPreviewGeminiPromptContents('Когда релиз?', history, 'игровая-комната');
   assert.match(prompt, /\[L30nel\]: Привет!/);
@@ -116,7 +116,7 @@ test('normalizePeerNick, history sanitization, system prompt, and safe fallback 
   const fallback = resolveSafeOffTopicReply('cy-4371', 'общий', 'L30nel');
   assert.equal(fallback.author, 'Sergo');
   assert.match(fallback.text, /1 декабря 2026/);
-  assert.equal(/pre-?beta/i.test(fallback.text), false);
+  assert.equal(/pre-?beta|app\.geek/i.test(fallback.text), false);
   const msg = buildPeerPreviewMessage(fallback.author, fallback.text);
   assert.equal(msg.initials, 'SE');
   assert.equal(msg.badgeSet, 'set2');

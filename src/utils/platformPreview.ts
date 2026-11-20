@@ -227,7 +227,7 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
             avatarColor: '#b829ff',
             badgeSet: 'set1',
             time: '19:45',
-            text: 'Отличный апдейт! Выходим на финишную прямую к релизу 1 декабря 2026 на app.geek-voice.ru, все новости — в @geek_mes.',
+            text: 'Отличный апдейт! Выходим на финишную прямую к релизу 1 декабря 2026, все новости — в @geek_mes.',
           },
         ],
       },
@@ -341,7 +341,7 @@ export const PREVIEW_SERVERS: PreviewServer[] = [
 
 export const PREVIEW_QUICK_QUESTIONS: string[] = [
   'Когда официальный релиз Geek?',
-  'Где откроется приложение?',
+  'Как зайти в Geek после старта?',
   'Как работает P2P-голос?',
   'Сколько разработчиков делают Geek?',
   'Будет ли бесплатно?',
@@ -405,10 +405,10 @@ export function generatePreviewPeerReply(
     preferredAuthor = 'Sergo';
     answerText =
       'Geek пилим втроём — L30nel, Sergo и Max на чистом энтузиазме в свободное время. Готовим платформу к релизу 1 декабря 2026 и прорабатываем каждую деталь — от голоса до интерфейса!';
-  } else if (/где\s+откро|сайт|ссылк|домен|app\.geek|перейти|куда\s+заход|как\s+попаст|войти|приложен/.test(q)) {
+  } else if (/где\s+откро|сайт|ссылк|домен|перейти|куда\s+заход|как\s+попаст|как\s+зайт|войти|приложен/.test(q)) {
     preferredAuthor = serverId === 'hc-node' ? 'Sergo' : 'L30nel';
     answerText =
-      'Официальный старт — 1 декабря 2026 года в 12:00 по Москве. Как только таймер на главной дойдёт до нуля, появится кнопка «Перейти в GEEK» с прямым входом на app.geek-voice.ru!';
+      'Официальный старт — 1 декабря 2026 года в 12:00 по Москве. Как только таймер на главной дойдёт до нуля, прямо на его месте появится кнопка «Перейти в GEEK» для входа на платформу!';
   } else if (/голос|звук|микрофон|webrtc|p2p|пинг|задерж|эхо|звон|слыш|релей|relay/.test(q)) {
     preferredAuthor = 'Sergo';
     answerText =
@@ -420,7 +420,7 @@ export function generatePreviewPeerReply(
   } else if (/релиз|когда\s+выйд|бета|тест|старт|запуск|декабр|таймер|дорожн|roadmap|план/.test(q)) {
     preferredAuthor = serverId === 'cy-4371' ? 'L30nel' : 'Max';
     answerText =
-      'Официальный релиз Geek назначен на 1 декабря 2026 года в 12:00 по Москве! Обратный отсчёт уже идёт на главной, а после запуска откроется прямой переход на app.geek-voice.ru. Все новости публикуем в Telegram @geek_mes.';
+      'Официальный релиз Geek назначен на 1 декабря 2026 года в 12:00 по Москве! Обратный отсчёт уже идёт на главной, а в момент запуска появится кнопка «Перейти в GEEK». Все новости публикуем в Telegram @geek_mes.';
   } else if (/цен|бесплат|платн|подписк|стои|деньг|донат|нитро|nitro/.test(q)) {
     preferredAuthor = 'Max';
     answerText =
@@ -428,7 +428,7 @@ export function generatePreviewPeerReply(
   } else if (/устройств|платформ|windows|mac|linux|ios|android|телефон|мобил|браузер|скачат|пк|pwa/.test(q)) {
     preferredAuthor = 'Sergo';
     answerText =
-      'На релизе 1 декабря 2026 Geek откроется в браузере на app.geek-voice.ru и как устанавливаемое PWA-приложение, а следующим шагом выйдут нативные клиенты для Windows, macOS, Linux, iOS и Android.';
+      'На релизе 1 декабря 2026 Geek откроется в браузере и как устанавливаемое PWA-приложение, а следующим шагом выйдут нативные клиенты для Windows, macOS, Linux, iOS и Android.';
   } else if (/discord|дискорд|импорт|перенес/.test(q)) {
     preferredAuthor = serverId === 'hc-node' ? 'Sergo' : 'Max';
     answerText =
@@ -443,10 +443,10 @@ export function generatePreviewPeerReply(
       'Напиши нам через форму «Обратная связь» ниже на странице, на почту admin@geek-voice.ru или залетай в Telegram @geek_mes — всё попадает напрямую нашей тройке разработчиков.';
   } else if (/^(привет|здаров|здравств|хай|ку|салют|йо|hello|hi|hey|как\s+дела|кто\s+тут|вы\s+тут)\b/.test(q)) {
     preferredAuthor = serverId === 'cy-4371' ? 'L30nel' : undefined;
-    answerText = `Привет! Добро пожаловать в #${channelId}. Тут в сети L30nel, Sergo и Max — спрашивай про релиз 1 декабря 2026 на app.geek-voice.ru, P2P-голос, платформы или нашу разработку.`;
+    answerText = `Привет! Добро пожаловать в #${channelId}. Тут в сети L30nel, Sergo и Max — спрашивай про релиз 1 декабря 2026, P2P-голос, платформы или нашу разработку.`;
   } else {
     const snippet = clean.length > 52 ? `${clean.slice(0, 52)}...` : clean;
-    answerText = `По вопросу «${snippet}»: в #${channelId} мы готовим релиз Geek 1 декабря 2026 в 12:00 МСК на app.geek-voice.ru. Нас трое (L30nel, Sergo и Max), делаем прямой P2P-голос, E2E-приватность и бесплатный базовый доступ. Спроси подробнее про любую из этих тем!`;
+    answerText = `По вопросу «${snippet}»: в #${channelId} мы готовим релиз Geek 1 декабря 2026 в 12:00 МСК. Нас трое (L30nel, Sergo и Max), делаем прямой P2P-голос, E2E-приватность и бесплатный базовый доступ. Спроси подробнее про любую из этих тем!`;
   }
 
   const peer = pickServerPeer(serverId, preferredAuthor, replyIndex);

@@ -58,24 +58,23 @@ test('generatePreviewPeerReply answers user questions in-character from L30nel, 
   assert.equal(voiceReply.author, 'Sergo');
   assert.match(voiceReply.text, /WebRTC P2P/i);
 
-  const launchReply = generatePreviewPeerReply('Где откроется приложение?', 'cy-4371', 'общий', fixed, 2);
+  const launchReply = generatePreviewPeerReply('Как зайти в Geek после старта?', 'cy-4371', 'общий', fixed, 2);
   assert.ok(launchReply);
   assert.equal(launchReply.author, 'L30nel');
   assert.match(launchReply.text, /1 декабря 2026/);
-  assert.match(launchReply.text, /app\.geek-voice\.ru/);
-  assert.equal(/pre-?beta|GK-XXXX-XXXX/i.test(launchReply.text), false);
+  assert.match(launchReply.text, /Перейти в GEEK/);
+  assert.equal(/pre-?beta|GK-XXXX-XXXX|app\.geek/i.test(launchReply.text), false);
 
   const releaseReply = generatePreviewPeerReply('Когда официальный релиз Geek?', 'cy-4371', 'общий', fixed, 3);
   assert.ok(releaseReply);
   assert.match(releaseReply.text, /1 декабря 2026/);
-  assert.match(releaseReply.text, /app\.geek-voice\.ru/);
-  assert.equal(/pre-?beta/i.test(releaseReply.text), false);
+  assert.equal(/pre-?beta|app\.geek/i.test(releaseReply.text), false);
 
   const customReply = generatePreviewPeerReply('Есть ли поддержка кастомных тем?', 'ma-club', 'идеи-комьюнити', fixed, 4);
   assert.ok(customReply);
   assert.equal(customReply.author, 'Max');
   assert.ok(customReply.text.length > 20);
-  assert.equal(/pre-?beta/i.test(customReply.text), false);
+  assert.equal(/pre-?beta|app\.geek/i.test(customReply.text), false);
 });
 
 test('preview messages contain no removed keypad Easter egg clues or secret codes', () => {
