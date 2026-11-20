@@ -21,9 +21,15 @@ Options -Indexes
 
   # Route root PWA files & Workbox precached assets to site/ so SW keeps root "/" scope
   RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteRule ^(manifest\.webmanifest|sw\.js|registerSW\.js|workbox-[a-zA-Z0-9._-]+\.js|pwa-[a-zA-Z0-9._-]+\.png|apple-touch-icon\.png|icon\.svg)$ site/$1 [L]
+  RewriteRule ^(manifest\.webmanifest|sw\.js|registerSW\.js|workbox-[a-zA-Z0-9._-]+\.js)$ site/$1 [L]
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteRule ^assets/(.+)$ site/assets/$1 [L]
+
+  # Route PWA icons to public/ (always preserved in project ZIP) if not present at root or in site/
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^(pwa-[a-zA-Z0-9._-]+\.png|apple-touch-icon\.png|icon\.svg)$ public/$1 [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteRule ^site/(pwa-[a-zA-Z0-9._-]+\.png|apple-touch-icon\.png|icon\.svg)$ public/$1 [L]
 </IfModule>
 
 # Block direct HTTP access to source code, server configs, private PHP configs, and SQLite DB files

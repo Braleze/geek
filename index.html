@@ -134,11 +134,34 @@
               (bootErr
                 ? '<p style="margin:0 0 12px;padding:8px 10px;border-radius:8px;background:#050814;border:1px solid rgba(255,42,133,0.35);color:#ff80a0;font-family:monospace;font-size:12px;word-break:break-all;"></p>'
                 : '') +
-              '<button type="button" onclick="location.reload()" style="padding:8px 14px;border-radius:8px;border:1px solid #00f0ff;background:rgba(0,240,255,0.15);color:#fff;font-weight:700;cursor:pointer;">Обновить страницу</button>' +
+              '<button type="button" id="geek-hard-reload-btn" style="padding:8px 14px;border-radius:8px;border:1px solid #00f0ff;background:rgba(0,240,255,0.15);color:#fff;font-weight:700;cursor:pointer;">Очистить кэш и обновить</button>' +
               '</div>';
             if (bootErr) {
               var errBox = root.querySelector('p[style*="monospace"]');
               if (errBox) errBox.textContent = bootErr;
+            }
+            var btn = document.getElementById('geek-hard-reload-btn');
+            if (btn) {
+              btn.addEventListener('click', function () {
+                var tasks = [];
+                if ('caches' in window) {
+                  tasks.push(
+                    caches.keys().then(function (keys) {
+                      return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+                    }).catch(function () {})
+                  );
+                }
+                if ('serviceWorker' in navigator) {
+                  tasks.push(
+                    navigator.serviceWorker.getRegistrations().then(function (regs) {
+                      return Promise.all(regs.map(function (r) { return r.unregister(); }));
+                    }).catch(function () {})
+                  );
+                }
+                Promise.all(tasks).finally(function () {
+                  location.reload();
+                });
+              });
             }
           }, 3500);
         });

@@ -15,36 +15,17 @@ export default defineConfig(() => {
     build: {
       minify: true,
       cssMinify: true,
-      chunkSizeWarningLimit: 600,
+      chunkSizeWarningLimit: 800,
       rolldownOptions: {
         output: {
           entryFileNames: 'assets/app.js',
-          chunkFileNames: 'assets/chunk-[name].js',
+          codeSplitting: false,
           assetFileNames: (assetInfo) => {
             const name = assetInfo.names?.[0] ?? assetInfo.name ?? '';
             if (name.endsWith('.css')) {
               return 'assets/app.css';
             }
             return 'assets/[name][extname]';
-          },
-          codeSplitting: {
-            groups: [
-              {
-                name: 'vendor-react',
-                test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/,
-                priority: 30,
-              },
-              {
-                name: 'vendor-motion',
-                test: /node_modules[\\/](motion|motion-dom|motion-utils|framer-motion)[\\/]/,
-                priority: 20,
-              },
-              {
-                name: 'vendor-ui',
-                test: /node_modules[\\/]/,
-                priority: 10,
-              },
-            ],
           },
         },
       },
@@ -201,7 +182,7 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
+          globPatterns: ['**/*.{ico,png,svg,woff,woff2}'],
           globIgnores: ['**/api/**', '**/aistudio/**', 'manifest.json', 'src/**'],
           navigateFallback: null,
           cleanupOutdatedCaches: true,
@@ -230,6 +211,21 @@ export default defineConfig(() => {
             {
               urlPattern: /\.php(\?.*)?$/i,
               handler: 'NetworkOnly',
+            },
+            {
+              urlPattern: /\/assets\/.*\.(?:js|css)(\?.*)?$/i,
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'geek-app-assets-v2',
+                networkTimeoutSeconds: 4,
+                expiration: {
+                  maxEntries: 16,
+                  maxAgeSeconds: 60 * 60 * 24 * 7,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
             },
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
