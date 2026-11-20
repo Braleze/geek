@@ -1,6 +1,6 @@
 {
   "name": "Geek — Платформа нового поколения",
-  "description": "Платформа нового поколения для связи и комьюнити с секретной комнатой и кодовой панелью.",
+  "description": "Платформа нового поколения для связи и комьюнити: P2P-голос, чаты и приватность.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -103,29 +103,6 @@
   animation: floatSlow 6s ease-in-out infinite;
 }
 
-@keyframes keypadShake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20% {
-    transform: translateX(-8px);
-  }
-  40% {
-    transform: translateX(8px);
-  }
-  60% {
-    transform: translateX(-6px);
-  }
-  80% {
-    transform: translateX(6px);
-  }
-}
-
-.animate-shake {
-  animation: keypadShake 0.36s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-
 .gradient-text {
   background: linear-gradient(135deg, #00f0ff 0%, #ff007f 55%, #fcee0a 100%);
   -webkit-background-clip: text;
@@ -233,7 +210,6 @@
 @media (prefers-reduced-motion: reduce) {
   .retro-grid,
   .floating,
-  .animate-shake,
   .geek-badge-set1,
   .geek-badge-set2,
   .geek-badge-set3,

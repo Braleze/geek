@@ -1,13 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react';
+import { useEffect, useState, type CSSProperties, type PointerEvent } from 'react';
 import { ArrowUp, Bolt, Check, Hash, Mic, PhoneCall, Send, Share2, ShieldCheck } from 'lucide-react';
 import { GeekLogo } from './components/GeekLogo';
-import { SecretRoomModal } from './components/SecretRoomModal';
 import { PlatformPreview } from './components/PlatformPreview';
 import { RoadmapSection } from './components/RoadmapSection';
 import { FaqSection } from './components/FaqSection';
 import { FeedbackSection } from './components/FeedbackSection';
-import { registerVoicePanelTap, type VoicePanelTapState } from './utils/secretCode';
-import { warmUpKeypadAudio } from './utils/rickrollAudio';
 
 const FEATURES = [
   {
@@ -45,12 +42,10 @@ const FEATURES = [
 ];
 
 export default function App() {
-  const [isSecretRoomOpen, setIsSecretRoomOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [preBetaOpenSignal, setPreBetaOpenSignal] = useState(0);
   const [isPreviewFullscreen, setIsPreviewFullscreen] = useState(false);
-  const voiceTapRef = useRef<VoicePanelTapState>({ count: 0, lastTapMs: 0 });
 
   const handleOpenPreBeta = () => {
     window.__GEEK_OPEN_PREBETA_ON_MOUNT__ = true;
@@ -64,18 +59,6 @@ export default function App() {
     setPreBetaOpenSignal((prev) => prev + 1);
     document.getElementById('preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
-
-  // Global keyboard shortcut Shift+G opens the Secret Room
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.shiftKey && event.key.toLowerCase() === 'g') {
-        event.preventDefault();
-        setIsSecretRoomOpen(true);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, []);
 
   // Track scroll position for floating Back-to-Top button
   useEffect(() => {
@@ -311,22 +294,10 @@ export default function App() {
               event.currentTarget.style.setProperty('--my', `${event.clientY - rect.top}px`);
             };
 
-            const handleVoicePanelClick = () => {
-              if (feature.id !== 'voice') return;
-              const next = registerVoicePanelTap(voiceTapRef.current, Date.now());
-              voiceTapRef.current = { count: next.count, lastTapMs: next.lastTapMs };
-              if (next.triggered) {
-                warmUpKeypadAudio();
-                setIsSecretRoomOpen(true);
-              }
-            };
-
             return (
               <div
                 key={feature.id}
                 onPointerMove={handleMove}
-                onClick={feature.id === 'voice' ? handleVoicePanelClick : undefined}
-                data-testid={feature.id === 'voice' ? 'p2p-voice-panel' : undefined}
                 style={{ '--spot-color': spotColor } as CSSProperties}
                 className={`neon-card p-6 rounded-2xl bg-[#150f24]/80 hover:bg-[#1c1432]/95 hover:-translate-y-1 border ${cardHover} backdrop-blur-md transition-all duration-300 group select-none`}
               >
@@ -404,11 +375,6 @@ export default function App() {
         </button>
       )}
 
-      {/* Secret Room & Code Password Panel */}
-      <SecretRoomModal
-        isOpen={isSecretRoomOpen}
-        onClose={() => setIsSecretRoomOpen(false)}
-      />
     </div>
   );
 }

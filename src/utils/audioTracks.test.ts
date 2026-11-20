@@ -8,42 +8,22 @@ import {
   type AudioElementLike,
 } from './audioTracks';
 
-const FORBIDDEN_DIGITS = ['20' + '13', '20' + '27', '20' + '77', '06' + '02'];
-
-test('TRACK_FILENAMES use expected clean names without exposing secret codes', () => {
+test('TRACK_FILENAMES only defines active preview audio track', () => {
+  assert.deepEqual(TRACK_BASENAMES, {
+    l30nel: 'l30nel',
+  });
   assert.deepEqual(TRACK_FILENAMES, {
-    rickroll: 'rickroll.mp3',
-    cyberpunk: 'cyberpunk.mp3',
-    tribute: 'gorshenev.mp3',
-    love: 'love.mp3',
     l30nel: 'l30nel.mp3',
   });
-
-  const combined = [
-    ...Object.values(TRACK_BASENAMES),
-    ...Object.values(TRACK_FILENAMES),
-  ].join(' ');
-
-  for (const digits of FORBIDDEN_DIGITS) {
-    assert.equal(combined.includes(digits), false, `Filename must not expose ${digits}`);
-  }
 });
 
 test('getTrackCandidateUrls orders ./audio and ./public/audio candidates cleanly', () => {
-  const tributeUrls = getTrackCandidateUrls('tribute');
-  assert.equal(tributeUrls[0], './audio/gorshenev.mp3');
-  assert.equal(tributeUrls[1], './public/audio/gorshenev.mp3');
-  assert.ok(tributeUrls.includes('./audio/gorshenev.ogg'));
-  assert.ok(tributeUrls.includes('./audio/gorshenev.wav'));
-  assert.ok(tributeUrls.includes('./audio/gorshenev.m4a'));
-
-  const loveUrls = getTrackCandidateUrls('love');
-  assert.equal(loveUrls[0], './audio/love.mp3');
-  assert.equal(loveUrls[1], './public/audio/love.mp3');
-
   const l30nelUrls = getTrackCandidateUrls('l30nel');
   assert.equal(l30nelUrls[0], './audio/l30nel.mp3');
   assert.equal(l30nelUrls[1], './public/audio/l30nel.mp3');
+  assert.ok(l30nelUrls.includes('./audio/l30nel.ogg'));
+  assert.ok(l30nelUrls.includes('./audio/l30nel.wav'));
+  assert.ok(l30nelUrls.includes('./audio/l30nel.m4a'));
 });
 
 test('TrackAudioPlayer cycles candidates on error, handles mute/unmute, and stops cleanly', () => {
@@ -72,20 +52,18 @@ test('TrackAudioPlayer cycles candidates on error, handles mute/unmute, and stop
     },
   };
 
-  const player = new TrackAudioPlayer('cyberpunk', () => fakeAudio);
+  const player = new TrackAudioPlayer('l30nel', () => fakeAudio);
   player.start();
 
   assert.equal(fakeAudio.loop, true);
   assert.equal(fakeAudio.volume, 0.85);
-  assert.equal(player.getCurrentUrl(), './audio/cyberpunk.mp3');
+  assert.equal(player.getCurrentUrl(), './audio/l30nel.mp3');
   assert.equal(fakeState.playCount, 1);
 
-  // Simulate 404 on first candidate -> falls back to ./public/audio/cyberpunk.mp3
   fakeAudio.onerror?.('error');
-  assert.equal(player.getCurrentUrl(), './public/audio/cyberpunk.mp3');
+  assert.equal(player.getCurrentUrl(), './public/audio/l30nel.mp3');
   assert.equal(fakeState.playCount, 2);
 
-  // Mute and unmute resumes if paused
   player.setMuted(true);
   assert.equal(fakeAudio.muted, true);
   assert.equal(player.isMuted(), true);
@@ -94,7 +72,6 @@ test('TrackAudioPlayer cycles candidates on error, handles mute/unmute, and stop
   assert.equal(fakeAudio.muted, false);
   assert.equal(fakeState.playCount, 3);
 
-  // Stop cleans up handlers and resets src
   player.stop();
   assert.equal(fakeState.pauseCount, 1);
   assert.equal(fakeAudio.src, '');
@@ -119,8 +96,8 @@ test('TrackAudioPlayer stops gracefully when all candidate files are missing', (
     },
   };
 
-  const totalCandidates = getTrackCandidateUrls('rickroll').length;
-  const player = new TrackAudioPlayer('rickroll', () => fakeAudio);
+  const totalCandidates = getTrackCandidateUrls('l30nel').length;
+  const player = new TrackAudioPlayer('l30nel', () => fakeAudio);
   player.start();
 
   for (let i = 0; i < totalCandidates; i++) {

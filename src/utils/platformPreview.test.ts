@@ -69,41 +69,13 @@ test('generatePreviewPeerReply answers user questions in-character from L30nel, 
   assert.ok(customReply.text.length > 20);
 });
 
-test('user messages embed hard cipher clues for codes 1 and 2 without key 3, terminal instructions, or raw codes', () => {
+test('preview messages contain no removed keypad Easter egg clues or secret codes', () => {
   const allTexts = PREVIEW_SERVERS.flatMap((srv) =>
     srv.textChannels.flatMap((ch) => ch.messages.map((m) => m.text)),
   ).join(' ');
 
-  const l30nelMsg = PREVIEW_SERVERS[0].textChannels[0].messages.find((m) => m.author === 'L30nel');
-  const sergoMsg = PREVIEW_SERVERS[0].textChannels[0].messages.find((m) => m.author === 'Sergo');
-  assert.ok(l30nelMsg);
-  assert.ok(sergoMsg);
-
-  const b64Match = l30nelMsg.text.match(/([A-Za-z0-9+/]+=+)/);
-  const binMatch = l30nelMsg.text.match(/0b([01]+)/);
-  assert.ok(b64Match && binMatch);
-  const decodedYear = Number(Buffer.from(b64Match[1], 'base64').toString('utf8'));
-  const offset = parseInt(binMatch[1], 2);
-  assert.equal(decodedYear + offset, Number(String.fromCharCode(50, 48, 50, 55)));
-
-  const hexMatch = sergoMsg.text.match(/0x([0-9A-Fa-f]+)/);
-  assert.ok(hexMatch);
-  const factorA = parseInt(hexMatch[1], 16);
-  const factorB = 'C'.charCodeAt(0);
-  assert.equal(factorA * factorB, Number(String.fromCharCode(50, 48, 55, 55)));
-
-  const forbiddenCodes = [
-    [50, 48, 49, 51],
-    [50, 48, 50, 55],
-    [50, 48, 55, 55],
-    [48, 54, 48, 50],
-  ].map((arr) => arr.map((c) => String.fromCharCode(c)).join(''));
-  for (const code of forbiddenCodes) {
-    assert.equal(allTexts.includes(code), false);
-  }
-
-  assert.equal(/горшен[её]в|король и шут|ключ\s*0?3/i.test(allTexts), false);
-  assert.equal(/5\s*нажатий|откроют\s*терминал|p2p\s*голос/i.test(allTexts), false);
+  assert.equal(/MTk4Nw==|0b101000|0x1F|заглавную литеру C/i.test(allTexts), false);
+  assert.equal(/горшен[её]в|король и шут|ключ\s*0?3|5\s*нажатий|откроют\s*терминал/i.test(allTexts), false);
 });
 
 import {
